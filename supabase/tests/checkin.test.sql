@@ -28,12 +28,18 @@ begin
   insert into auth.users (
     id, instance_id, aud, role, email, encrypted_password,
     email_confirmed_at, created_at, updated_at,
-    raw_app_meta_data, raw_user_meta_data
+    raw_app_meta_data, raw_user_meta_data,
+    -- GoTrue scans these into Go strings, not pointers, so a NULL here makes
+    -- every sign-in fail with an opaque 500 ("Database error querying
+    -- schema"). They have no column default, so seeding auth.users by hand
+    -- means setting them explicitly.
+    confirmation_token, recovery_token, email_change_token_new, email_change
   ) values (
     p_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
     p_email, 'test-not-a-real-hash', now(), now(), now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
-    json_build_object('first_name', p_first, 'last_name', p_last)::jsonb
+    json_build_object('first_name', p_first, 'last_name', p_last)::jsonb,
+    '', '', '', ''
   );
   -- on_auth_user_created has now created the profile, the member role and the
   -- notification preferences row.

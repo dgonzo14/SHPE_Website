@@ -183,11 +183,6 @@ begin
                               'event_title', v_event.title);
   end if;
 
-  if v_event.status <> 'published' then
-    return jsonb_build_object('ok', false, 'code', 'EVENT_NOT_PUBLISHED',
-                              'event_title', v_event.title);
-  end if;
-
   select * into v_secret
     from public.event_checkin_secrets s
    where s.event_id = p_event_id;
@@ -195,6 +190,19 @@ begin
   if not found
      or v_secret.code_hash <> public.hash_checkin_code(v_secret.code_salt, p_code) then
     return jsonb_build_object('ok', false, 'code', 'INVALID_CODE');
+  end if;
+
+  -- Completed events are closed, not unpublished. Reported after the code
+  -- check so a guess still gets a flat INVALID_CODE.
+  if v_event.status = 'completed' then
+    return jsonb_build_object('ok', false, 'code', 'CHECKIN_CLOSED',
+                              'event_title', v_event.title,
+                              'closed_at', v_event.check_in_closes_at);
+  end if;
+
+  if v_event.status <> 'published' then
+    return jsonb_build_object('ok', false, 'code', 'EVENT_NOT_PUBLISHED',
+                              'event_title', v_event.title);
   end if;
 
   if now() < v_event.check_in_opens_at then
@@ -430,7 +438,11 @@ begin
     select e.id, s.code_salt, s.code_hash
       from public.events e
       join public.event_checkin_secrets s on s.event_id = e.id
-     where e.status = 'published'
+     -- Anything but a draft is a candidate. Restricting this to 'published'
+     -- meant a correct code for a cancelled event fell through to
+     -- INVALID_CODE, which tells the member their code is wrong when it is
+     -- not. checkin_validate below decides the real reason.
+     where e.status <> 'draft'
        and e.start_at between now() - interval '14 days' and now() + interval '14 days'
      order by (now() between e.check_in_opens_at and e.check_in_closes_at) desc,
               abs(extract(epoch from (e.start_at - now())))

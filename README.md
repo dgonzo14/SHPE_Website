@@ -134,11 +134,14 @@ The public pages work with no configuration at all. `/portal` renders a clear
 
 ### With the member portal
 
-Install the [Supabase CLI](https://supabase.com/docs/guides/cli), then:
+The Supabase CLI is a pinned devDependency, so `npm install` already fetched it. You need
+Docker running, then:
 
 ```bash
-supabase start
+npx supabase start
 ```
+
+First run pulls several GB of images and takes a few minutes.
 
 It prints an API URL and an anon key. Put them in `.env.local`:
 
@@ -152,9 +155,11 @@ VITE_BASE_PATH=/
 Apply the schema and load development data:
 
 ```bash
-npm run db:reset      # supabase db reset — runs every migration, then seed.sql
+npm run db:reset      # applies every migration, then seed.sql
 npm run dev
 ```
+
+Stop the stack with `npx supabase stop` when you are done; it keeps its data between runs.
 
 Sign in at <http://localhost:5173/login> with any of the
 [development accounts](#development-accounts).
@@ -305,7 +310,9 @@ form schema, error-message mapping, CSV escaping (including spreadsheet formula 
 `.ics` generation, and the check-in page — including that repeated taps issue exactly one
 request.
 
-**Database (`supabase/tests/*.test.sql`)** is where the security claims are actually proven:
+**Database (`supabase/tests/*.test.sql`)** is where the security claims are actually proven.
+These run against the live local database — which is already seeded — so count assertions are
+scoped to each suite's own fixture rows rather than assuming an empty schema:
 
 - `checkin.test.sql` — valid/invalid codes, before and after the window, cancelled and draft
   events, inactive members, **duplicate check-in awarding no second set of points**, direct

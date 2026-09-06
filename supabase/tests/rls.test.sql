@@ -7,6 +7,12 @@
 -- button the UI does not render, but by issuing the query directly against
 -- PostgREST's `authenticated` role with a member's JWT. If any of these pass
 -- when they should fail, hiding the corresponding UI is worthless.
+--
+-- `supabase test db` runs against the live local database, which has already
+-- been seeded with development data. Count assertions are therefore scoped to
+-- this suite's own fixture rows by id prefix. Assertions about what a member
+-- can see of *their own* data need no scoping: RLS already limits those to the
+-- fixture member, and that is precisely what is being tested.
 -- =============================================================================
 
 begin;
@@ -24,12 +30,18 @@ begin
   insert into auth.users (
     id, instance_id, aud, role, email, encrypted_password,
     email_confirmed_at, created_at, updated_at,
-    raw_app_meta_data, raw_user_meta_data
+    raw_app_meta_data, raw_user_meta_data,
+    -- GoTrue scans these into Go strings, not pointers, so a NULL here makes
+    -- every sign-in fail with an opaque 500 ("Database error querying
+    -- schema"). They have no column default, so seeding auth.users by hand
+    -- means setting them explicitly.
+    confirmation_token, recovery_token, email_change_token_new, email_change
   ) values (
     p_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
     p_email, 'test-not-a-real-hash', now(), now(), now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
-    json_build_object('first_name', p_first, 'last_name', p_last)::jsonb
+    json_build_object('first_name', p_first, 'last_name', p_last)::jsonb,
+    '', '', '', ''
   );
   return p_id;
 end;
@@ -127,7 +139,7 @@ select is(
 );
 
 select is(
-  (select count(*)::int from public.events),
+  (select count(*)::int from public.events where id::text like 'dddddddd-%'),
   2,
   'a member sees published events, including internal ones, but not drafts'
 );
@@ -139,13 +151,13 @@ select is(
 );
 
 select is(
-  (select count(*)::int from public.announcements),
+  (select count(*)::int from public.announcements where id::text like 'eeeeeeee-%'),
   1,
   'a member sees live announcements only, not expired or unpublished ones'
 );
 
 select is(
-  (select title from public.announcements),
+  (select title from public.announcements where id::text like 'eeeeeeee-%'),
   'Live announcement',
   'and it is the live one'
 );
@@ -304,14 +316,22 @@ select is(
   'a self-set "verified" National membership is downgraded to self-reported'
 );
 
-reset role;
+-- Suspend them the way it actually happens: an officer calling the RPC that
+-- the admin portal calls.
+--
+-- The earlier version of this test suspended the member with a raw UPDATE
+-- after `reset role`, which quietly did nothing: the JWT claims were still set
+-- from the previous statement, so profiles_guard_protected_columns saw a
+-- non-officer caller and restored membership_status — the guard defeated the
+-- setup for the test of the guard.
+select set_config('request.jwt.claims',
+                  '{"sub":"aaaaaaaa-0000-4000-8000-000000000003","role":"authenticated"}',
+                  true);
 
--- Membership status is officer-controlled, so a member cannot flip it back.
-update public.profiles
-   set membership_status = 'suspended'
- where id = 'aaaaaaaa-0000-4000-8000-000000000001';
+select public.admin_set_membership_status(
+  'aaaaaaaa-0000-4000-8000-000000000001', 'suspended', 'Suspended for a test');
 
-set local role authenticated;
+-- Back to the member, who tries to undo it.
 select set_config('request.jwt.claims',
                   '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}',
                   true);
@@ -341,13 +361,13 @@ set local role anon;
 select set_config('request.jwt.claims', '', true);
 
 select is(
-  (select count(*)::int from public.events),
+  (select count(*)::int from public.events where id::text like 'dddddddd-%'),
   1,
   'the public calendar shows published, public events only'
 );
 
 select is(
-  (select title from public.events),
+  (select title from public.events where id::text like 'dddddddd-%'),
   'Published Event',
   'and it is the public one'
 );
@@ -399,9 +419,10 @@ select cmp_ok(
 );
 
 select is(
-  (select count(*)::int from public.point_transactions),
+  (select count(*)::int from public.point_transactions
+    where member_id::text like 'aaaaaaaa-%'),
   2,
-  'an officer can read the whole point ledger'
+  'an officer can read every member''s ledger, not just their own'
 );
 
 select throws_ok(
