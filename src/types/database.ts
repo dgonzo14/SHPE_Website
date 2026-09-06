@@ -115,6 +115,8 @@ export interface EventRow {
   check_in_opens_at: string | null;
   check_in_closes_at: string | null;
   status: EventStatus;
+  /** Whether the event shows on the public website calendar. */
+  is_public: boolean;
   capacity: number | null;
   organizer_name: string | null;
   organizer_email: string | null;

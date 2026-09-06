@@ -116,6 +116,7 @@ describe("eventSchema", () => {
     points_value: 15,
     capacity: undefined,
     status: "published" as const,
+    is_public: true,
     organizer_name: "",
     organizer_email: "",
     image_url: "",

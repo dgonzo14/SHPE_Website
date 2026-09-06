@@ -13,6 +13,7 @@ import {
   CardBody,
   CardHeader,
   CardTitle,
+  Checkbox,
   Field,
   Input,
   Select,
@@ -108,6 +109,7 @@ export function AdminEventForm() {
       points_value: 10,
       capacity: undefined,
       status: "draft",
+      is_public: true,
       organizer_name: "",
       organizer_email: "",
       image_url: "",
@@ -129,6 +131,7 @@ export function AdminEventForm() {
       points_value: event.points_value,
       capacity: event.capacity ?? undefined,
       status: event.status,
+      is_public: event.is_public,
       organizer_name: event.organizer_name ?? "",
       organizer_email: event.organizer_email ?? "",
       image_url: event.image_url ?? "",
@@ -157,6 +160,7 @@ export function AdminEventForm() {
     points_value: values.points_value,
     capacity: values.capacity ?? null,
     status: values.status,
+    is_public: values.is_public,
     organizer_name: blankToNull(values.organizer_name),
     organizer_email: blankToNull(values.organizer_email),
     image_url: blankToNull(values.image_url),
@@ -375,6 +379,14 @@ export function AdminEventForm() {
                     />
                   )}
                 </Field>
+
+                <div className="border-t border-gray-100 pt-4">
+                  <Checkbox
+                    {...register("is_public")}
+                    label="Show on the public website"
+                    description="Published events appear on the chapter calendar at /members. Turn this off for exec meetings and anything internal."
+                  />
+                </div>
               </CardBody>
             </Card>
 

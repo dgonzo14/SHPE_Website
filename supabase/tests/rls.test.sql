@@ -13,7 +13,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(36);
+select plan(42);
 
 -- ── Fixtures (fictional people only) ────────────────────────────────────────
 
@@ -56,6 +56,15 @@ values
   ('dddddddd-0000-4000-8000-000000000004', 'Secret Draft',
    'cccccccc-0000-4000-8000-000000000001',
    now() + interval '2 days', now() + interval '2 days 2 hours', 10, 'draft',
+   'aaaaaaaa-0000-4000-8000-000000000003');
+
+-- Published, but internal: members see it, the public website must not.
+insert into public.events
+  (id, title, category_id, start_at, end_at, points_value, status, is_public, created_by)
+values
+  ('dddddddd-0000-4000-8000-000000000007', 'Exec Board Sync',
+   'cccccccc-0000-4000-8000-000000000001',
+   now() + interval '1 day', now() + interval '1 day 1 hour', 0, 'published', false,
    'aaaaaaaa-0000-4000-8000-000000000003');
 
 insert into public.event_checkin_secrets (event_id, code_salt, code_hash)
@@ -119,13 +128,13 @@ select is(
 
 select is(
   (select count(*)::int from public.events),
-  1,
-  'a member sees published events but not drafts'
+  2,
+  'a member sees published events, including internal ones, but not drafts'
 );
 
 select is(
-  (select title from public.events),
-  'Published Event',
+  (select count(*)::int from public.events where title = 'Secret Draft'),
+  0,
   'the draft is invisible, not merely filtered by the client'
 );
 
@@ -316,6 +325,60 @@ select is(
     where id = 'aaaaaaaa-0000-4000-8000-000000000001'),
   'suspended',
   'a member cannot reinstate their own suspended membership'
+);
+
+reset role;
+
+
+-- =============================================================================
+-- AS AN ANONYMOUS VISITOR
+--
+-- The public chapter calendar replaced an embedded Outlook calendar, so `anon`
+-- can now read events. These assertions pin down exactly how far that goes.
+-- =============================================================================
+
+set local role anon;
+select set_config('request.jwt.claims', '', true);
+
+select is(
+  (select count(*)::int from public.events),
+  1,
+  'the public calendar shows published, public events only'
+);
+
+select is(
+  (select title from public.events),
+  'Published Event',
+  'and it is the public one'
+);
+
+select is(
+  (select count(*)::int from public.events where title = 'Exec Board Sync'),
+  0,
+  'an internal event never reaches the public calendar'
+);
+
+-- Row filtering is only half of it: the column-level GRANT is what keeps
+-- organiser contact details and check-in windows off the public site.
+select throws_ok(
+  $$select organizer_email from public.events$$,
+  '42501',
+  null,
+  'the public cannot read organiser contact details'
+);
+
+select throws_ok(
+  $$select check_in_opens_at from public.events$$,
+  '42501',
+  null,
+  'the public cannot read check-in windows'
+);
+
+select throws_ok(
+  $$select * from public.profiles$$,
+  '42501',
+  null,
+  'the public cannot read member profiles'
 );
 
 reset role;

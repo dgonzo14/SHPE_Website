@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { Contact } from "../components/Contact";
 import { Instagram, ExternalLink, Calendar, Trophy } from "lucide-react";
 import { MemberPortalCallout } from "../components/MemberPortalCallout";
+import { PublicEventsSection } from "../features/events/PublicEventsSection";
 import { SEOHead } from "../components/SEOHead";
 
 export function Members() {
@@ -54,7 +55,18 @@ export function Members() {
           </p>
         </header>
 
-        {/* Calendar Section */}
+        {/*
+          The chapter calendar, served from our own database.
+
+          This replaced an embedded Outlook calendar. Officers used to keep two
+          schedules in step by hand — one in Outlook for the public, one in the
+          portal for check-in — and they inevitably drifted. Now an event is
+          created once in the admin portal and appears here, in the member
+          portal, and in the check-in flow.
+
+          Anonymous visitors read these rows through a column-restricted grant,
+          so nothing shown here depends on the client choosing to hide fields.
+        */}
         <section className="mb-12 sm:mb-20" aria-labelledby="events-heading">
           <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-[#5B9BD5]">
             <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
@@ -66,25 +78,14 @@ export function Members() {
               </h2>
             </div>
             <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-              View our calendar to see all upcoming workshops, socials, and networking events.
+              Workshops, socials, and networking events — open to anyone curious about SHPE.
+              Pick a highlighted day to see what is on.
             </p>
-            <div className="w-full h-[400px] sm:h-[500px] lg:h-[600px] rounded-xl overflow-hidden shadow-md border border-gray-200">
-              <iframe
-                src="https://outlook.office365.com/owa/calendar/f8241a43c9054867871293ed9595feca@wustl.edu/9f1b50bdd6934c41977034651bbb2e7b2332332838884438037/calendar.html"
-                className="w-full h-full border-0"
-                title="SHPE Events Calendar"
-                aria-label="SHPE Events Calendar - View upcoming events"
-                loading="lazy"
-              />
-            </div>
+            <PublicEventsSection headingId="events-heading" />
           </div>
         </section>
 
-        {/*
-          Bridge into the portal. The public calendar above stays exactly as it
-          was: this adds a way in for people who are already members, it does
-          not move anything behind a login.
-        */}
+        {/* Bridge into the portal for people who are already members. */}
         <section className="mb-12 sm:mb-20" aria-labelledby="portal-callout-heading">
           <MemberPortalCallout
             headingId="portal-callout-heading"

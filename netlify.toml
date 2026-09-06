@@ -89,7 +89,6 @@
                   https://*.behold.so
                   https://*.supabase.co;
       frame-src   'self'
-                  https://outlook.office365.com
                   https://wustl.advancementform.com;
       connect-src 'self'
                   https://api.behold.so

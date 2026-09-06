@@ -160,6 +160,11 @@ export function AdminEvents() {
                         <Badge tone={EVENT_STATUS_TONE[display]}>
                           {EVENT_STATUS_LABELS[display]}
                         </Badge>
+                        {!event.is_public && (
+                          <Badge tone="neutral" className="ml-1">
+                            Internal
+                          </Badge>
+                        )}
                       </Td>
                       <Td className="text-gray-700">{event.points_value}</Td>
                       <Td>
@@ -202,9 +207,12 @@ export function AdminEvents() {
                       <Link to={`/admin/events/${event.id}`} className="font-semibold">
                         {event.title}
                       </Link>
-                      <Badge tone={EVENT_STATUS_TONE[display]}>
-                        {EVENT_STATUS_LABELS[display]}
-                      </Badge>
+                      <span className="flex flex-wrap gap-1">
+                        <Badge tone={EVENT_STATUS_TONE[display]}>
+                          {EVENT_STATUS_LABELS[display]}
+                        </Badge>
+                        {!event.is_public && <Badge tone="neutral">Internal</Badge>}
+                      </span>
                     </div>
                     <p className="mt-1 text-sm text-gray-600">
                       {formatShortDate(event.start_at)} · {formatTime(event.start_at)} ·{" "}

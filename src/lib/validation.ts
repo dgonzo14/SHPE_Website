@@ -215,6 +215,7 @@ export const eventSchema = z
       .positive("Capacity must be at least 1")
       .optional(),
     status: z.enum(["draft", "published", "cancelled", "completed"]),
+    is_public: z.boolean(),
     organizer_name: optionalText(120),
     organizer_email: z
       .union([z.literal(""), z.email("Enter a valid email address")])

@@ -206,6 +206,7 @@ Migrations are in `supabase/migrations/`, applied in filename order:
 | `…_004_checkin_and_admin_rpc.sql` | Check-in, points summary, dashboard |
 | `…_005_admin_rpc.sql` | Officer/admin operations, analytics |
 | `…_006_reference_data.sql` | Categories, terms, chapter settings, existing public documents |
+| `…_007_public_events.sql` | `is_public` flag, anonymous read access to the chapter calendar |
 
 ```bash
 npm run db:reset    # local: drop, re-migrate, re-seed
@@ -383,6 +384,7 @@ reason to prefer Netlify for production.
 | Email domain | Enforced in the database on signup, configurable, with an explicit allow-list for exceptions. The client-side check is only for a faster error message |
 | Auditability | `admin_audit_log` records role changes, point adjustments, attendance corrections, status changes and code rotations — with actor, timestamp, and reason |
 | Error messages | Structured codes mapped to member-facing sentences. No SQLSTATE, PostgREST body or stack trace ever reaches a user |
+| Public calendar | `anon` reads events through a column-level GRANT plus a row policy (`status <> 'draft' AND is_public`). Organiser contacts, capacity and check-in windows are not in the grant, so they cannot be selected at all |
 | Privacy | Member emails, attendance and points are never public. Portal pages are `noindex, nofollow`; page titles are generic |
 
 Historical records are not deleted to fix mistakes. Events with attendance cannot be deleted
@@ -457,14 +459,28 @@ mutation stays precise.
 
 ### The public site
 
-`/`, `/members`, `/sponsorship`, `/leadership` and `/get-plugged-in` are unchanged in
-behaviour. `/members` remains public, keeping its Outlook calendar embed and lazily-loaded
-Instagram widget; the portal's database events are a separate, authenticated view.
+`/`, `/members`, `/sponsorship`, `/leadership` and `/get-plugged-in` remain public.
 Documents that were public stayed public.
 
-The two calendars are intentionally separate for now. A future sync (Microsoft Graph, or an
-ICS subscription) could join them; until then, an event added to one does not appear in the
-other, and officers should expect to enter portal events in the portal.
+**`/members` now renders the chapter calendar from the database**, replacing the embedded
+Outlook calendar. There is one schedule: an officer creates an event in `/admin/events` and it
+appears on the public calendar, in the member portal, and in the check-in flow. Previously
+those were two lists kept in step by hand, and they drifted.
+
+Anonymous visitors reach events through a **column-level GRANT**, not a client-side filter:
+
+| Public sees | Never leaves the portal |
+| --- | --- |
+| title, description, category, start/end, location, points value, image, status | organiser name and email, capacity, check-in windows, created_by, term, timestamps |
+
+`select *` as `anon` is rejected outright, so adding a sensitive column to `events` cannot
+silently publish it. Rows are filtered by policy to `status <> 'draft' AND is_public`.
+Cancelled events stay visible and struck through — someone who saw "Career Fair Prep, Nov 3"
+is better served by a clear "Cancelled" than by it vanishing.
+
+Each event has an **`is_public` toggle** in the event form (on by default). Turn it off for
+exec syncs and anything internal: members still see it in the portal, the public site never
+does.
 
 ---
 
@@ -481,7 +497,11 @@ Not built, and marked as such rather than stubbed. Nothing here has a dead butto
   be exposed.
 - **Event RSVPs, opportunities board, convention module, committees.** Schema leaves room;
   none are built. Check-in remains authoritative for attendance.
-- **Outlook ↔ portal calendar sync.** Documented above as a known duplication.
+- **Subscribable calendar feed.** Members can add individual events to Google Calendar or
+  download an `.ics`, but there is no single feed URL to subscribe to. That needs an endpoint
+  that generates ICS on request — a Netlify Function would do it.
+- **Bulk event import from CSV.** Officers enter events one form at a time. Parsing a
+  semester of GBMs from a spreadsheet is a natural next step and needs no new backend.
 - **Playwright end-to-end tests.** The critical paths are covered by pgTAP (which tests the
   real guarantees) and Vitest. Browser-level E2E is a reasonable next addition.
 - **Historical data import.** `point_transactions.transaction_type = 'migration'` exists to

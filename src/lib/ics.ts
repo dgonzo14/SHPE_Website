@@ -1,10 +1,9 @@
 /**
- * Calendar export for portal events.
+ * Calendar export for chapter events.
  *
  * Everything is emitted as UTC (`...Z`) rather than as a floating local time,
  * so an event added from a phone in another timezone still lands at the right
- * moment. The public site keeps its Outlook calendar embed; this covers the
- * database-backed events the portal owns.
+ * moment. Used from the public calendar and the member portal alike.
  */
 
 import { toIcsStamp } from "./datetime";

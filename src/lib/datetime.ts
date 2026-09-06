@@ -162,6 +162,18 @@ export function utcIsoToLocalInput(value: DateLike): string {
   return `${get("year")}-${get("month")}-${get("day")}T${hour}:${get("minute")}`;
 }
 
+/**
+ * The chapter-local calendar date an instant falls on, as "YYYY-MM-DD".
+ *
+ * This is what buckets events into calendar cells. A 7pm event in St. Louis is
+ * already tomorrow in UTC, so bucketing on the raw ISO string would scatter
+ * evening events — which is most of them — onto the wrong day.
+ */
+export function chapterDateKey(value: DateLike): string {
+  const local = utcIsoToLocalInput(value);
+  return local ? local.slice(0, 10) : "";
+}
+
 /** Compact UTC stamp for .ics files: 20260918T233000Z */
 export function toIcsStamp(value: DateLike): string {
   const d = toDate(value);

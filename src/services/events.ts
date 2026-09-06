@@ -17,6 +17,11 @@ const EVENT_SELECT =
 export interface EventListFilters {
   /** "upcoming" uses end_at so an event in progress still counts as upcoming. */
   timeframe?: "upcoming" | "past" | "all";
+  /**
+   * Explicit window, for the calendar view. Overrides `timeframe`, and matches
+   * on overlap so a multi-day event spanning the month boundary still appears.
+   */
+  range?: { from: string; to: string } | null;
   categoryId?: string | null;
   termId?: string | null;
   statuses?: EventStatus[];
@@ -31,6 +36,7 @@ export async function fetchEvents(filters: EventListFilters = {}): Promise<Event
     termId = null,
     statuses,
     search = null,
+    range = null,
     limit = 200,
   } = filters;
 
@@ -43,7 +49,12 @@ export async function fetchEvents(filters: EventListFilters = {}): Promise<Event
   }
 
   const nowIso = new Date().toISOString();
-  if (timeframe === "upcoming") {
+  if (range) {
+    query = query
+      .lte("start_at", range.to)
+      .gte("end_at", range.from)
+      .order("start_at", { ascending: true });
+  } else if (timeframe === "upcoming") {
     query = query.gte("end_at", nowIso).order("start_at", { ascending: true });
   } else if (timeframe === "past") {
     query = query.lt("end_at", nowIso).order("start_at", { ascending: false });
@@ -108,6 +119,7 @@ export type EventWritePayload = {
   points_value: number;
   capacity: number | null;
   status: EventStatus;
+  is_public: boolean;
   organizer_name: string | null;
   organizer_email: string | null;
   image_url: string | null;
