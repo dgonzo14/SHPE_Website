@@ -3,31 +3,38 @@
  *
  * DEPLOYMENT BASE PATH
  * --------------------
- * This app is deployed to two different roots:
+ * Production is Netlify, at a root domain, so `base` defaults to "/".
  *
- *   GitHub Pages → https://gabbigabster.github.io/SHPE_Website/  (base "/SHPE_Website/")
- *   Netlify      → https://<site>.netlify.app/                   (base "/")
+ * The chapter moved off GitHub Pages because Pages cannot set HTTP response
+ * headers at all — the Content-Security-Policy, HSTS and Permissions-Policy in
+ * netlify.toml are simply inert there, which is not a reasonable place to serve
+ * a portal holding member data from.
  *
- * `base` is therefore read from VITE_BASE_PATH instead of being hard-coded.
- * It defaults to "/SHPE_Website/" so an un-configured `npm run build` still
- * produces a correct GitHub Pages bundle (the historical behaviour).
+ * `base` stays env-driven rather than hard-coded so a sub-path deployment is
+ * still one variable away:
  *
- * The same value is exposed as import.meta.env.BASE_URL and consumed by
- * App.tsx for React Router's basename and by lib/assets.ts for public assets,
- * so routing AND asset loading follow from this single setting.
+ *   npm run build                                → "/"              (Netlify)
+ *   VITE_BASE_PATH=/SHPE_Website/ npm run build  → "/SHPE_Website/" (GitHub Pages)
+ *
+ * The value is exposed as import.meta.env.BASE_URL and consumed by App.tsx for
+ * React Router's basename and by lib/assets.ts for public assets, so routing
+ * AND asset loading follow from this single setting.
  */
 
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-const DEFAULT_BASE = "/SHPE_Website/";
+const DEFAULT_BASE = "/";
 
 /**
- * GitHub Pages has no SPA rewrite rule: a hard refresh on /SHPE_Website/portal
- * makes it look for a file on disk, fail, and serve 404.html. This plugin emits
- * a 404.html that bounces the deep link back through index.html as a query
- * string, which the inline script in index.html then restores.
+ * Netlify rewrites every unmatched path to index.html (see netlify.toml), so
+ * this 404.html is never reached there. It is emitted anyway because it costs
+ * nothing and it is the whole of what a sub-path static host needs: GitHub
+ * Pages has no rewrite rule, so a hard refresh on /SHPE_Website/portal looks
+ * for a file on disk, fails, and serves 404.html. This bounces the deep link
+ * back through index.html as a query string, which the inline script in
+ * index.html then restores.
  *
  * `segmentCount` must equal the number of path segments in `base`, so the file
  * is generated rather than committed - a base of "/" needs 0, "/SHPE_Website/"

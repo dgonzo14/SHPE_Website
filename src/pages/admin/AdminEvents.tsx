@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, KeyRound, Plus } from "lucide-react";
+import { CalendarDays, KeyRound, Plus, Upload } from "lucide-react";
 
 import { Button, LinkButton } from "@/components/ui/button";
 import {
@@ -33,6 +33,7 @@ import {
   eventDisplayStatus,
 } from "@/lib/eventStatus";
 import { errorText } from "@/lib/errors";
+import { EventCsvImportDialog } from "@/features/events/EventCsvImportDialog";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import type { EventStatus } from "@/types/database";
 
@@ -44,6 +45,7 @@ export function AdminEvents() {
   const [timeframe, setTimeframe] = useState<"upcoming" | "past" | "all">("upcoming");
   const [status, setStatus] = useState<EventStatus | "">("");
   const [issuedCode, setIssuedCode] = useState<{ title: string; code: string } | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const filters = { timeframe, statuses: status ? [status] : undefined, admin: true };
 
@@ -68,10 +70,16 @@ export function AdminEvents() {
         title="Events"
         description="Create, publish and manage chapter events."
         actions={
-          <LinkButton to="/admin/events/new">
-            <Plus className="h-4 w-4" aria-hidden />
-            New event
-          </LinkButton>
+          <>
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4" aria-hidden />
+              Import CSV
+            </Button>
+            <LinkButton to="/admin/events/new">
+              <Plus className="h-4 w-4" aria-hidden />
+              New event
+            </LinkButton>
+          </>
         }
       />
 
@@ -117,7 +125,14 @@ export function AdminEvents() {
           icon={CalendarDays}
           title="No events match these filters"
           description="Create an event to get it on the members' calendar."
-          action={<LinkButton to="/admin/events/new">Create an event</LinkButton>}
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <LinkButton to="/admin/events/new">Create an event</LinkButton>
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                Import a spreadsheet
+              </Button>
+            </div>
+          }
         />
       ) : (
         <>
@@ -239,6 +254,8 @@ export function AdminEvents() {
           </ul>
         </>
       )}
+
+      <EventCsvImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
 
       <Dialog
         open={issuedCode !== null}

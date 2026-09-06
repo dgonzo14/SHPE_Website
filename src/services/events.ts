@@ -196,3 +196,25 @@ export async function fetchEventAttendance(eventId: string): Promise<EventAttend
   if (error) throw error;
   return (data ?? []) as unknown as EventAttendee[];
 }
+
+/**
+ * Bulk insert, for the CSV importer.
+ *
+ * One statement, so the import is all-or-nothing: rows are validated in the
+ * browser before this is called, so a failure here means something unexpected,
+ * and half an imported semester is worse to clean up than none of it.
+ */
+export async function createEvents(
+  payloads: readonly EventWritePayload[],
+  createdBy: string,
+): Promise<EventRow[]> {
+  if (payloads.length === 0) return [];
+
+  const { data, error } = await getSupabase()
+    .from("events")
+    .insert(payloads.map((payload) => ({ ...payload, created_by: createdBy })))
+    .select("*");
+
+  if (error) throw error;
+  return (data ?? []) as EventRow[];
+}

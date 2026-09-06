@@ -56,9 +56,8 @@ The product loop the whole system exists to make reliable:
 ```
 
 **The application is a static bundle.** All privileged logic lives in the database as
-PostgreSQL functions, guarded by Row Level Security. There is no application server, which
-is what lets the exact same build run on GitHub Pages (static hosting, where serverless
-functions cannot run at all) and on Netlify.
+PostgreSQL functions, guarded by Row Level Security. There is no application server to run,
+host or pay for — Netlify serves files, Supabase does the rest.
 
 Three consequences worth knowing before you change anything:
 
@@ -105,7 +104,7 @@ Supporting tables: `announcements`, `resources`, `app_settings`, `notification_p
 | Forms | React Hook Form + Zod 4 |
 | Backend | Supabase — PostgreSQL, Auth, Row Level Security, database functions |
 | Tests | Vitest + Testing Library (frontend), pgTAP (database) |
-| Hosting | GitHub Pages (current) and/or Netlify |
+| Hosting | Netlify (free tier) |
 
 Dates are handled with the platform's `Intl` API against an explicit
 `America/Chicago` timezone. No date library is needed and daylight saving is correct by
@@ -174,7 +173,7 @@ bundle and is public.**
 | --- | --- | --- |
 | `VITE_SUPABASE_URL` | for the portal | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | for the portal | Public anon key — see below |
-| `VITE_BASE_PATH` | no | `/SHPE_Website/` (default, GitHub Pages) or `/` (root domain) |
+| `VITE_BASE_PATH` | no | Defaults to `/` (Netlify). Set to `/SHPE_Website/` only for a sub-path host |
 | `VITE_SITE_URL` | recommended | Canonical origin used to build auth redirect URLs |
 | `VITE_ALLOWED_EMAIL_DOMAINS` | no | Client-side registration hint; defaults to `wustl.edu` |
 | `SUPABASE_SERVICE_ROLE_KEY` | never in the app | Bypasses RLS entirely. Server/CLI use only |
@@ -188,9 +187,11 @@ Where secrets live:
 
 | Secret | Where it goes |
 | --- | --- |
-| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SITE_URL` | GitHub Actions repository secrets, and Netlify environment variables |
-| `VITE_ALLOWED_EMAIL_DOMAINS` | GitHub Actions repository *variable*, and Netlify env |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SITE_URL` | Netlify → Site configuration → Environment variables |
+| `VITE_ALLOWED_EMAIL_DOMAINS` | Netlify environment variables |
 | `SUPABASE_SERVICE_ROLE_KEY` | Nowhere in this repo. Supabase dashboard, or your own shell |
+
+CI does not need any of them: the build must succeed without Supabase configured, and does.
 
 ---
 
@@ -320,22 +321,45 @@ request.
 
 ## Deployment
 
-The build reads `VITE_BASE_PATH` and produces a correct bundle for either host.
+**Production is Netlify.** Connect the repository once in the Netlify UI; `netlify.toml`
+carries the build command, the SPA rewrite and every security header. Pushes to `main` deploy
+automatically, and `.github/workflows/ci.yml` runs lint, typecheck, build and tests on every
+pull request and on `main`.
 
-### GitHub Pages (current production)
+### Why not GitHub Pages
 
-`.github/workflows/deploy.yml` runs on push to `main`: lint, test, build, deploy.
-`VITE_BASE_PATH` is left unset, which defaults to `/SHPE_Website/`.
+The chapter moved off Pages, and the reason is worth keeping written down: **GitHub Pages
+cannot set HTTP response headers.** The Content-Security-Policy, HSTS, `X-Frame-Options` and
+`Permissions-Policy` in `netlify.toml` are simply inert there. Serving a portal that holds
+member attendance and contact details from a host where you cannot set a CSP is the weakest
+link in an otherwise careful design. Cost was never the deciding factor — both are free at
+chapter scale.
 
-Deep links work because `vite.config.ts` **generates** `dist/404.html` at build time with a
-segment count derived from the base path. (A hand-maintained `404.html` used to sit at the
-repository root, outside `public/`, so Vite never copied it into `dist` — deep links and hard
-refreshes were silently broken. Generating it removes both the copy and the drift.)
+Nothing is locked in. `base` is still env-driven, so a sub-path static host is one variable
+away:
 
-### Netlify
+```bash
+VITE_BASE_PATH=/SHPE_Website/ npm run build   # then publish dist/ anywhere
+```
 
-`netlify.toml` sets `VITE_BASE_PATH = "/"` and a `/*  →  /index.html  200` rewrite for SPA
-routing. Add the Supabase variables in the Netlify UI.
+`vite.config.ts` **generates** `dist/404.html` with a segment count derived from the base
+path, which is the deep-link fallback such a host needs. (A hand-maintained `404.html` used to
+sit at the repository root, outside `public/`, so Vite never copied it into `dist` — deep
+links and hard refreshes were silently broken. Generating it removes both the copy and the
+drift.) Netlify never reaches it, because the `/* → /index.html 200` rewrite handles SPA
+routing first.
+
+### Running costs
+
+$0 at chapter scale. Netlify's free tier and Supabase's free tier both have roughly two orders
+of magnitude of headroom for ~200 members.
+
+The one thing to plan for: **Supabase pauses free projects after about a week of inactivity**,
+and un-pausing is a manual click in the dashboard. Weekly events keep it awake during term;
+over summer break it will pause. Either accept that an officer restores it in September, add a
+scheduled job that pings the database weekly, or move to Supabase Pro (~$25/month), which also
+buys daily backups — worth considering once there are a couple of years of member records in
+there.
 
 ### Supabase redirect URLs
 
@@ -363,8 +387,8 @@ wss://*.supabase.co` and `img-src https://*.supabase.co`. These are scoped to
 `Permissions-Policy` still has `camera=()`. QR check-in is architected for but not built; the
 day a scanner ships, that becomes `camera=(self)` and nothing else changes.
 
-GitHub Pages cannot set response headers, so the CSP only applies on Netlify. That is one
-reason to prefer Netlify for production.
+These headers are why production is Netlify: a static host that cannot set them leaves every
+one of them off.
 
 ---
 
@@ -424,6 +448,36 @@ select public.admin_set_app_setting('membership_requirements', '[
 
 Event categories and academic terms are likewise data. Adding a category or a new semester
 never requires a code change.
+
+---
+
+## Bulk event import
+
+Officers can enter a semester at once from a spreadsheet: **Admin → Events → Import CSV**.
+
+| Required | Optional |
+| --- | --- |
+| `title`, `category`, `start`, `end` | `location`, `points`, `status`, `is_public`, `description`, `capacity`, `organizer_name`, `organizer_email` |
+
+- Dates are `YYYY-MM-DD HH:MM` in **St. Louis time**. `9/18/2026` is rejected rather than
+  guessed at — US and international ordering disagree, and a wrong guess moves an event by a
+  month.
+- `category` matches a slug or a display name, case-insensitively.
+- **Rows import as drafts** unless `status` says otherwise. A bulk import is where one typo
+  becomes twelve, so nothing goes live until an officer has reviewed the list and published it.
+- Invalid rows are skipped, not fatal: a typo on line 3 does not cost you the other eleven
+  events. The preview shows each row with its parsed date or its specific problem before
+  anything is written.
+- Header spelling is forgiving (`Start Time`, `start_time`, `START TIME` all work), and columns
+  the importer does not recognise are reported rather than silently dropped.
+
+The whole thing parses in the browser and inserts through the same RLS-guarded path the event
+form uses — no new backend, and no elevated privileges. There is a **Download a template**
+button in the dialog.
+
+CSV *export* exists for attendance rosters, the member roster and the point ledger, with
+formula-injection escaping so a member-supplied field cannot execute when an officer opens the
+file in Excel.
 
 ---
 
@@ -500,8 +554,6 @@ Not built, and marked as such rather than stubbed. Nothing here has a dead butto
 - **Subscribable calendar feed.** Members can add individual events to Google Calendar or
   download an `.ics`, but there is no single feed URL to subscribe to. That needs an endpoint
   that generates ICS on request — a Netlify Function would do it.
-- **Bulk event import from CSV.** Officers enter events one form at a time. Parsing a
-  semester of GBMs from a spreadsheet is a natural next step and needs no new backend.
 - **Playwright end-to-end tests.** The critical paths are covered by pgTAP (which tests the
   real guarantees) and Vitest. Browser-level E2E is a reasonable next addition.
 - **Historical data import.** `point_transactions.transaction_type = 'migration'` exists to
