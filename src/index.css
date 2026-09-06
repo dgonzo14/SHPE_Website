@@ -135,3 +135,44 @@
     font-family: 'Libre Franklin', system-ui, -apple-system, sans-serif;
   }
 }
+/* ─────────────────────────────────────────────────────────────────────────
+   SHPE brand palette exposed as Tailwind utilities.
+
+   These are the same values the public site already uses via
+   styles/colors.css; registering them with @theme means the portal can write
+   `bg-shpe-navy` instead of scattering `#1B365D` through inline styles, and
+   the two halves of the site stay visually identical by construction.
+   ───────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-shpe-navy: #1b365d;
+  --color-shpe-navy-dark: #142949;
+  --color-shpe-navy-soft: #e8ecf2;
+  --color-shpe-orange: #e84e1b;
+  --color-shpe-orange-dark: #c43e12;
+  --color-shpe-orange-soft: #fef2ee;
+  --color-shpe-blue: #5b9bd5;
+  --color-shpe-blue-soft: #e8f4f8;
+  --color-shpe-gold: #f5a623;
+  --color-shpe-gold-soft: #fef6e7;
+}
+
+@layer base {
+  /* Respect the OS "reduce motion" setting everywhere rather than per-component. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* colors.css styles every <a>. Inside the portal, links that are laid out as
+     buttons or nav items opt out of the underline-on-hover treatment. */
+  a.no-link-style:hover,
+  a.no-link-style:focus {
+    text-decoration: none;
+  }
+}

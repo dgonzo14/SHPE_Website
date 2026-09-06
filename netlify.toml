@@ -1,6 +1,10 @@
 # =============================================================
 # netlify.toml — WashU SHPE
 # Handles: SPA routing, security headers, caching, HTTPS
+#
+# Netlify serves the site at a root domain, so VITE_BASE_PATH is "/" here.
+# The GitHub Pages workflow leaves it unset, where it defaults to
+# "/SHPE_Website/". One build command, two correct outputs.
 # =============================================================
 
 # ── Build settings ───────────────────────────────────────────
@@ -10,6 +14,11 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  VITE_BASE_PATH = "/"
+  # VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_SITE_URL and
+  # VITE_ALLOWED_EMAIL_DOMAINS are set in the Netlify UI, not committed here.
+  # The anon key is safe in a client bundle; the service role key must never
+  # appear in any VITE_-prefixed variable.
 
 # ── Dev server (netlify dev) ──────────────────────────────────
 [dev]
@@ -18,6 +27,7 @@
   targetPort = 5173
 
 # ── SPA catch-all: send every non-asset request to index.html ─
+# This is what makes a hard refresh on /portal/points work.
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
@@ -50,16 +60,19 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
 
     # ── Permissions policy (disable unused browser features) ─
+    #
+    # camera=() stays OFF. QR check-in is architected for but not implemented;
+    # the day a camera scanner ships, this becomes camera=(self) and nothing
+    # else changes. Do not loosen it ahead of the feature.
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"
 
     # ── Content Security Policy ─────────────────────────────
-    # Allows:
-    #   - self for scripts/styles (Vite hashed bundles)
-    #   - behold.so widget (Instagram embed)
-    #   - Outlook calendar iframe
-    #   - WashU advancement form (donation link)
-    #   - LinkedIn / Instagram images for og-image
-    #   - Google Fonts (if ever added)
+    # Additions for the member portal are deliberately narrow: Supabase needs
+    # connect-src for its REST/Auth/Realtime endpoints and img-src for storage.
+    # Replace <project-ref> with your Supabase project reference, or use the
+    # wildcard forms below, which are scoped to supabase.co rather than "*".
+    #
+    # Everything the public site already relied on is unchanged.
     Content-Security-Policy = """
       default-src 'self';
       script-src  'self' 'unsafe-inline' https://w.behold.so;
@@ -73,27 +86,41 @@
                   https://*.cdninstagram.com
                   https://scontent*.cdninstagram.com
                   https://behold.so
-                  https://*.behold.so;
+                  https://*.behold.so
+                  https://*.supabase.co;
       frame-src   'self'
                   https://outlook.office365.com
                   https://wustl.advancementform.com;
       connect-src 'self'
                   https://api.behold.so
-                  https://w.behold.so;
+                  https://w.behold.so
+                  https://*.supabase.co
+                  wss://*.supabase.co;
       object-src  'none';
       base-uri    'self';
       form-action 'self';
+      frame-ancestors 'none';
       upgrade-insecure-requests;
     """
 
-    # ── CORS: public assets are fine to share ───────────────
+# ── CORS ─────────────────────────────────────────────────────
+# Scoped to genuinely public, cacheable assets. It is deliberately NOT applied
+# to /* any more: a blanket Access-Control-Allow-Origin: * on every response is
+# broader than this site needs, and member-facing HTML has no reason to be
+# readable cross-origin.
+[[headers]]
+  for = "/images/*"
+
+  [headers.values]
     Access-Control-Allow-Origin = "*"
+    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
 
 # ── Long-lived cache for hashed Vite bundles ─────────────────
 [[headers]]
   for = "/assets/*"
 
   [headers.values]
+    Access-Control-Allow-Origin = "*"
     Cache-Control = "public, max-age=31536000, immutable"
 
 # ── Short cache for HTML (always fresh) ──────────────────────
@@ -102,13 +129,6 @@
 
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
-
-# ── Medium cache for public images ───────────────────────────
-[[headers]]
-  for = "/images/*"
-
-  [headers.values]
-    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
 
 # ── Medium cache for fonts / PDFs / docs ─────────────────────
 [[headers]]
@@ -124,8 +144,11 @@
     Cache-Control = "public, max-age=604800"
 
 # =============================================================
-# Netlify Functions — rate limiting already implemented in
-# netlify/functions/health.ts; add future functions here.
+# Netlify Functions
+#
+# The member portal deliberately does NOT depend on these. All privileged
+# logic lives in Supabase (Postgres functions + RLS), which is what lets the
+# same static bundle work on GitHub Pages, where functions cannot run at all.
 # =============================================================
 [functions]
   directory = "netlify/functions"

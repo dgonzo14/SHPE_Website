@@ -32,10 +32,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
       - name: Build
+        env:
+          # Unset VITE_BASE_PATH defaults to "/SHPE_Website/", which is what
+          # GitHub Pages needs. Netlify sets it to "/" in netlify.toml.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SITE_URL: ${{ secrets.VITE_SITE_URL }}
+          VITE_ALLOWED_EMAIL_DOMAINS: ${{ vars.VITE_ALLOWED_EMAIL_DOMAINS }}
         run: npm run build
-        # vite.config.ts sets base: "/SHPE_Website/" which ensures
-        # all asset paths and React Router basename are correct.
+        # If the Supabase secrets are absent the site still builds and the
+        # public pages work; the portal renders a "not configured" notice.
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

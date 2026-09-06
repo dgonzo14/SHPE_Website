@@ -1,0 +1,66 @@
+# =============================================================================
+# Supabase CLI configuration for local development.
+#
+# `supabase start` boots Postgres, Auth, PostgREST and Studio in Docker;
+# `supabase db reset` re-applies every migration and then runs seed.sql.
+#
+# If your CLI version rejects a key here, run `supabase init` in a scratch
+# directory and copy across whatever it generates — the values that matter for
+# this project are the ports, `site_url`, and the redirect URLs.
+# =============================================================================
+
+project_id = "washu-shpe"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+
+# Catches outbound mail locally, which is how you open the confirmation and
+# password-reset links during development.
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+
+# Must match VITE_SITE_URL. Auth emails link back here, so a mismatch sends
+# members to a page that does not exist.
+site_url = "http://localhost:5173"
+additional_redirect_urls = [
+  "http://localhost:5173",
+  "http://localhost:5173/login",
+  "http://localhost:5173/reset-password",
+]
+
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+# Off locally so a fresh signup can sign straight in. Turn confirmations ON in
+# the hosted project: it is what stops someone registering with an address they
+# do not control.
+enable_confirmations = false

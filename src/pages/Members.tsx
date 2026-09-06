@@ -1,25 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { Contact } from "../components/Contact";
-import {
-  Instagram,
-  Linkedin,
-  Slack,
-  ExternalLink,
-  Calendar,
-  Users,
-} from "lucide-react";
+import { Instagram, ExternalLink, Calendar, Trophy } from "lucide-react";
+import { MemberPortalCallout } from "../components/MemberPortalCallout";
 import { SEOHead } from "../components/SEOHead";
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "behold-widget": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement>,
-        HTMLElement
-      > & { "feed-id"?: string };
-    }
-  }
-}
 
 export function Members() {
   const instagramRef = useRef<HTMLElement>(null);
@@ -95,6 +78,20 @@ export function Members() {
               />
             </div>
           </div>
+        </section>
+
+        {/*
+          Bridge into the portal. The public calendar above stays exactly as it
+          was: this adds a way in for people who are already members, it does
+          not move anything behind a login.
+        */}
+        <section className="mb-12 sm:mb-20" aria-labelledby="portal-callout-heading">
+          <MemberPortalCallout
+            headingId="portal-callout-heading"
+            title="Already a SHPE WashU member?"
+            description="Track events, check in, and see your SHPE points in My SHPE."
+            icon={Trophy}
+          />
         </section>
 
         {/* Instagram Section — widget loaded lazily */}
