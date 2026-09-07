@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ChevronDown, LogIn, Menu, ShieldCheck, X } from "lucide-react";
-import shpeLogo from "/SHPE_logo.png";
 
 import { useAuth } from "@/auth/useAuth";
+import { BrandMark } from "@/components/shared/BrandMark";
+import { LinkButton } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const navLinks = [
   { path: "/", label: "Home" },
@@ -60,11 +62,8 @@ export function Navbar() {
   const firstName = profile?.first_name?.trim();
 
   return (
-    <nav
-      className="sticky top-0 z-50 shadow-md"
-      style={{ backgroundColor: "#FFFFFF", isolation: "isolate" }}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+    <nav className="sticky top-0 z-50 isolate border-b border-shpe-rule bg-white">
+      <div className="mx-auto max-w-7xl px-5 py-3 sm:px-8">
         <div className="flex items-center justify-between gap-3">
           {/* Logo */}
           <Link
@@ -73,19 +72,11 @@ export function Navbar() {
             onClick={handleNavClick}
             style={{ textDecoration: "none" }}
           >
-            <div style={{ padding: "4px", borderRadius: "4px" }}>
-              {/* Natural dimensions, not 48x48 — the lockup is 6.58:1, and a
-                  square placeholder made the header reflow on first paint. */}
-              <img
-                src={shpeLogo}
-                alt="WashU SHPE"
-                className="h-auto w-auto max-w-[9.5rem] object-contain lg:max-w-[11rem] xl:max-w-[14rem]"
-                fetchPriority="high"
-                decoding="async"
-                width={4392}
-                height={667}
-              />
-            </div>
+            <BrandMark
+              alt="WashU SHPE"
+              className="max-w-[9rem] lg:max-w-[10.5rem] xl:max-w-[12.5rem]"
+              fetchPriority="high"
+            />
           </Link>
 
           {/* Desktop Navigation */}
@@ -97,17 +88,15 @@ export function Navbar() {
                 key={link.path}
                 to={link.path}
                 onClick={handleNavClick}
-                className="px-3 lg:px-4 py-2 rounded-lg transition-all hover:scale-105 text-sm lg:text-base"
-                style={{
-                  // #C43E12, not #E84E1B: white on the brand orange is 3.79:1 and fails
-                  // AA at this size. This was a pre-existing failure on the public nav.
-                  backgroundColor: isActive(link.path) ? "#C43E12" : "transparent",
-                  color: isActive(link.path) ? "white" : "#1B365D",
-                  textDecoration: "none",
-                  minHeight: "44px",
-                  display: "flex",
-                  alignItems: "center",
-                }}
+                aria-current={isActive(link.path) ? "page" : undefined}
+                className={cn(
+                  "relative flex min-h-[44px] items-center px-3 text-sm no-link-style transition-colors lg:px-4 lg:text-base",
+                  "after:absolute after:inset-x-3 after:bottom-1 after:h-0.5 after:bg-shpe-orange after:transition-opacity lg:after:inset-x-4",
+                  "focus-visible:outline-[3px] focus-visible:-outline-offset-2 focus-visible:outline-shpe-navy",
+                  isActive(link.path)
+                    ? "font-semibold text-shpe-navy after:opacity-100"
+                    : "text-shpe-navy/80 after:opacity-0 hover:text-shpe-navy hover:after:opacity-40",
+                )}
               >
                 {link.label}
               </Link>
@@ -120,7 +109,7 @@ export function Navbar() {
                   onClick={() => setAccountOpen((open) => !open)}
                   aria-expanded={accountOpen}
                   aria-haspopup="menu"
-                  className="flex min-h-[44px] items-center gap-1.5 rounded-lg border-2 border-shpe-navy px-4 py-2 text-sm font-semibold text-shpe-navy transition-colors hover:bg-shpe-navy hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-shpe-navy"
+                  className="flex min-h-[44px] items-center gap-1.5 border-2 border-shpe-navy px-4 py-2 text-sm font-semibold text-shpe-navy transition-colors hover:bg-shpe-navy hover:text-white focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-shpe-navy"
                 >
                   <span>My SHPE</span>
                   <ChevronDown className="h-4 w-4" aria-hidden />
@@ -130,7 +119,7 @@ export function Navbar() {
                   <div
                     role="menu"
                     aria-label="Member menu"
-                    className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                    className="absolute right-0 z-50 mt-2 w-56 border border-shpe-rule-strong bg-white py-1"
                   >
                     {firstName && (
                       <p className="border-b border-gray-100 px-4 py-2 text-xs text-gray-500">
@@ -179,75 +168,61 @@ export function Navbar() {
                 )}
               </div>
             ) : (
-              <Link
-                to="/login"
-                onClick={handleNavClick}
-                className="flex min-h-[44px] items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white no-link-style transition-colors hover:bg-shpe-orange-dark lg:text-base"
-                style={{ backgroundColor: "#C43E12" }}
-              >
+              <LinkButton to="/login" onClick={handleNavClick}>
                 <LogIn className="h-4 w-4" aria-hidden />
                 Member Login
-              </Link>
+              </LinkButton>
             )}
           </div>
 
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMenuOpen((open) => !open)}
-            className="block lg:hidden p-2 rounded-lg transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1B365D]"
-            style={{ minWidth: "44px", minHeight: "44px" }}
+            className="block min-h-[44px] min-w-[44px] p-2 text-shpe-navy transition-colors hover:bg-shpe-navy-soft focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-shpe-navy lg:hidden"
             aria-label={isMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={isMenuOpen}
           >
-            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isMenuOpen ? (
+              <X className="h-6 w-6" aria-hidden />
+            ) : (
+              <Menu className="h-6 w-6" aria-hidden />
+            )}
           </button>
         </div>
 
         {/* Mobile Navigation Menu */}
         {isMenuOpen && (
-          <div className="lg:hidden mt-4 pb-4 border-t border-gray-200">
+          <div className="mt-3 border-t border-shpe-rule pb-3 lg:hidden">
             <div className="flex flex-col gap-2 pt-4">
               {navLinks.map((link) => (
                 <Link
                   key={link.path}
                   to={link.path}
                   onClick={handleNavClick}
-                  className="px-4 py-3 rounded-lg transition-all text-base font-medium"
-                  style={{
-                    // #C43E12, not #E84E1B: white on the brand orange is 3.79:1 and fails
-                  // AA at this size. This was a pre-existing failure on the public nav.
-                  backgroundColor: isActive(link.path) ? "#C43E12" : "transparent",
-                    color: isActive(link.path) ? "white" : "#1B365D",
-                    textDecoration: "none",
-                    minHeight: "44px",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
+                  aria-current={isActive(link.path) ? "page" : undefined}
+                  className={cn(
+                    "flex min-h-[48px] items-center border-l-4 px-4 text-base no-link-style transition-colors",
+                    "focus-visible:outline-[3px] focus-visible:-outline-offset-2 focus-visible:outline-shpe-navy",
+                    isActive(link.path)
+                      ? "border-shpe-orange bg-shpe-navy-soft font-semibold text-shpe-navy"
+                      : "border-transparent text-shpe-navy/80 hover:bg-shpe-navy-soft hover:text-shpe-navy",
+                  )}
                 >
                   {link.label}
                 </Link>
               ))}
 
-              <div className="mt-2 border-t border-gray-200 pt-3">
+              <div className="mt-3 space-y-2 border-t border-shpe-rule pt-3">
                 {signedIn ? (
                   <>
-                    <Link
-                      to="/portal"
-                      onClick={handleNavClick}
-                      className="flex min-h-[44px] items-center justify-center rounded-lg px-4 py-3 text-base font-semibold text-white no-link-style"
-                      style={{ backgroundColor: "#1B365D" }}
-                    >
+                    <LinkButton to="/portal" onClick={handleNavClick} variant="secondary" block>
                       Open My SHPE
-                    </Link>
+                    </LinkButton>
                     {isOfficer && (
-                      <Link
-                        to="/admin"
-                        onClick={handleNavClick}
-                        className="mt-2 flex min-h-[44px] items-center justify-center gap-2 rounded-lg border-2 border-shpe-navy px-4 py-3 text-base font-semibold text-shpe-navy no-link-style"
-                      >
+                      <LinkButton to="/admin" onClick={handleNavClick} variant="outline" block>
                         <ShieldCheck className="h-4 w-4" aria-hidden />
                         Admin Portal
-                      </Link>
+                      </LinkButton>
                     )}
                     <button
                       type="button"
@@ -255,21 +230,16 @@ export function Navbar() {
                         handleNavClick();
                         void signOut();
                       }}
-                      className="mt-2 min-h-[44px] w-full rounded-lg px-4 py-3 text-base text-gray-700 hover:bg-gray-50"
+                      className="min-h-[44px] w-full px-4 py-3 text-base text-shpe-navy hover:bg-shpe-navy-soft focus-visible:outline-[3px] focus-visible:-outline-offset-2 focus-visible:outline-shpe-navy"
                     >
                       Sign out
                     </button>
                   </>
                 ) : (
-                  <Link
-                    to="/login"
-                    onClick={handleNavClick}
-                    className="flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 py-3 text-base font-semibold text-white no-link-style"
-                    style={{ backgroundColor: "#C43E12" }}
-                  >
+                  <LinkButton to="/login" onClick={handleNavClick} block>
                     <LogIn className="h-4 w-4" aria-hidden />
                     Member Login
-                  </Link>
+                  </LinkButton>
                 )}
               </div>
             </div>

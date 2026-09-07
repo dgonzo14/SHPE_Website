@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from "react";
 import { Contact } from "../components/Contact";
 import { Instagram, ExternalLink, Calendar, Trophy } from "lucide-react";
 import { MemberPortalCallout } from "../components/MemberPortalCallout";
+import { Section, SectionHeader } from "@/components/ui/section";
+import { LinkButton } from "@/components/ui/button";
 import { PublicEventsSection } from "../features/events/PublicEventsSection";
 import { SEOHead } from "../components/SEOHead";
 
@@ -43,17 +45,13 @@ export function Members() {
         description="Stay connected with the SHPE familia! View upcoming events, follow us on Instagram, join our Slack workspace, and connect on WUGO. Get plugged into the WashU SHPE community."
         keywords="SHPE events, WashU SHPE members, SHPE calendar, Hispanic engineers events, STEM networking, SHPE Slack, WUGO SHPE, SHPE Instagram"
       />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-        {/* Header */}
-        <header className="text-center mb-12 sm:mb-16 px-2">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl mb-3 sm:mb-4 text-[#1B365D] leading-tight">
-            Members &amp; Events
-          </h1>
-          <p className="text-base sm:text-lg lg:text-xl text-gray-700 max-w-3xl mx-auto">
-            Stay connected with the SHPE familia! Check out our upcoming events,
-            follow us on Instagram, and join the conversation.
-          </p>
-        </header>
+      <Section space="lg">
+        <SectionHeader
+          eyebrow="Members & events"
+          title="Members &amp; Events"
+          as="h1"
+          lede="Stay connected with the SHPE familia. Check out our upcoming events, follow us on Instagram, and join the conversation."
+        />
 
         {/*
           The chapter calendar, served from our own database.
@@ -67,26 +65,27 @@ export function Members() {
           Anonymous visitors read these rows through a column-restricted grant,
           so nothing shown here depends on the client choosing to hide fields.
         */}
-        <section className="mb-12 sm:mb-20" aria-labelledby="events-heading">
-          <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-[#5B9BD5]">
-            <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-              <div className="p-2 sm:p-3 rounded-lg bg-[#E8F4F8] flex-shrink-0">
-                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-[#5B9BD5]" aria-hidden="true" />
-              </div>
-              <h2 id="events-heading" className="text-2xl sm:text-3xl text-[#1B365D]">
+        <section className="mt-4" aria-labelledby="events-heading">
+          <div className="border border-shpe-rule bg-white p-6 sm:p-8">
+            <div className="mb-2 flex items-center gap-3">
+              <Calendar className="h-6 w-6 shrink-0 text-shpe-navy" aria-hidden />
+              <h2
+                id="events-heading"
+                className="text-xl font-bold tracking-tight text-shpe-navy sm:text-2xl"
+              >
                 Upcoming Events
               </h2>
             </div>
-            <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-              Workshops, socials, and networking events — open to anyone curious about SHPE.
-              Pick a highlighted day to see what is on.
+            <p className="mb-6 max-w-[65ch] text-sm leading-relaxed text-gray-700 sm:text-base">
+              Workshops, socials, and networking events — open to anyone curious about SHPE. Pick a
+              highlighted day to see what is on.
             </p>
             <PublicEventsSection headingId="events-heading" />
           </div>
         </section>
 
         {/* Bridge into the portal for people who are already members. */}
-        <section className="mb-12 sm:mb-20" aria-labelledby="portal-callout-heading">
+        <section className="mt-6 sm:mt-8" aria-labelledby="portal-callout-heading">
           <MemberPortalCallout
             headingId="portal-callout-heading"
             title="Already a SHPE WashU member?"
@@ -94,53 +93,33 @@ export function Members() {
             icon={Trophy}
           />
         </section>
+      </Section>
 
-        {/* Instagram Section — widget loaded lazily */}
-        <section
-          ref={instagramRef}
-          className="mb-12 sm:mb-20"
-          aria-labelledby="instagram-heading"
-        >
-          <div className="bg-[#FEF2EE] rounded-2xl p-6 sm:p-8 md:p-12">
-            <div className="text-center mb-6 sm:mb-8">
-              <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-white mb-3 sm:mb-4 shadow-lg">
-                <Instagram className="w-6 h-6 sm:w-8 sm:h-8 text-[#E84E1B]" aria-hidden="true" />
-              </div>
-              <h2 id="instagram-heading" className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-[#1B365D] px-2">
-                Follow Our Journey
-              </h2>
-              <p className="text-base sm:text-lg text-gray-700 mb-4 sm:mb-6 max-w-2xl mx-auto px-2">
-                See what we're up to! Follow us on Instagram to stay connected with
-                our community, see event highlights, and get behind-the-scenes content.
-              </p>
-              <a
-                href="https://www.instagram.com/washushpe/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 sm:gap-3 rounded-lg px-6 sm:px-8 py-3 sm:py-4 transition-all hover:scale-105 shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white font-semibold text-sm sm:text-base min-h-[44px]"
-                style={{ backgroundColor: "#E84E1B", color: "#FFFFFF" }}
-                aria-label="Follow @washushpe on Instagram (opens in new window)"
-              >
-                <Instagram
-                  className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0"
-                  aria-hidden="true"
-                  style={{ color: "#FFFFFF" }}
-                />
-                <span>Follow @washushpe</span>
-                <ExternalLink
-                  className="w-4 h-4 flex-shrink-0"
-                  aria-hidden="true"
-                  style={{ color: "#FFFFFF" }}
-                />
-              </a>
-            </div>
+      {/* Instagram — the widget script loads only when this scrolls into view. */}
+      <Section tone="soft" space="lg" ref={instagramRef} aria-labelledby="instagram-heading">
+        <SectionHeader
+          eyebrow="@washushpe"
+          title="Follow Our Journey"
+          id="instagram-heading"
+          lede="Event highlights, behind-the-scenes, and what the familia is up to this week."
+          actions={
+            <LinkButton
+              to="https://www.instagram.com/washushpe/"
+              external
+              aria-label="Follow @washushpe on Instagram (opens in a new tab)"
+            >
+              <Instagram className="h-4 w-4 shrink-0" aria-hidden />
+              Follow @washushpe
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            </LinkButton>
+          }
+        />
 
-            <div className="mt-8 bg-white rounded-xl p-4 shadow-md">
-              {React.createElement("behold-widget", { "feed-id": "gZukTIlscdP6HZISRbbb" })}
-            </div>
-          </div>
-        </section>
-      </div>
+        <div className="border border-shpe-rule bg-white p-4">
+          {React.createElement("behold-widget", { "feed-id": "gZukTIlscdP6HZISRbbb" })}
+        </div>
+      </Section>
+
       <Contact />
     </main>
   );

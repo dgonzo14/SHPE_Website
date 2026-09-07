@@ -29,23 +29,23 @@ export function MemberPortalCallout({
   const signedIn = status === "signed-in";
 
   return (
-    <div className="flex flex-col items-start gap-4 rounded-2xl border-2 border-[#5B9BD5] bg-[#E8F4F8] p-6 sm:flex-row sm:items-center sm:p-8">
-      {Icon && (
-        <span className="rounded-xl bg-white p-3 shadow-sm" aria-hidden>
-          <Icon className="h-7 w-7 text-[#E84E1B]" aria-hidden />
-        </span>
-      )}
+    /*
+     * The bridge into the portal, so it should look like the portal: a hairline
+     * rule and a flat tint rather than a 2px light-blue border, a rounded
+     * corner and a shadowed icon chip. The orange bar down the left is the same
+     * device the mobile nav uses to mark the current page.
+     */
+    <div className="flex flex-col items-start gap-5 border border-shpe-rule border-l-4 border-l-shpe-orange bg-shpe-navy-soft p-6 sm:flex-row sm:items-center sm:p-8">
+      {Icon && <Icon className="h-8 w-8 shrink-0 text-shpe-navy" aria-hidden />}
       <div className="min-w-0 flex-1">
-        <h2 id={headingId} className="text-xl font-bold text-[#1B365D] sm:text-2xl">
+        <h2 id={headingId} className="text-xl font-bold tracking-tight text-shpe-navy sm:text-2xl">
           {title}
         </h2>
-        <p className="mt-1 text-sm text-gray-700 sm:text-base">{description}</p>
+        <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-gray-700 sm:text-base">
+          {description}
+        </p>
       </div>
-      <LinkButton
-        to={signedIn ? "/portal" : "/login"}
-        size="lg"
-        className="w-full shrink-0 rounded-lg sm:w-auto"
-      >
+      <LinkButton to={signedIn ? "/portal" : "/login"} size="lg" className="w-full shrink-0 sm:w-auto">
         {signedIn ? "Open My SHPE" : "Member Login"}
       </LinkButton>
     </div>

@@ -2,6 +2,26 @@ import { Slack, Linkedin, Instagram, ExternalLink, MessageCircle, Users, Target,
 import { MemberPortalCallout } from "../components/MemberPortalCallout";
 import { SEOHead } from "../components/SEOHead";
 import { Contact } from "../components/Contact";
+import { Section, SectionHeader } from "@/components/ui/section";
+import { LinkButton } from "@/components/ui/button";
+
+const WHY = [
+  {
+    icon: MessageCircle,
+    title: "Stay Connected",
+    description: "Get instant updates on events, opportunities, and important announcements",
+  },
+  {
+    icon: Users,
+    title: "Build Your Network",
+    description: "Connect with fellow members, alumni, and industry professionals",
+  },
+  {
+    icon: Target,
+    title: "Access Resources",
+    description: "Find study materials, career resources, and mentorship opportunities",
+  },
+] as const;
 
 export function GetPluggedIn() {
   const platforms = [
@@ -12,8 +32,6 @@ export function GetPluggedIn() {
       description: "Connect with members, get real-time updates, and participate in discussions. Our Slack workspace is where the SHPE familia stays connected!",
       action: "Join Workspace",
       url: "https://shpeexecboard.slack.com/join/shared_invite/zt-3mthk5cja-6KJtvK~Oh6w6yeNPPYGg7w#/shared-invite/email",
-      color: "#D33A02",
-      bgColor: "#FEF2EE"
     },
     {
       icon: Linkedin,
@@ -22,8 +40,6 @@ export function GetPluggedIn() {
       description: "Stay updated on professional development opportunities, job postings, and connect with our alumni network on LinkedIn.",
       action: "Follow on LinkedIn",
       url: "https://www.linkedin.com/company/washu-society-of-hispanic-professional-engineers/posts/?feedView=all",
-      color: "#0070C0",
-      bgColor: "#E8F4F8"
     },
     {
       icon: Instagram,
@@ -32,8 +48,6 @@ export function GetPluggedIn() {
       description: "See what we're up to! Follow our Instagram for event photos, stories, and behind-the-scenes content from the SHPE familia.",
       action: "Follow on Instagram",
       url: "https://www.instagram.com/washushpe/",
-      color: "#FD652F",
-      bgColor: "#FEF2EE"
     },
     {
       icon: Globe,
@@ -42,8 +56,6 @@ export function GetPluggedIn() {
       description: "See our official WashU student organization listing on WUGO and register to become a member",
       action: "Open WUGO",
       url: "https://wustl.presence.io/organization/society-of-hispanic-professional-engineers",
-      color: "#001F5B",
-      bgColor: "#E8ECF2"
     }
   ];
 
@@ -54,60 +66,51 @@ export function GetPluggedIn() {
         description="Stay connected with the WashU SHPE community. Join our Slack workspace, follow us on LinkedIn and Instagram, and get plugged into events, opportunities, and our supportive familia!"
         keywords="SHPE Slack, SHPE LinkedIn, SHPE Instagram, join SHPE, connect with SHPE, Hispanic engineering community, STEM networking"
       />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-        <header className="text-center mb-12 sm:mb-16 px-2">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl mb-3 sm:mb-4 text-[var(--color-primary-blue)] leading-tight">
-            Get Plugged In
-          </h1>
-          <p className="text-sm sm:text-base text-[var(--color-text-tertiary)] max-w-2xl mx-auto">
-            Stay connected with the WashU SHPE community across all our platforms. 
-            Join the conversation, get updates, and be part of our familia!
-          </p>
-        </header>
+      <Section space="lg">
+        <SectionHeader
+          eyebrow="Join the familia"
+          title="Get Plugged In"
+          as="h1"
+          lede="Stay connected with the WashU SHPE community across all our platforms. Join the conversation, get updates, and be part of our familia."
+        />
 
-        {/* Platform Cards */}
-        <section className="space-y-6 sm:space-y-8 mb-12 sm:mb-16" aria-labelledby="platforms-heading">
-          <h2 id="platforms-heading" className="sr-only">Social Media Platforms</h2>
-          <ul className="space-y-6 sm:space-y-8 list-none" role="list">
+        {/*
+          One row per platform on a shared ruled grid, rather than four cards
+          each with its own 2px border in its own brand colour. Those borders
+          were the only thing distinguishing the rows, and none of the four
+          colours cleared AA against white for the button text sitting inside
+          them — every action button was white on a mid-tone fill. They use the
+          shared button now, which is a single audited pair.
+        */}
+        <section aria-labelledby="platforms-heading">
+          <h2 id="platforms-heading" className="sr-only">
+            Social media platforms
+          </h2>
+          <ul className="grid grid-cols-1 gap-px border border-shpe-rule bg-shpe-rule">
             {platforms.map((platform) => (
-              <li key={platform.name} role="listitem">
-                <article
-                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all p-6 sm:p-8 border-2 focus-within:ring-2 focus-within:ring-[var(--color-primary-blue)] focus-within:ring-offset-2"
-                  style={{ borderColor: platform.color }}
-                >
-                  <div className="flex flex-col md:flex-row items-start md:items-center gap-4 sm:gap-6">
-                    <div
-                      className="p-4 sm:p-6 rounded-xl flex-shrink-0"
-                      style={{ backgroundColor: platform.bgColor }}
-                      aria-hidden="true"
+              <li key={platform.name} className="min-w-0 bg-white">
+                <article className="flex flex-col gap-5 p-6 sm:flex-row sm:items-start sm:gap-7 sm:p-8">
+                  <platform.icon
+                    className="h-10 w-10 shrink-0 text-shpe-navy sm:h-12 sm:w-12"
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-xl font-bold tracking-tight text-shpe-navy sm:text-2xl">
+                      {platform.title}
+                    </h3>
+                    <p className="mt-2 max-w-[65ch] text-sm leading-relaxed text-gray-700 sm:text-base">
+                      {platform.description}
+                    </p>
+                    <LinkButton
+                      to={platform.url}
+                      external
+                      variant="subtle"
+                      className="mt-5"
+                      aria-label={`${platform.action} on ${platform.name} (opens in a new tab)`}
                     >
-                      <platform.icon
-                        className="w-10 h-10 sm:w-12 sm:h-12"
-                        style={{ color: platform.color }}
-                        aria-hidden="true"
-                      />
-                    </div>
-                    
-                    <div className="flex-1">
-                      <h3 className="text-2xl sm:text-3xl mb-2 sm:mb-3 text-[var(--color-primary-blue)]">
-                        {platform.title}
-                      </h3>
-                      <p className="text-sm sm:text-base lg:text-lg text-[var(--color-text-secondary)] mb-4 sm:mb-6">
-                        {platform.description}
-                      </p>
-                      
-                      <a
-                        href={platform.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 sm:gap-3 rounded-lg px-5 sm:px-6 py-2.5 sm:py-3 transition-all hover:scale-105 shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white font-semibold text-sm sm:text-base min-h-[44px]"
-                        style={{ backgroundColor: platform.color, color: "#FFFFFF" }}
-                        aria-label={`${platform.action} on ${platform.name} (opens in new window)`}
-                      >
-                        <span>{platform.action}</span>
-                        <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" aria-hidden="true" style={{ color: "#FFFFFF" }} />
-                      </a>
-                    </div>
+                      {platform.action}
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    </LinkButton>
                   </div>
                 </article>
               </li>
@@ -115,54 +118,44 @@ export function GetPluggedIn() {
           </ul>
         </section>
 
-        <section className="mb-12 sm:mb-16" aria-labelledby="portal-callout-heading">
+        <section className="mt-8" aria-labelledby="portal-callout-heading">
           <MemberPortalCallout
             headingId="portal-callout-heading"
-            title="Already part of the familia?"
-            description="Access events, points, and your member profile in My SHPE."
+            title="Already a SHPE WashU member?"
+            description="Track events, check in, and see your SHPE points in My SHPE."
             icon={Trophy}
           />
         </section>
+      </Section>
 
-        {/* Why Get Plugged In Section */}
-        <section className="bg-gray-50 rounded-2xl p-8 sm:p-10 lg:p-12" aria-labelledby="why-heading">
-          <h2 id="why-heading" className="text-2xl sm:text-3xl text-center mb-6 sm:mb-8 text-[var(--color-primary-blue)] px-2">
-            Why Get Plugged In?
-          </h2>
-          
-          <ul className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 list-none" role="list">
-            <li className="text-center" role="listitem">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center bg-[#FEF2EE]" aria-hidden="true">
-                <MessageCircle className="w-6 h-6 sm:w-8 sm:h-8" style={{ color: '#E84E1B' }} aria-hidden="true" />
-              </div>
-              <h3 className="text-lg sm:text-xl mb-2 text-[var(--color-primary-blue)]">Stay Connected</h3>
-              <p className="text-sm sm:text-base text-[var(--color-text-tertiary)]">
-                Get instant updates on events, opportunities, and important announcements
-              </p>
+      <Section tone="soft" space="lg" aria-labelledby="why-heading">
+        <SectionHeader eyebrow="Why bother" title="Why Get Plugged In?" id="why-heading" />
+
+        <ul className="grid grid-cols-1 gap-px border border-shpe-rule bg-shpe-rule md:grid-cols-3">
+          {WHY.map((item, index) => (
+            <li key={item.title} className="min-w-0 bg-white">
+              <article className="flex h-full flex-col p-6 sm:p-7">
+                <div className="mb-5 flex items-baseline justify-between gap-3">
+                  <span
+                    className="text-[2.5rem] font-bold leading-none tabular-nums text-shpe-navy/20"
+                    aria-hidden="true"
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <item.icon className="h-6 w-6 shrink-0 text-shpe-orange-dark" aria-hidden />
+                </div>
+                <h3 className="text-lg font-bold tracking-tight text-shpe-navy sm:text-xl">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-700 sm:text-base">
+                  {item.description}
+                </p>
+              </article>
             </li>
-            
-            <li className="text-center" role="listitem">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center bg-[#E8F4F8]" aria-hidden="true">
-                <Users className="w-6 h-6 sm:w-8 sm:h-8" style={{ color: '#5B9BD5' }} aria-hidden="true" />
-              </div>
-              <h3 className="text-lg sm:text-xl mb-2 text-[var(--color-primary-blue)]">Build Your Network</h3>
-              <p className="text-sm sm:text-base text-[var(--color-text-tertiary)]">
-                Connect with fellow members, alumni, and industry professionals
-              </p>
-            </li>
-            
-            <li className="text-center" role="listitem">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center bg-[#E8ECF2]" aria-hidden="true">
-                <Target className="w-6 h-6 sm:w-8 sm:h-8" style={{ color: '#1B365D' }} aria-hidden="true" />
-              </div>
-              <h3 className="text-lg sm:text-xl mb-2 text-[var(--color-primary-blue)]">Access Resources</h3>
-              <p className="text-sm sm:text-base text-[var(--color-text-tertiary)]">
-                Find study materials, career resources, and mentorship opportunities
-              </p>
-            </li>
-          </ul>
-        </section>
-      </div>
+          ))}
+        </ul>
+      </Section>
+
       <Contact />
     </main>
   );
