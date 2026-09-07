@@ -11,24 +11,8 @@ import {
 } from "@/components/shared/states";
 import { fetchVisibleResources } from "@/services/content";
 import { queryKeys } from "@/services/queryKeys";
-import { assetUrl } from "@/lib/assets";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import type { ResourceRow } from "@/types/database";
-
-/**
- * Resources may point at an external URL or at a file this site already serves
- * (a path like /SHPE_Constitution.docx), which has to be resolved against the
- * deployment base — those two deployments have different roots.
- */
-function resourceHref(resource: ResourceRow): string {
-  const target = resource.url ?? resource.file_url ?? "";
-  if (/^https?:\/\//i.test(target)) return target;
-  return assetUrl(target);
-}
-
-function isExternal(resource: ResourceRow): boolean {
-  return /^https?:\/\//i.test(resource.url ?? resource.file_url ?? "");
-}
+import { resolveSiteLink } from "@/lib/url";
 
 export function Resources() {
   usePageMeta({ title: "Resources | My SHPE", noindex: true });
@@ -91,27 +75,34 @@ export function Resources() {
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {rows.map((resource) => {
-            const external = isExternal(resource);
+            const link = resolveSiteLink(resource.url ?? resource.file_url);
             return (
               <li key={resource.id}>
                 <Card className="h-full p-4 transition-shadow hover:shadow-md">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <h2 className="font-semibold text-shpe-navy">
-                      <a
-                        href={resourceHref(resource)}
-                        target={external ? "_blank" : undefined}
-                        rel={external ? "noopener noreferrer" : undefined}
-                        className="no-link-style hover:text-shpe-orange-dark"
-                      >
-                        {resource.title}
-                        {external && (
-                          <>
-                            {" "}
-                            <ExternalLink className="inline h-3.5 w-3.5" aria-hidden />
-                            <span className="sr-only">(opens in a new tab)</span>
-                          </>
-                        )}
-                      </a>
+                      {link ? (
+                        <a
+                          href={link.href}
+                          target={link.external ? "_blank" : undefined}
+                          rel={link.external ? "noopener noreferrer" : undefined}
+                          className="no-link-style hover:text-shpe-orange-dark"
+                        >
+                          {resource.title}
+                          {link.external && (
+                            <>
+                              {" "}
+                              <ExternalLink className="inline h-3.5 w-3.5" aria-hidden />
+                              <span className="sr-only">(opens in a new tab)</span>
+                            </>
+                          )}
+                        </a>
+                      ) : (
+                        // Unusable target: still show the resource, just not as
+                        // a link. Silently dropping the row would hide a
+                        // mistake an officer needs to see and correct.
+                        <span>{resource.title}</span>
+                      )}
                     </h2>
                     {resource.visibility === "officer" && <Badge tone="brand">Officers</Badge>}
                   </div>

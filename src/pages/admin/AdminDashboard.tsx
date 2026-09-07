@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { ClipboardCheck } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ClipboardCheck, Trash2 } from "lucide-react";
 
-import { LinkButton } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
+import { useToast } from "@/components/ui/useToast";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/primitives";
 import {
   EmptyState,
@@ -16,7 +17,9 @@ import {
   auditActionLabel,
   fetchAnalytics,
   fetchAuditLog,
+  fetchCheckinAttemptCount,
   fetchRecentAttendance,
+  pruneCheckinAttempts,
 } from "@/services/admin";
 import { memberName } from "@/services/members";
 import { queryKeys } from "@/services/queryKeys";
@@ -170,6 +173,70 @@ export function AdminDashboard() {
           </Card>
         </section>
       </div>
+
+      <MaintenanceCard />
     </>
+  );
+}
+
+/**
+ * Retention for the check-in attempt log.
+ *
+ * Every failed check-in guess writes a row here, so the table is influenced by
+ * whoever is typing codes rather than by chapter activity. The migration tries
+ * to schedule a weekly prune through pg_cron, but that extension is off by
+ * default on Supabase and is off on this project, so the schedule silently did
+ * nothing. This button is what actually makes the retention real.
+ */
+function MaintenanceCard() {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  const attempts = useQuery({
+    queryKey: ["admin", "checkin-attempt-count"],
+    queryFn: fetchCheckinAttemptCount,
+    staleTime: 60_000,
+  });
+
+  const prune = useMutation({
+    mutationFn: () => pruneCheckinAttempts(90),
+    onSuccess: (deleted) => {
+      toast.success(
+        deleted === 0
+          ? "Nothing to remove — no attempts older than 90 days"
+          : `Removed ${deleted} check-in ${deleted === 1 ? "attempt" : "attempts"}`,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["admin", "checkin-attempt-count"] });
+    },
+    onError: () => toast.error("We couldn't clear the check-in log"),
+  });
+
+  return (
+    <section aria-labelledby="admin-maintenance" className="mt-6">
+      <Card>
+        <CardHeader>
+          <CardTitle id="admin-maintenance">Maintenance</CardTitle>
+        </CardHeader>
+        <CardBody className="flex flex-wrap items-center justify-between gap-3">
+          <p className="max-w-[60ch] text-sm text-gray-700">
+            The check-in attempt log currently holds{" "}
+            <span className="font-semibold tabular-nums">
+              {attempts.isPending ? "…" : attempts.data?.toLocaleString()}
+            </span>{" "}
+            {attempts.data === 1 ? "row" : "rows"}. Clearing entries older than 90 days keeps
+            the database within its free-tier limit; recent attempts are kept so officers can
+            still investigate a run of failed check-ins.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => prune.mutate()}
+            loading={prune.isPending}
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+            Clear entries older than 90 days
+          </Button>
+        </CardBody>
+      </Card>
+    </section>
   );
 }

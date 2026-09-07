@@ -49,7 +49,23 @@ export function Settings() {
       await updatePassword(values.password);
       reset({ password: "", confirm_password: "" });
       setChanged(true);
-      toast.success("Password updated");
+      toast.success("Password updated — sign in again on your other devices");
+      /*
+       * Sign out everywhere after a successful change.
+       *
+       * supabase-js signOut() defaults to global scope, so this revokes every
+       * refresh token for the account, not just this tab's. Without it, a
+       * session someone else already holds -- a shared lab machine left signed
+       * in, a token copied out of localStorage -- keeps working after the
+       * member changes their password to lock that person out, which is
+       * usually the exact reason they are on this page.
+       *
+       * It does not defend against an attacker who holds the token and calls
+       * the Auth API directly; only "Secure password change" in the hosted
+       * project's Auth settings does that, by requiring a re-authentication
+       * nonce. This is the half that can ship from the repo.
+       */
+      await signOut();
     } catch (error) {
       toast.error("We couldn't update your password", errorText(error));
     }

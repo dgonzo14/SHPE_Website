@@ -39,3 +39,50 @@ export function safeExternalHref(value: string | null | undefined): string | und
     return undefined;
   }
 }
+
+export interface ResolvedLink {
+  href: string;
+  external: boolean;
+}
+
+/**
+ * Resolves a stored link target to an href, or to null when it should not be
+ * a link at all.
+ *
+ * Previously this was two functions — one producing the href, one deciding
+ * whether to show the external-link affordance — and they could disagree. A
+ * value like `//elsewhere.example/login` is not matched by /^https?:\/\//, so
+ * it was labelled internal and rendered with no `target="_blank"`, yet the
+ * browser reads it as protocol-relative and leaves the site. An officer (a
+ * rotating student role, or a phished account) could therefore publish a
+ * resource that silently replaced the portal tab with a cloned sign-in page.
+ *
+ * Deriving both values from one parse is the point: they can no longer
+ * disagree, whatever the stored string looks like.
+ */
+export function resolveSiteLink(value: string | null | undefined): ResolvedLink | null {
+  const raw = (value ?? "").trim();
+  if (raw === "") return null;
+
+  // Explicitly absolute and http(s): take it as written.
+  if (/^https?:\/\//i.test(raw)) return { href: raw, external: true };
+
+  /*
+   * Anything else is meant to be a file this site serves. Strip every leading
+   * slash AND backslash before resolving: "//host" is protocol-relative, and
+   * browsers normalise "/\host" and "\\host" the same way, so removing only a
+   * single forward slash still leaves the site.
+   *
+   * Resolving against BASE_URL rather than the bare origin matters on a
+   * sub-path deployment: "/handbook.pdf" has to become /SHPE_Website/handbook.pdf,
+   * not /handbook.pdf.
+   */
+  try {
+    const base = new URL(import.meta.env.BASE_URL, window.location.origin);
+    const parsed = new URL(raw.replace(/^[/\\]+/, ""), base);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return { href: parsed.href, external: parsed.origin !== window.location.origin };
+  } catch {
+    return null;
+  }
+}

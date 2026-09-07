@@ -67,9 +67,12 @@ values
    'cccccccc-0000-4000-8000-000000000001',
    now() - interval '10 minutes', now() + interval '1 hour', 10, 'published',
    'aaaaaaaa-0000-4000-8000-000000000003'),
+  -- Later today rather than three days out: check_in_with_code only treats an
+  -- event as a candidate up to a day ahead, so a fixture further out would
+  -- answer INVALID_CODE and this case would stop testing what it names.
   ('dddddddd-0000-4000-8000-000000000002', 'Future Event',
    'cccccccc-0000-4000-8000-000000000001',
-   now() + interval '3 days', now() + interval '3 days 2 hours', 5, 'published',
+   now() + interval '6 hours', now() + interval '8 hours', 5, 'published',
    'aaaaaaaa-0000-4000-8000-000000000003'),
   ('dddddddd-0000-4000-8000-000000000003', 'Past Event',
    'cccccccc-0000-4000-8000-000000000001',

@@ -273,3 +273,32 @@ export async function fetchLedger(termId: string | null): Promise<LedgerExportRo
   if (error) throw error;
   return (data ?? []) as unknown as LedgerExportRow[];
 }
+
+/**
+ * Deletes check-in attempt rows older than `days`.
+ *
+ * The migration that added retention also tries to schedule this via pg_cron,
+ * but that extension is not enabled on a default Supabase project — verified
+ * against production, where `select count(*) from pg_extension where
+ * extname='pg_cron'` returns 0. The guarded `do $$ ... end $$` block therefore
+ * produced a silent no-op on exactly the configuration the chapter runs, which
+ * left an attacker-influenced table growing without bound on a 500 MB database.
+ *
+ * Exposing it to officers makes the fallback real rather than nominal.
+ */
+export async function pruneCheckinAttempts(days = 90): Promise<number> {
+  const { data, error } = await getSupabase().rpc("admin_prune_checkin_attempts", {
+    p_days: days,
+  });
+  if (error) throw error;
+  return (data as { rows_deleted?: number } | null)?.rows_deleted ?? 0;
+}
+
+/** Rows currently in the check-in attempt log, so officers can see it draining. */
+export async function fetchCheckinAttemptCount(): Promise<number> {
+  const { count, error } = await getSupabase()
+    .from("checkin_attempts")
+    .select("*", { count: "exact", head: true });
+  if (error) throw error;
+  return count ?? 0;
+}
