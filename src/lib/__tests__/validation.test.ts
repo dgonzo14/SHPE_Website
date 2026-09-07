@@ -63,15 +63,24 @@ describe("registerSchema", () => {
     }
   });
 
-  it("rejects a non-approved email domain", () => {
+  /*
+   * The domain is enforced by the database, not by this schema.
+   * public.assert_email_domain_allowed() also consults manual_email_allowlist,
+   * which the browser cannot see, so a blocking check here would veto
+   * registrations the server would have accepted. emailDomainIssue() still
+   * flags the address for the form to show as advice -- asserted below so the
+   * warning cannot be dropped without a test failing.
+   */
+  it("accepts an off-domain address and defers the decision to the server", () => {
     const result = registerSchema.safeParse({
       ...validRegistration,
       email: "ana@gmail.com",
     });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues.some((i) => i.path.includes("email"))).toBe(true);
-    }
+    expect(result.success).toBe(true);
+  });
+
+  it("still surfaces an off-domain address as advice", () => {
+    expect(emailDomainIssue("ana@gmail.com")).not.toBeNull();
   });
 
   it("rejects a short password", () => {

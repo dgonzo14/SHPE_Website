@@ -145,10 +145,26 @@ export const registerSchema = z
         message: "Passwords don't match",
       });
     }
-    const domainIssue = emailDomainIssue(values.email);
-    if (domainIssue) {
-      ctx.addIssue({ code: "custom", path: ["email"], message: domainIssue });
-    }
+    /*
+     * The email domain is deliberately NOT enforced here.
+     *
+     * public.assert_email_domain_allowed() is the authority, and it consults
+     * two settings: allowed_email_domains AND manual_email_allowlist, the
+     * escape hatch officers use to onboard someone whose address does not fit
+     * the standard domain -- an alum, or a student on a different affiliation.
+     *
+     * The browser cannot see that allowlist and must not: get_app_config()
+     * exposes allowed_email_domains but withholds manual_email_allowlist,
+     * because publishing a list of named individuals' addresses to anon would
+     * be a privacy leak.
+     *
+     * So a blocking check here vetoed registrations the database would have
+     * accepted, using information it did not have. The allowlist was
+     * unreachable through the UI even though the schema fully supported it.
+     * Guidance still reaches the user: Register.tsx renders a permanent hint
+     * ("Use your @wustl.edu address.") under the field, and a genuinely
+     * disallowed address is rejected by the server with a clear message.
+     */
   });
 export type RegisterValues = z.infer<typeof registerSchema>;
 

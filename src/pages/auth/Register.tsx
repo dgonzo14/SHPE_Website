@@ -14,7 +14,12 @@ import {
   Input,
   Select,
 } from "@/components/ui/primitives";
-import { DEGREE_LEVELS, registerSchema, type RegisterValues } from "@/lib/validation";
+import {
+  DEGREE_LEVELS,
+  emailDomainIssue,
+  registerSchema,
+  type RegisterValues,
+} from "@/lib/validation";
 import { ALLOWED_EMAIL_DOMAINS } from "@/lib/config";
 import { describeError } from "@/lib/errors";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -69,10 +74,19 @@ export function Register() {
     }
   });
 
+  /*
+   * Advisory, never blocking. The schema no longer rejects an off-domain
+   * address because the browser cannot see manual_email_allowlist -- the
+   * escape hatch officers use to onboard someone whose address does not fit
+   * the standard domain. The database decides; this only warns early, and
+   * says who to ask when the address is deliberate.
+   */
+  const typedEmail = useWatch({ control, name: "email" }) ?? "";
   const domainHint =
-    ALLOWED_EMAIL_DOMAINS.length > 0
+    emailDomainIssue(typedEmail) ??
+    (ALLOWED_EMAIL_DOMAINS.length > 0
       ? `Use your ${ALLOWED_EMAIL_DOMAINS.map((d) => `@${d}`).join(" or ")} address.`
-      : undefined;
+      : undefined);
 
   return (
     <Card>
