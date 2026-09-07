@@ -1,6 +1,5 @@
 import {
-    DollarSign,
-    Users,
+      Users,
     GraduationCap,
     Briefcase,
     Home,

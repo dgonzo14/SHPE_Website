@@ -1,5 +1,13 @@
 @import "tailwindcss";
-@import "./styles/colors.css";
+/*
+ * layer(base) is load-bearing. Emitted unlayered, colors.css's bare `a { color }`
+ * and `a:hover { color; text-decoration: underline }` outrank EVERY Tailwind text
+ * utility (which live in @layer utilities), so `text-white` on a link-shaped
+ * button silently lost to orange-underlined. Layering restores the normal
+ * precedence and makes the `no-link-style` escape hatch a convenience rather
+ * than a requirement.
+ */
+@import "./styles/colors.css" layer(base);
 
 @custom-variant dark (&:is(.dark *));
 
@@ -133,5 +141,108 @@
   /* Body text — regular weight, comfortable tracking */
   p, li, a, button, input, textarea, select {
     font-family: 'Libre Franklin', system-ui, -apple-system, sans-serif;
+  }
+}
+/* ─────────────────────────────────────────────────────────────────────────
+   SHPE brand palette exposed as Tailwind utilities.
+
+   These are the same values the public site already uses via
+   styles/colors.css; registering them with @theme means the portal can write
+   `bg-shpe-navy` instead of scattering `#1B365D` through inline styles, and
+   the two halves of the site stay visually identical by construction.
+   ───────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-shpe-navy: #1b365d;
+  --color-shpe-navy-dark: #142949;
+  --color-shpe-navy-soft: #e8ecf2;
+  --color-shpe-orange: #e84e1b;
+  --color-shpe-orange-dark: #c43e12;
+  --color-shpe-orange-soft: #fef2ee;
+  --color-shpe-blue: #5b9bd5;
+  --color-shpe-blue-soft: #e8f4f8;
+  --color-shpe-gold: #f5a623;
+  --color-shpe-gold-soft: #fef6e7;
+}
+
+@layer base {
+  /* Respect the OS "reduce motion" setting everywhere rather than per-component. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* colors.css styles every <a>. Inside the portal, links that are laid out as
+     buttons or nav items opt out of the underline-on-hover treatment. */
+  a.no-link-style:hover,
+  a.no-link-style:focus {
+    text-decoration: none;
+  }
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Swiss / Vignelli structural layer — portal and admin surfaces.
+
+   Chosen over six other recipes because its native genre (schedules, rosters,
+   wayfinding) IS this product's densest surface, and because its house rules
+   pre-empt the brief's explicit prohibitions at the system level: radius 0,
+   shadow none, motion none. You cannot accidentally build a rounded, elevated,
+   hover-lifting SaaS dashboard inside it.
+
+   Two rules are broken deliberately, both for accessibility:
+     - The recipe's secondary grey #8A8A8A is 3.45:1 on white and fails AA.
+       Secondary text is #4B5563 (gray-600, 7.5:1) or navy at reduced size.
+     - Section bars are navy, not orange: white on #E84E1B is 3.69:1, which
+       fails for normal-size text. Orange stays as fill and action colour, and
+       orange TEXT on white uses #C43E12 (5.2:1).
+   ───────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-shpe-orange-darker: #a33410;
+  --color-shpe-rule: rgb(27 54 93 / 0.16);
+  --color-shpe-rule-strong: rgb(27 54 93 / 0.32);
+}
+
+@layer base {
+  /* Hierarchy comes from size and position, never from colour alone. */
+  #portal-content h1,
+  #admin-content h1 {
+    letter-spacing: -0.015em;
+  }
+
+  /* Figures line up in columns; proportional digits make ledgers ragged. */
+  #portal-content table,
+  #admin-content table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Square, high-contrast, offset — no glow, no colour-shift-only focus. */
+  #portal-content :focus-visible,
+  #admin-content :focus-visible {
+    outline: 3px solid var(--color-shpe-navy);
+    outline-offset: 2px;
+    border-radius: 0;
+  }
+}
+
+@layer base {
+  /*
+   * A link that IS a table cell or a list heading is not "inline in a sentence",
+   * so WCAG 2.5.8's inline exception does not cover it — and measured at 17-19px
+   * tall, 89 of them across the roster, ledger and event lists were under the
+   * 24px AA minimum.
+   *
+   * Padding rather than a min-height with inline-flex: inline-flex would stop
+   * long event titles from wrapping, trading one defect for another.
+   */
+  #portal-content :is(td, h2, h3, h4) > a,
+  #admin-content :is(td, h2, h3, h4) > a {
+    padding-block: 0.25rem;
   }
 }

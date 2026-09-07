@@ -17,7 +17,7 @@ export function Leadership() {
   const leaders = leadersData as Leader[];
   const getMailtoHref = (email: string) => `mailto:${email.trim()}`;
   const openEmailClient = (email: string) => {
-    window.location.href = getMailtoHref(email);
+    window.location.assign(getMailtoHref(email));
   };
 
   return (

@@ -1,4 +1,5 @@
-import { Slack, Linkedin, Instagram, ExternalLink, MessageCircle, Users, Target, Globe } from "lucide-react";
+import { Slack, Linkedin, Instagram, ExternalLink, MessageCircle, Users, Target, Globe, Trophy } from "lucide-react";
+import { MemberPortalCallout } from "../components/MemberPortalCallout";
 import { SEOHead } from "../components/SEOHead";
 import { Contact } from "../components/Contact";
 
@@ -112,6 +113,15 @@ export function GetPluggedIn() {
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="mb-12 sm:mb-16" aria-labelledby="portal-callout-heading">
+          <MemberPortalCallout
+            headingId="portal-callout-heading"
+            title="Already part of the familia?"
+            description="Access events, points, and your member profile in My SHPE."
+            icon={Trophy}
+          />
         </section>
 
         {/* Why Get Plugged In Section */}
