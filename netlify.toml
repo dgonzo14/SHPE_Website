@@ -69,13 +69,22 @@
     # ── Content Security Policy ─────────────────────────────
     # Additions for the member portal are deliberately narrow: Supabase needs
     # connect-src for its REST/Auth/Realtime endpoints and img-src for storage.
-    # Replace <project-ref> with your Supabase project reference, or use the
-    # wildcard forms below, which are scoped to supabase.co rather than "*".
+    # The wildcard forms below are scoped to supabase.co rather than "*".
     #
-    # Everything the public site already relied on is unchanged.
+    # script-src has NO 'unsafe-inline'. The only inline script this site ever
+    # had was the GitHub Pages SPA decoder in index.html, removed along with the
+    # 404.html generator in vite.config.ts. Supabase stores its session in
+    # localStorage, so blocking inline script is the control that decides
+    # whether a future XSS becomes full session theft. If you ever add an inline
+    # <script>, add a 'sha256-...' hash for it here rather than reopening
+    # 'unsafe-inline' for every script on the page.
+    #
+    # style-src keeps 'unsafe-inline': Tailwind and the Behold widget both set
+    # element styles at runtime, and inline style is not a script-execution
+    # primitive.
     Content-Security-Policy = """
       default-src 'self';
-      script-src  'self' 'unsafe-inline' https://w.behold.so;
+      script-src  'self' https://w.behold.so;
       style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src    'self' https://fonts.gstatic.com;
       img-src     'self' data: blob:
@@ -84,15 +93,19 @@
                   https://instagram.com
                   https://cdninstagram.com
                   https://*.cdninstagram.com
-                  https://scontent*.cdninstagram.com
                   https://behold.so
                   https://*.behold.so
+                  https://behold.pictures
                   https://*.supabase.co;
+      media-src   'self' blob:
+                  https://*.cdninstagram.com
+                  https://behold.pictures;
       frame-src   'self'
                   https://wustl.advancementform.com;
       connect-src 'self'
                   https://api.behold.so
                   https://w.behold.so
+                  https://feeds.behold.so
                   https://*.supabase.co
                   wss://*.supabase.co;
       object-src  'none';
