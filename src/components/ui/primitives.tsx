@@ -13,11 +13,18 @@ import { cn } from "@/lib/utils";
 
 /* ── Surfaces ────────────────────────────────────────────────────────────── */
 
+/**
+ * `min-w-0` is deliberate. A grid or flex child defaults to `min-width: auto`,
+ * which means it refuses to shrink below its content's min-content width — so a
+ * Card containing a table forces its whole grid track wider than the container
+ * and the page overflows. Cards hold wrapping content and their tables carry
+ * their own `overflow-x-auto`, so letting them shrink is always what we want.
+ */
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-gray-200 bg-white shadow-sm",
+        "min-w-0 border border-shpe-rule bg-white",
         className,
       )}
       {...props}
@@ -26,20 +33,20 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 }
 
 export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("border-b border-gray-100 px-5 py-4", className)} {...props} />;
+  return <div className={cn("border-b border-shpe-rule px-6 py-4", className)} {...props} />;
 }
 
 export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h2 className={cn("text-lg font-semibold text-shpe-navy", className)} {...props} />;
+  return <h2 className={cn("text-[1.25rem] font-medium leading-tight text-shpe-navy", className)} {...props} />;
 }
 
 export function CardBody({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("px-5 py-4", className)} {...props} />;
+  return <div className={cn("px-6 py-4", className)} {...props} />;
 }
 
 export function CardFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("border-t border-gray-100 px-5 py-3", className)} {...props} />
+    <div className={cn("border-t border-shpe-rule px-6 py-4", className)} {...props} />
   );
 }
 
@@ -68,7 +75,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+        "inline-flex items-center gap-1 border px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.06em]",
         BADGE_TONES[tone],
         className,
       )}
@@ -89,10 +96,10 @@ export function Label({ className, ...props }: LabelHTMLAttributes<HTMLLabelElem
 }
 
 const FIELD_BASE =
-  "w-full rounded-lg border bg-white px-3 py-2.5 text-base text-gray-900 " +
-  "placeholder:text-gray-400 min-h-[44px] " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-shpe-navy " +
-  "disabled:bg-gray-50 disabled:text-gray-500";
+  "w-full border bg-white px-3 py-2.5 text-base text-gray-900 " +
+  "placeholder:text-gray-500 min-h-[44px] " +
+  "focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-shpe-navy " +
+  "disabled:bg-gray-50 disabled:text-gray-600";
 
 export function Input({
   className,
@@ -101,7 +108,7 @@ export function Input({
 }: InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }) {
   return (
     <input
-      className={cn(FIELD_BASE, invalid ? "border-red-500" : "border-gray-300", className)}
+      className={cn(FIELD_BASE, invalid ? "border-red-600" : "border-shpe-rule-strong", className)}
       aria-invalid={invalid || undefined}
       {...props}
     />
@@ -118,7 +125,7 @@ export function Textarea({
       className={cn(
         FIELD_BASE,
         "min-h-[110px] leading-relaxed",
-        invalid ? "border-red-500" : "border-gray-300",
+        invalid ? "border-red-600" : "border-shpe-rule-strong",
         className,
       )}
       aria-invalid={invalid || undefined}
@@ -134,7 +141,7 @@ export function Select({
 }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }) {
   return (
     <select
-      className={cn(FIELD_BASE, invalid ? "border-red-500" : "border-gray-300", className)}
+      className={cn(FIELD_BASE, invalid ? "border-red-600" : "border-shpe-rule-strong", className)}
       aria-invalid={invalid || undefined}
       {...props}
     />
@@ -175,7 +182,7 @@ export function Field({
       <Label htmlFor={id}>
         {label}
         {required && (
-          <span className="ml-1 text-shpe-orange" aria-hidden="true">
+          <span className="ml-1 text-shpe-orange-dark" aria-hidden="true">
             *
           </span>
         )}
@@ -209,7 +216,7 @@ export function Checkbox({
       <input
         id={id}
         type="checkbox"
-        className="mt-1 h-5 w-5 rounded border-gray-300 text-shpe-orange focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-shpe-navy"
+        className="mt-0.5 h-6 w-6 border-shpe-rule-strong text-shpe-orange-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-shpe-navy"
         {...props}
       />
       <label htmlFor={id} className="text-sm text-gray-700">
@@ -223,10 +230,10 @@ export function Checkbox({
 /* ── Alert ───────────────────────────────────────────────────────────────── */
 
 const ALERT_TONES = {
-  info: { cls: "bg-shpe-blue-soft border-shpe-blue text-shpe-navy", Icon: Info },
-  success: { cls: "bg-emerald-50 border-emerald-300 text-emerald-900", Icon: CheckCircle2 },
-  warning: { cls: "bg-shpe-gold-soft border-shpe-gold text-amber-900", Icon: TriangleAlert },
-  danger: { cls: "bg-red-50 border-red-300 text-red-900", Icon: AlertCircle },
+  info: { cls: "bg-shpe-blue-soft border-l-shpe-blue text-shpe-navy", Icon: Info },
+  success: { cls: "bg-emerald-50 border-l-emerald-700 text-emerald-900", Icon: CheckCircle2 },
+  warning: { cls: "bg-shpe-gold-soft border-l-shpe-gold text-amber-900", Icon: TriangleAlert },
+  danger: { cls: "bg-red-50 border-l-red-700 text-red-900", Icon: AlertCircle },
 } as const;
 
 export function Alert({
@@ -242,12 +249,12 @@ export function Alert({
   const { cls, Icon } = ALERT_TONES[tone];
   return (
     <div
-      className={cn("flex gap-3 rounded-lg border p-4", cls, className)}
+      className={cn("flex gap-3 border-l-4 p-4", cls, className)}
       role={tone === "danger" ? "alert" : "status"}
       {...props}
     >
       <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-      <div className="min-w-0 text-sm">
+      <div className="min-w-0 break-words text-sm">
         {title && <p className="font-semibold">{title}</p>}
         {children && <div className={cn(title && "mt-1")}>{children}</div>}
       </div>
@@ -260,7 +267,7 @@ export function Alert({
 export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("animate-pulse rounded-md bg-gray-200", className)}
+      className={cn("animate-pulse bg-gray-200", className)}
       aria-hidden="true"
       {...props}
     />
@@ -290,7 +297,7 @@ export function Table({
 }: TableHTMLAttributes<HTMLTableElement> & { caption: string }) {
   return (
     <div className="w-full overflow-x-auto">
-      <table className={cn("w-full border-collapse text-sm", className)} {...props}>
+      <table className={cn("w-full border-collapse text-sm tabular", className)} {...props}>
         <caption className="sr-only">{caption}</caption>
         {children}
       </table>
@@ -303,7 +310,7 @@ export function Th({ className, ...props }: HTMLAttributes<HTMLTableCellElement>
     <th
       scope="col"
       className={cn(
-        "whitespace-nowrap border-b border-gray-200 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-600",
+        "whitespace-nowrap border-b border-shpe-rule-strong bg-shpe-navy-soft px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-shpe-navy",
         className,
       )}
       {...props}
@@ -313,6 +320,6 @@ export function Th({ className, ...props }: HTMLAttributes<HTMLTableCellElement>
 
 export function Td({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={cn("border-b border-gray-100 px-3 py-3 align-middle", className)} {...props} />
+    <td className={cn("h-12 border-b border-shpe-rule px-3 py-2 align-middle md:h-10", className)} {...props} />
   );
 }

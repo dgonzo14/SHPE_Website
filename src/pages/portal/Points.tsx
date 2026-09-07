@@ -103,7 +103,6 @@ export function Points() {
               label="Total points"
               value={summary.data.total_points}
               hint={label}
-              icon={Trophy}
               tone="orange"
             />
             <StatCard

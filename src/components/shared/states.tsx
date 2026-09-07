@@ -26,8 +26,8 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
-        <h1 className="text-2xl font-bold text-shpe-navy sm:text-3xl">{title}</h1>
-        {description && <p className="mt-1 text-sm text-gray-600 sm:text-base">{description}</p>}
+        <h1 className="text-[1.75rem] font-bold leading-tight text-shpe-navy sm:text-[2.25rem]">{title}</h1>
+        {description && <p className="mt-1 max-w-[65ch] text-sm text-gray-600 sm:text-base">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
@@ -36,41 +36,47 @@ export function PageHeader({
 
 /* ── Stat card ───────────────────────────────────────────────────────────── */
 
+/**
+ * One oversized numeral, one label, one rule.
+ *
+ * This is the recipe's signature move and it replaces the icon-in-a-tinted-
+ * rounded-square stat card. That pattern was the brief's "AI-generated dashboard
+ * filled with arbitrary widgets" failure mode in miniature: the icon carried no
+ * information the label did not already state, and the tinted chip made colour
+ * look semantic when it was not.
+ *
+ * Hierarchy is size and position only. `tabular-nums` keeps a column of these
+ * aligned when several sit side by side.
+ */
 export function StatCard({
   label,
   value,
   hint,
-  icon: Icon,
   tone = "navy",
 }: {
   label: string;
   value: ReactNode;
   hint?: ReactNode;
-  icon?: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  /** Tints the top rule only. Never the sole carrier of meaning. */
   tone?: "navy" | "orange" | "blue" | "gold";
 }) {
-  const tones = {
-    navy: "bg-shpe-navy-soft text-shpe-navy",
-    orange: "bg-shpe-orange-soft text-shpe-orange-dark",
-    blue: "bg-shpe-blue-soft text-shpe-navy",
-    gold: "bg-shpe-gold-soft text-amber-900",
+  const rule = {
+    navy: "border-t-shpe-navy",
+    orange: "border-t-shpe-orange",
+    blue: "border-t-shpe-blue",
+    gold: "border-t-shpe-gold",
   };
 
   return (
-    <Card className="p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-          <p className="mt-1 text-2xl font-bold text-shpe-navy">{value}</p>
-          {hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
-        </div>
-        {Icon && (
-          <span className={cn("rounded-lg p-2", tones[tone])}>
-            <Icon className="h-5 w-5" aria-hidden />
-          </span>
-        )}
-      </div>
-    </Card>
+    <div className={cn("min-w-0 border-t-4 bg-white pt-3", rule[tone])}>
+      <p className="text-4xl font-bold leading-none tabular-nums text-shpe-navy sm:text-5xl">
+        {value}
+      </p>
+      <p className="mt-2 text-xs font-semibold uppercase tracking-[0.08em] text-gray-600">
+        {label}
+      </p>
+      {hint && <p className="mt-1 text-sm text-gray-600">{hint}</p>}
+    </div>
   );
 }
 
@@ -92,13 +98,11 @@ export function EmptyState({
   icon?: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 }) {
   return (
-    <div className="flex flex-col items-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
-      <span className="rounded-full bg-white p-3 shadow-sm">
-        <Icon className="h-6 w-6 text-shpe-blue" aria-hidden />
-      </span>
-      <p className="mt-4 font-semibold text-shpe-navy">{title}</p>
-      {description && <p className="mt-1 max-w-md text-sm text-gray-600">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
+    <div className="border border-dashed border-shpe-rule-strong bg-shpe-navy-soft/40 px-6 py-10">
+      <Icon className="h-6 w-6 text-shpe-blue" aria-hidden />
+      <p className="mt-3 text-lg font-medium text-shpe-navy">{title}</p>
+      {description && <p className="mt-1 max-w-[60ch] text-sm text-gray-600">{description}</p>}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
@@ -118,11 +122,11 @@ export function ErrorState({
   return (
     <div
       role="alert"
-      className="flex flex-col items-center rounded-xl border border-red-200 bg-red-50 px-6 py-10 text-center"
+      className="border-l-4 border-l-red-700 bg-red-50 px-6 py-8"
     >
-      <AlertCircle className="h-6 w-6 text-red-600" aria-hidden />
-      <p className="mt-3 font-semibold text-red-900">{title}</p>
-      {detail && <p className="mt-1 max-w-md text-sm text-red-800">{detail}</p>}
+      <AlertCircle className="h-6 w-6 text-red-700" aria-hidden />
+      <p className="mt-3 text-lg font-medium text-red-900">{title}</p>
+      {detail && <p className="mt-1 max-w-[60ch] text-sm text-red-900">{detail}</p>}
       {onRetry && (
         <Button variant="outline" className="mt-4" onClick={onRetry}>
           Try again

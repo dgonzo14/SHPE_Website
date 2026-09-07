@@ -136,7 +136,7 @@ export function AdminPoints() {
       </Card>
 
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <StatCard label="Points awarded" value={totalAwarded} hint={termLabel} icon={Trophy} tone="orange" />
+        <StatCard label="Points awarded" value={totalAwarded} hint={termLabel} tone="orange" />
         <StatCard label="Members with points" value={(totals.data ?? []).length} hint={termLabel} />
         <StatCard label="Ledger entries" value={(ledger.data ?? []).length} hint={termLabel} />
       </div>
@@ -189,12 +189,17 @@ export function AdminPoints() {
               <li key={row.member_id}>
                 <Card className="flex items-center justify-between gap-3 p-4">
                   <div className="min-w-0">
-                    <Link to={`/admin/members/${row.member_id}`} className="font-semibold">
+                    <Link
+                      to={`/admin/members/${row.member_id}`}
+                      className="block truncate py-1 font-semibold"
+                    >
                       {`${row.first_name} ${row.last_name}`.trim() || row.email}
                     </Link>
-                    <p className="text-sm text-gray-600">{row.email}</p>
+                    <p className="truncate text-sm text-gray-600" title={row.email}>
+                      {row.email}
+                    </p>
                   </div>
-                  <span className="shrink-0 text-lg font-bold text-shpe-navy">
+                  <span className="shrink-0 text-lg font-bold tabular-nums text-shpe-navy">
                     {row.total_points}
                   </span>
                 </Card>

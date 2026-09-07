@@ -74,20 +74,24 @@ export function Navbar() {
             style={{ textDecoration: "none" }}
           >
             <div style={{ padding: "4px", borderRadius: "4px" }}>
+              {/* Natural dimensions, not 48x48 — the lockup is 6.58:1, and a
+                  square placeholder made the header reflow on first paint. */}
               <img
                 src={shpeLogo}
-                alt="SHPE Logo"
-                className="h-10 sm:h-12 w-auto"
+                alt="WashU SHPE"
+                className="h-auto w-auto max-w-[9.5rem] object-contain lg:max-w-[11rem] xl:max-w-[14rem]"
                 fetchPriority="high"
                 decoding="async"
-                width={48}
-                height={48}
+                width={4392}
+                height={667}
               />
             </div>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-2 lg:gap-4">
+          {/* lg, not md: measured at 1024px the row needs 1028px in a 961px
+              container. At md the nav alone is 692px and cannot fit at all. */}
+          <div className="hidden lg:flex items-center gap-2 xl:gap-4">
             {navLinks.map((link) => (
               <Link
                 key={link.path}
@@ -95,7 +99,9 @@ export function Navbar() {
                 onClick={handleNavClick}
                 className="px-3 lg:px-4 py-2 rounded-lg transition-all hover:scale-105 text-sm lg:text-base"
                 style={{
-                  backgroundColor: isActive(link.path) ? "#E84E1B" : "transparent",
+                  // #C43E12, not #E84E1B: white on the brand orange is 3.79:1 and fails
+                  // AA at this size. This was a pre-existing failure on the public nav.
+                  backgroundColor: isActive(link.path) ? "#C43E12" : "transparent",
                   color: isActive(link.path) ? "white" : "#1B365D",
                   textDecoration: "none",
                   minHeight: "44px",
@@ -177,7 +183,7 @@ export function Navbar() {
                 to="/login"
                 onClick={handleNavClick}
                 className="flex min-h-[44px] items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white no-link-style transition-colors hover:bg-shpe-orange-dark lg:text-base"
-                style={{ backgroundColor: "#E84E1B" }}
+                style={{ backgroundColor: "#C43E12" }}
               >
                 <LogIn className="h-4 w-4" aria-hidden />
                 Member Login
@@ -188,7 +194,7 @@ export function Navbar() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMenuOpen((open) => !open)}
-            className="block md:hidden p-2 rounded-lg transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1B365D]"
+            className="block lg:hidden p-2 rounded-lg transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1B365D]"
             style={{ minWidth: "44px", minHeight: "44px" }}
             aria-label={isMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={isMenuOpen}
@@ -199,7 +205,7 @@ export function Navbar() {
 
         {/* Mobile Navigation Menu */}
         {isMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 border-t border-gray-200">
+          <div className="lg:hidden mt-4 pb-4 border-t border-gray-200">
             <div className="flex flex-col gap-2 pt-4">
               {navLinks.map((link) => (
                 <Link
@@ -208,7 +214,9 @@ export function Navbar() {
                   onClick={handleNavClick}
                   className="px-4 py-3 rounded-lg transition-all text-base font-medium"
                   style={{
-                    backgroundColor: isActive(link.path) ? "#E84E1B" : "transparent",
+                    // #C43E12, not #E84E1B: white on the brand orange is 3.79:1 and fails
+                  // AA at this size. This was a pre-existing failure on the public nav.
+                  backgroundColor: isActive(link.path) ? "#C43E12" : "transparent",
                     color: isActive(link.path) ? "white" : "#1B365D",
                     textDecoration: "none",
                     minHeight: "44px",
@@ -257,7 +265,7 @@ export function Navbar() {
                     to="/login"
                     onClick={handleNavClick}
                     className="flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 py-3 text-base font-semibold text-white no-link-style"
-                    style={{ backgroundColor: "#E84E1B" }}
+                    style={{ backgroundColor: "#C43E12" }}
                   >
                     <LogIn className="h-4 w-4" aria-hidden />
                     Member Login

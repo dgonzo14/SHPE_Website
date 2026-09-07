@@ -224,7 +224,7 @@ export function EventDetail() {
               {event.description && (
                 <div className="border-t border-gray-100 pt-4">
                   <h2 className="sr-only">About this event</h2>
-                  <p className="whitespace-pre-line text-sm leading-relaxed text-gray-700">
+                  <p className="max-w-[65ch] whitespace-pre-line break-words text-sm leading-relaxed text-gray-700">
                     {event.description}
                   </p>
                 </div>

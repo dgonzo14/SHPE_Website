@@ -1,6 +1,6 @@
 import { Link, Outlet } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { assetUrl } from "@/lib/assets";
+import { BrandMark } from "@/components/shared/BrandMark";
 
 /**
  * Sign-in, registration and password recovery. Branded as SHPE WashU rather
@@ -22,13 +22,7 @@ export function AuthLayout() {
       <main id="auth-content" className="flex flex-1 items-start justify-center px-4 pb-16 sm:px-6">
         <div className="w-full max-w-md">
           <div className="mb-6 flex flex-col items-center text-center">
-            <img
-              src={assetUrl("SHPE_logo.png")}
-              alt="WashU SHPE"
-              className="h-14 w-auto"
-              width={56}
-              height={56}
-            />
+            <BrandMark alt="WashU SHPE" className="h-12 max-w-[15rem] sm:h-14" />
           </div>
           <Outlet />
         </div>

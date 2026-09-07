@@ -81,7 +81,7 @@ export function PublicEventsSection({ headingId }: { headingId: string }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-      <Card className="h-fit p-4">
+      <Card className="h-fit rounded-xl p-4">
         <EventCalendar
           year={month.year}
           monthIndex={month.monthIndex}
@@ -132,7 +132,7 @@ export function PublicEventsSection({ headingId }: { headingId: string }) {
           <ul className="space-y-3">
             {listed.map((event) => (
               <li key={event.id}>
-                <Card className="p-4 transition-shadow hover:shadow-md">
+                <Card className="rounded-xl p-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <h4 className="font-semibold text-shpe-navy">

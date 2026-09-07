@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, ClipboardCheck, Trophy, Users } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 
 import { LinkButton } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/primitives";
@@ -71,28 +71,24 @@ export function AdminDashboard() {
             label="Active members"
             value={analytics.data.active_members}
             hint={`${analytics.data.total_members} total accounts`}
-            icon={Users}
             tone="navy"
           />
           <StatCard
             label="Upcoming events"
             value={analytics.data.events_upcoming}
             hint={`${analytics.data.events_total} this term`}
-            icon={CalendarDays}
             tone="blue"
           />
           <StatCard
             label="Average attendance"
             value={analytics.data.avg_attendance}
             hint="Per past event this term"
-            icon={ClipboardCheck}
             tone="gold"
           />
           <StatCard
             label="Points awarded"
             value={analytics.data.points_awarded}
             hint={`${analytics.data.attendance_total} check-ins`}
-            icon={Trophy}
             tone="orange"
           />
         </div>
@@ -103,7 +99,7 @@ export function AdminDashboard() {
           <Card className="h-full">
             <CardHeader className="flex items-center justify-between gap-2">
               <CardTitle id="admin-recent-checkins">Recent check-ins</CardTitle>
-              <Link to="/admin/attendance" className="text-sm font-medium">
+              <Link to="/admin/attendance" className="inline-flex min-h-[24px] items-center text-sm font-medium">
                 Attendance
               </Link>
             </CardHeader>
@@ -141,7 +137,7 @@ export function AdminDashboard() {
           <Card className="h-full">
             <CardHeader className="flex items-center justify-between gap-2">
               <CardTitle id="admin-recent-actions">Recent administrative activity</CardTitle>
-              <Link to="/admin/audit-log" className="text-sm font-medium">
+              <Link to="/admin/audit-log" className="inline-flex min-h-[24px] items-center text-sm font-medium">
                 Audit log
               </Link>
             </CardHeader>

@@ -66,7 +66,9 @@ export function EventCard({
         </div>
 
         {event.location && (
-          <div className="flex items-center gap-2">
+          // min-w-0: without it the flex row refuses to shrink, so `truncate`
+          // never ellipsises and a long room name pushes the card wide instead.
+          <div className="flex min-w-0 items-center gap-2">
             <dt className="sr-only">Where</dt>
             <MapPin className="h-4 w-4 shrink-0 text-shpe-blue" aria-hidden />
             <dd className="truncate">{event.location}</dd>

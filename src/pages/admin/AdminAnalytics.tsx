@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, CalendarDays, ClipboardCheck, Trophy, Users } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 
 import {
   Alert,
@@ -95,28 +95,24 @@ export function AdminAnalytics() {
               label="Active members"
               value={data.active_members}
               hint={`${data.total_members} accounts`}
-              icon={Users}
               tone="navy"
             />
             <StatCard
               label="Events"
               value={data.events_total}
               hint={`${data.events_upcoming} still upcoming`}
-              icon={CalendarDays}
               tone="blue"
             />
             <StatCard
               label="Check-ins"
               value={data.attendance_total}
               hint={`Avg ${data.avg_attendance} per past event`}
-              icon={ClipboardCheck}
               tone="gold"
             />
             <StatCard
               label="Points awarded"
               value={data.points_awarded}
               hint={termLabel}
-              icon={Trophy}
               tone="orange"
             />
           </div>

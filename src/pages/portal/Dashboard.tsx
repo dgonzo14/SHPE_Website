@@ -1,14 +1,6 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  Bell,
-  CalendarDays,
-  CheckCircle2,
-  MapPin,
-  QrCode,
-  Trophy,
-} from "lucide-react";
+import { ArrowRight, Bell, CalendarDays, CheckCircle2, MapPin, QrCode, Trophy } from "lucide-react";
 
 import { useAuth } from "@/auth/useAuth";
 import { LinkButton } from "@/components/ui/button";
@@ -108,14 +100,12 @@ export function Dashboard() {
                   ? `Top ${data.points.top_percent}% of ranked members`
                   : "Attend an event to start earning"
               }
-              icon={Trophy}
               tone="orange"
             />
             <StatCard
               label="Events attended"
               value={data.points.events_attended}
               hint={data.term ? `This ${data.term.name.split(" ")[0].toLowerCase()}` : undefined}
-              icon={CalendarDays}
               tone="blue"
             />
             <StatCard
@@ -124,7 +114,6 @@ export function Dashboard() {
                 <span className="capitalize">{data.profile.membership_status}</span>
               }
               hint={`Member since ${formatShortDate(data.profile.member_since)}`}
-              icon={CheckCircle2}
               tone="navy"
             />
           </div>
@@ -140,7 +129,7 @@ export function Dashboard() {
                       Announcements
                     </span>
                   </CardTitle>
-                  <Link to="/portal/announcements" className="text-sm font-medium">
+                  <Link to="/portal/announcements" className="inline-flex min-h-[24px] items-center text-sm font-medium">
                     See all
                   </Link>
                 </CardHeader>
@@ -157,7 +146,7 @@ export function Dashboard() {
                       }
                       title={a.title}
                     >
-                      <p className="whitespace-pre-line">{a.body}</p>
+                      <p className="max-w-[65ch] whitespace-pre-line break-words">{a.body}</p>
                       {a.external_url && (
                         <a
                           href={a.external_url}
@@ -262,7 +251,7 @@ export function Dashboard() {
               <Card className="h-full">
                 <CardHeader className="flex items-center justify-between gap-2">
                   <CardTitle id="dash-recent">Recent activity</CardTitle>
-                  <Link to="/portal/history" className="text-sm font-medium">
+                  <Link to="/portal/history" className="inline-flex min-h-[24px] items-center text-sm font-medium">
                     Full history
                   </Link>
                 </CardHeader>
@@ -292,7 +281,7 @@ export function Dashboard() {
                             {entry.amount >= 0 ? `+${entry.amount}` : entry.amount}
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate font-medium text-shpe-navy">
+                            <span className="block font-medium text-shpe-navy">
                               {entry.title}
                             </span>
                             <span className="block text-xs text-gray-500">

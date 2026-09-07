@@ -64,7 +64,7 @@ export function Announcements() {
                       <Badge tone={badge.tone}>{badge.label}</Badge>
                     </div>
 
-                    <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-gray-700">
+                    <p className="mt-2 max-w-[65ch] whitespace-pre-line break-words text-sm leading-relaxed text-gray-700">
                       {announcement.body}
                     </p>
 

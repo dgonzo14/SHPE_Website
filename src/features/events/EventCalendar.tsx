@@ -102,7 +102,7 @@ export function EventCalendar({
               <th
                 key={weekday.short}
                 scope="col"
-                className="pb-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500"
+                className="pb-2 text-center text-xs font-semibold uppercase tracking-[0.08em] text-gray-600"
               >
                 <span aria-hidden="true">{weekday.short.slice(0, 1)}</span>
                 <span className="sr-only">{weekday.long}</span>
@@ -126,8 +126,10 @@ export function EventCalendar({
                     <td key={day.key} className="p-0.5 text-center align-top">
                       <span
                         className={cn(
-                          "flex h-11 w-full flex-col items-center justify-center rounded-lg text-sm",
-                          day.inMonth ? "text-gray-500" : "text-gray-300",
+                          "flex h-11 w-full flex-col items-center justify-center text-sm",
+                          // gray-300 on white is 1.47:1 — effectively invisible. Out-of-month days
+                          // are distinguished by weight and opacity, not by an unreadable grey.
+                          day.inMonth ? "text-gray-700" : "text-gray-500 font-light",
                           isToday && "font-bold text-shpe-navy ring-1 ring-shpe-blue",
                         )}
                       >
@@ -147,13 +149,13 @@ export function EventCalendar({
                         dayEvents.length === 1 ? "event" : "events"
                       }`}
                       className={cn(
-                        "flex h-11 w-full flex-col items-center justify-center rounded-lg text-sm font-semibold transition-colors",
-                        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-shpe-navy",
+                        "flex h-11 w-full flex-col items-center justify-center text-sm font-semibold transition-colors",
+                        "focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-shpe-navy",
                         isSelected
                           ? "bg-shpe-navy text-white"
                           : day.inMonth
-                            ? "bg-shpe-orange-soft text-shpe-orange-dark hover:bg-shpe-orange hover:text-white"
-                            : "bg-gray-100 text-gray-400 hover:bg-gray-200",
+                            ? "bg-shpe-orange-soft text-shpe-orange-dark hover:bg-shpe-orange-dark hover:text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200",
                         isToday && !isSelected && "ring-1 ring-shpe-blue",
                       )}
                     >
@@ -163,7 +165,7 @@ export function EventCalendar({
                       <span
                         aria-hidden="true"
                         className={cn(
-                          "mt-0.5 h-1 rounded-full",
+                          "mt-0.5 h-1",
                           dayEvents.length > 1 ? "w-3" : "w-1",
                           isSelected ? "bg-white" : "bg-shpe-orange",
                         )}

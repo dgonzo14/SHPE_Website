@@ -114,11 +114,11 @@ export function Dialog({
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
         className={cn(
-          "relative flex max-h-[90vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl",
+          "relative flex max-h-[90vh] w-full flex-col border border-shpe-navy bg-white shadow-[0_2px_8px_rgba(27,54,93,0.12)]",
           widths[size],
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-shpe-rule px-6 py-4">
           <div className="min-w-0">
             <h2 id={titleId} className="text-lg font-semibold text-shpe-navy">
               {title}
@@ -143,7 +143,7 @@ export function Dialog({
         {children && <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>}
 
         {footer && (
-          <div className="flex flex-wrap justify-end gap-2 border-t border-gray-100 px-5 py-4">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-shpe-rule px-6 py-4">
             {footer}
           </div>
         )}

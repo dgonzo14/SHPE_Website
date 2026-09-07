@@ -35,3 +35,9 @@ coverage
 # Supabase CLI local state
 supabase/.branches
 supabase/.temp
+
+# Agent skills installed with `npx skills add`. Tooling, not SHPE source —
+# reinstall with:  npx skills add ConardLi/garden-skills -s web-design-engineer
+.agents/
+.claude/
+skills-lock.json

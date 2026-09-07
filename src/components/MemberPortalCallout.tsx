@@ -44,7 +44,7 @@ export function MemberPortalCallout({
       <LinkButton
         to={signedIn ? "/portal" : "/login"}
         size="lg"
-        className="w-full shrink-0 sm:w-auto"
+        className="w-full shrink-0 rounded-lg sm:w-auto"
       >
         {signedIn ? "Open My SHPE" : "Member Login"}
       </LinkButton>

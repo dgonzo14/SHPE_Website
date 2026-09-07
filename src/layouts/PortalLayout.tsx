@@ -22,7 +22,7 @@ import { useAuth } from "@/auth/useAuth";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
-import { assetUrl } from "@/lib/assets";
+import { BrandMark } from "@/components/shared/BrandMark";
 
 interface NavItem {
   to: string;
@@ -59,7 +59,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             cn(
               "flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium no-link-style transition-colors",
               isActive
-                ? "bg-shpe-orange text-white"
+                ? "bg-shpe-orange-dark text-white"
                 : "text-shpe-navy hover:bg-shpe-navy-soft",
             )
           }
@@ -147,9 +147,11 @@ export function PortalLayout() {
     <div className="min-h-screen bg-gray-50">
       {/* Mobile header */}
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 lg:hidden">
-        <Link to="/portal" className="flex items-center gap-2 no-link-style">
-          <img src={assetUrl("SHPE_logo.png")} alt="" className="h-8 w-auto" width={32} height={32} />
-          <span className="font-bold text-shpe-navy">My SHPE</span>
+        {/* min-w-0 lets the lockup shrink instead of shoving the menu button
+            off the edge on a 320px phone. */}
+        <Link to="/portal" className="flex min-w-0 items-center gap-2 no-link-style">
+          <BrandMark className="h-8 max-w-[8.5rem] shrink" />
+          <span className="truncate font-bold text-shpe-navy">My SHPE</span>
         </Link>
         <Button
           variant="ghost"
@@ -164,17 +166,13 @@ export function PortalLayout() {
 
       <div className="mx-auto flex w-full max-w-7xl">
         {/* Desktop sidebar */}
-        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col justify-between border-r border-gray-200 bg-white p-4 lg:flex">
+        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col justify-between overflow-y-auto border-r border-shpe-rule bg-white p-4 lg:flex">
           <div>
-            <Link to="/portal" className="mb-6 flex items-center gap-2 no-link-style">
-              <img
-                src={assetUrl("SHPE_logo.png")}
-                alt=""
-                className="h-9 w-auto"
-                width={36}
-                height={36}
-              />
-              <span className="text-lg font-bold text-shpe-navy">My SHPE</span>
+            {/* Stacked, not inline: the lockup is 6.58:1, so at any legible
+                height it plus a wordmark exceeds the 224px rail. */}
+            <Link to="/portal" className="mb-6 flex flex-col items-start gap-2 no-link-style">
+              <BrandMark className="h-7 max-w-full" />
+              <span className="text-lg font-bold leading-none text-shpe-navy">My SHPE</span>
             </Link>
             <NavLinks />
           </div>
