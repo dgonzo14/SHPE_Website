@@ -27,6 +27,7 @@ import { activeTerm } from "@/services/content";
 import { formatRelative, formatShortDate, formatTimeRange } from "@/lib/datetime";
 import { eventDisplayStatus, EVENT_STATUS_LABELS, EVENT_STATUS_TONE } from "@/lib/eventStatus";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { safeExternalHref } from "@/lib/url";
 
 function greeting(now = new Date()): string {
   const hour = now.getHours();
@@ -147,9 +148,9 @@ export function Dashboard() {
                       title={a.title}
                     >
                       <p className="max-w-[65ch] whitespace-pre-line break-words">{a.body}</p>
-                      {a.external_url && (
+                      {safeExternalHref(a.external_url) && (
                         <a
-                          href={a.external_url}
+                          href={safeExternalHref(a.external_url)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="mt-1 inline-block font-medium underline"

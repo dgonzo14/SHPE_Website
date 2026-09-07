@@ -62,6 +62,17 @@ export interface MemberListRow extends ProfileRow {
 }
 
 /**
+ * Makes a value safe to embed in a PostgREST filter expression.
+ *
+ * Exported so it is covered by tests: the failure it prevents is silent. An
+ * unsanitised comma does not error, it just quietly widens the result set,
+ * which is exactly the kind of bug that survives review.
+ */
+export function sanitiseFilterValue(value: string): string {
+  return value.trim().replace(/["\\]/g, "");
+}
+
+/**
  * Roles are fetched in one extra query and stitched in, rather than one query
  * per member. With a few hundred members that is two round trips instead of
  * a few hundred.
@@ -74,7 +85,19 @@ export async function fetchMembers(filters: MemberListFilters = {}): Promise<Mem
   if (status !== "all") query = query.eq("membership_status", status);
   if (graduationYear) query = query.eq("graduation_year", graduationYear);
   if (search && search.trim()) {
-    const term = `%${search.trim()}%`;
+    /*
+     * .or() takes a raw PostgREST filter expression, not a bound parameter, so
+     * a comma in the search term starts a new condition rather than being
+     * matched literally. Searching `zzz,first_name.not.is.null` returned every
+     * member instead of none.
+     *
+     * Double quotes make the value literal; stripping quotes and backslashes
+     * closes the way back out of that quoting. Row level security still bounds
+     * what can come back either way -- this is about the query meaning what the
+     * caller typed, and about not carrying the pattern to a table whose
+     * policies are laxer.
+     */
+    const term = `"%${sanitiseFilterValue(search)}%"`;
     query = query.or(
       `first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},major.ilike.${term}`,
     );

@@ -11,6 +11,7 @@ import {
 import { fetchActiveAnnouncements } from "@/services/content";
 import { queryKeys } from "@/services/queryKeys";
 import { formatRelative } from "@/lib/datetime";
+import { safeExternalHref } from "@/lib/url";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import type { AnnouncementPriority } from "@/types/database";
 
@@ -70,9 +71,9 @@ export function Announcements() {
 
                     <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
                       <span>Posted {formatRelative(announcement.published_at)}</span>
-                      {announcement.external_url && (
+                      {safeExternalHref(announcement.external_url) && (
                         <a
-                          href={announcement.external_url}
+                          href={safeExternalHref(announcement.external_url)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 font-medium text-shpe-navy"

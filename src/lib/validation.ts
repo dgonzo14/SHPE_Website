@@ -83,8 +83,24 @@ const password = z
 const optionalText = (max = 120) =>
   z.string().trim().max(max, `Keep this under ${max} characters`).optional();
 
+/*
+ * The protocol restriction is the point of this schema, not decoration.
+ *
+ * z.url() alone accepts `javascript:`, `data:` and `vbscript:` -- they are
+ * well-formed URLs, so the WHATWG parser is happy with them. The message here
+ * has always promised "starting with https://" while accepting none of that,
+ * and these values are rendered into href attributes (announcement links), so
+ * a stored `javascript:` URI would be a script-execution sink.
+ *
+ * The deployed CSP already blocks javascript: navigations -- verified in a
+ * browser against the real policy -- but a validator that lies about what it
+ * accepts is one CSP edit away from being the whole vulnerability.
+ */
 const optionalUrl = z
-  .union([z.literal(""), z.url("Enter a full URL starting with https://")])
+  .union([
+    z.literal(""),
+    z.url({ protocol: /^https?$/, error: "Enter a full URL starting with https://" }),
+  ])
   .optional();
 
 /** Empty form field -> SQL NULL. Used when handing form values to a service. */

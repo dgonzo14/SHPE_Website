@@ -83,6 +83,33 @@ describe("registerSchema", () => {
     expect(emailDomainIssue("ana@gmail.com")).not.toBeNull();
   });
 
+  /*
+   * z.url() on its own accepts javascript:, data: and vbscript: -- they are
+   * well-formed URLs. linkedin_url and announcement external_url are rendered
+   * into href attributes, so the protocol restriction is the control, not the
+   * URL shape.
+   */
+  it("rejects a URL whose protocol is not http or https", () => {
+    for (const bad of [
+      "javascript:alert(1)",
+      "JaVaScRiPt:alert(1)",
+      "data:text/html,<script>alert(1)</script>",
+      "vbscript:msgbox(1)",
+    ]) {
+      const result = registerSchema.safeParse({ ...validRegistration, linkedin_url: bad });
+      expect(result.success, `expected ${bad} to be rejected`).toBe(false);
+    }
+  });
+
+  it("still accepts an ordinary https profile link", () => {
+    expect(
+      registerSchema.safeParse({
+        ...validRegistration,
+        linkedin_url: "https://linkedin.com/in/diego",
+      }).success,
+    ).toBe(true);
+  });
+
   it("rejects a short password", () => {
     expect(
       registerSchema.safeParse({
