@@ -64,13 +64,16 @@ export function Hero() {
             </h1>
 
             {/* The rule is the Swiss device that replaces the drop shadow. */}
-            <div className="mt-7 h-px w-24 bg-shpe-orange" aria-hidden="true" />
+            <div className="mt-8 h-px w-24 bg-shpe-orange" aria-hidden="true" />
 
-            <p className="mt-7 max-w-[52ch] text-lg leading-relaxed text-white/95 sm:text-xl">
-              A familia of engineers, scientists and mathematicians building community, opening
-              doors, and changing what the profession looks like.
-            </p>
-
+            {/*
+              No subheading. The original hero carried "Society of Hispanic
+              Professional Engineers at Washington University in St. Louis"
+              under a "Welcome to WashU SHPE" title; that sentence is now the
+              eyebrow and the h1 themselves, so a third line underneath had
+              nothing left to say and said it generically. The rule and the
+              actions carry the space instead.
+            */}
             <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <LinkButton to="/members" size="lg">
                 Events &amp; membership
