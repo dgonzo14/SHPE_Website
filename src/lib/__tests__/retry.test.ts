@@ -37,7 +37,10 @@ describe("retryOnRateLimit", () => {
   const sleep = () => Promise.resolve();
 
   it("returns a success without retrying", async () => {
-    const fn = vi.fn().mockResolvedValue({ error: null, data: "ok" });
+    // Implementation passed to vi.fn() rather than mockResolvedValue, so the
+    // return type is inferred as { error, data } instead of collapsing to the
+    // { error: unknown } constraint and losing `data`.
+    const fn = vi.fn(async () => ({ error: null as unknown, data: "ok" }));
     const result = await retryOnRateLimit(fn, { sleep });
 
     expect(fn).toHaveBeenCalledTimes(1);
