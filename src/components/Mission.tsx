@@ -1,20 +1,14 @@
 import { Target } from "lucide-react";
 
+import { StatementCard } from "@/components/ui/section";
+
 export function Mission() {
   return (
-    <section aria-labelledby="mission-heading">
-      <article className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-[var(--color-primary-light-blue)]">
-        <div className="flex items-center gap-3 mb-4 sm:mb-6">
-          <div className="p-2 sm:p-3 rounded-lg bg-[#E8F4F8] flex-shrink-0" aria-hidden="true">
-            <Target className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--color-primary-light-blue)]" aria-hidden="true" />
-          </div>
-          <h2 id="mission-heading" className="text-2xl sm:text-3xl text-[var(--color-primary-blue)]">Our Mission</h2>
-        </div>
-        <p className="text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed">
-          SHPE changes lives by empowering the Hispanic community to realize its fullest
-          potential and to impact the world through STEM awareness, access, support, and development.
-        </p>
-      </article>
+    <section aria-labelledby="mission-heading" className="h-full">
+      <StatementCard icon={Target} title="Our Mission" id="mission-heading" accent="blue">
+        SHPE changes lives by empowering the Hispanic community to realize its fullest potential
+        and to impact the world through STEM awareness, access, support, and development.
+      </StatementCard>
     </section>
   );
 }

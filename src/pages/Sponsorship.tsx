@@ -11,6 +11,8 @@ import {
 //   import sponsorshipImage from "figma:asset/bf3fd8f2a6806f6dee31c345da62cbf1dcfad006.png";
   import { useState, useEffect, useRef } from "react";
   import { Contact } from "../components/Contact";
+  import { SectionHeader } from "@/components/ui/section";
+  import { Button, LinkButton } from "@/components/ui/button";
   import { SEOHead } from "../components/SEOHead";
   const BASE_URL = import.meta.env.BASE_URL;
   
@@ -189,40 +191,35 @@ import {
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
           {/* Header Section */}
-          <header className="text-center mb-12 sm:mb-16 px-2">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl mb-4 sm:mb-6 text-[var(--color-primary-blue)] leading-tight">
-              Explore Sponsorship Opportunities
-            </h1>
-            <p className="text-2xl sm:text-3xl mb-4 sm:mb-6 text-[var(--color-primary-orange)]">
-              Partner With Us
-            </p>
-            <p className="text-base sm:text-lg lg:text-xl text-[var(--color-text-secondary)] max-w-4xl mx-auto mb-3 sm:mb-4">
-              WashU SHPE collaborates with corporate partners to
-              bring impactful workshops, mentorship, scholarships,
-              and career opportunities to our members.
-            </p>
-            <p className="text-base sm:text-lg lg:text-xl max-w-3xl mx-auto text-[var(--color-primary-blue)]">
-              Thank you to all our sponsors for your generous
-              support!
-            </p>
-          </header>
+          {/*
+            "Partner With Us" was set at 30px in brand orange directly under the
+            h1, which made two competing titles and put a 3.79:1 colour at
+            display size. It is the eyebrow now — same words, correct rank.
+          */}
+          <SectionHeader
+            eyebrow="Partner with us"
+            title="Explore Sponsorship Opportunities"
+            as="h1"
+            lede="WashU SHPE collaborates with corporate partners to bring impactful workshops, mentorship, scholarships, and career opportunities to our members."
+          />
+          <p className="mb-12 max-w-[65ch] text-base leading-relaxed text-gray-700 sm:mb-16 sm:text-lg">
+            Thank you to all our sponsors for your generous support.
+          </p>
   
           {/* Impact Visualization Section */}
           <section className="mb-12 sm:mb-20" aria-labelledby="impact-heading">
-            <h2 id="impact-heading" className="text-2xl sm:text-3xl lg:text-4xl text-center mb-3 sm:mb-4 text-[var(--color-primary-blue)] px-2">
-              How Your Contribution Makes an Impact
-            </h2>
-            <p className="text-center text-sm sm:text-base text-[var(--color-text-tertiary)] mb-8 sm:mb-12 max-w-3xl mx-auto px-2">
-              Every dollar invested in our students creates
-              lasting change. Here's how your sponsorship directly
-              supports student success:
-            </p>
+            <SectionHeader
+              eyebrow="Where it goes"
+              title="How Your Contribution Makes an Impact"
+              id="impact-heading"
+              lede="Every dollar invested in our students creates lasting change. Here is how your sponsorship directly supports student success."
+            />
   
             <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 list-none" role="list">
               {impactLevels.map((level, index) => (
                 <li key={index} role="listitem" className="flex">
                   <article
-                    className="bg-white rounded-2xl p-6 sm:p-8 shadow-lg border-2 focus-within:ring-2 focus-within:ring-[var(--color-primary-blue)] focus-within:ring-offset-2 flex flex-col w-full"
+                    className="flex w-full flex-col border border-shpe-rule bg-white p-6 focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-shpe-navy sm:p-8"
                     style={{ borderColor: level.color }}
                   >
                     <div
@@ -239,15 +236,17 @@ import {
                       />
                     </div>
                     <div className="text-center flex-grow flex flex-col">
-                      <div
-                        className="text-3xl sm:text-4xl mb-1 font-semibold"
-                        style={{ color: level.color }}
-                      >
+                      {/*
+                        Navy, not level.color. Three of the six levels were set
+                        in #5B9BD5, which is 2.40:1 on white — the single most
+                        important number on the card was the least legible thing
+                        on it. The colour still appears, as the bar above the
+                        icon, where it decorates instead of informs.
+                      */}
+                      <div className="mb-1 text-3xl font-bold tabular-nums text-shpe-navy sm:text-4xl">
                         {level.amount}
                         {level.per && (
-                          <span className="text-lg sm:text-2xl text-gray-600">
-                            {level.per}
-                          </span>
+                          <span className="text-lg text-gray-600 sm:text-2xl">{level.per}</span>
                         )}
                       </div>
                       <h3 className="text-lg sm:text-xl mb-2 sm:mb-3 text-[var(--color-primary-blue)]">
@@ -274,12 +273,12 @@ import {
               {sponsorshipTiers.map((tier, index) => (
                 <li key={index} role="listitem" className="flex">
                   <article
-                    className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border-t-8 hover:shadow-2xl transition-all focus-within:ring-2 focus-within:ring-[var(--color-primary-blue)] focus-within:ring-offset-2 flex flex-col w-full"
+                    className="flex w-full flex-col border border-shpe-rule border-t-[6px] bg-white p-6 transition-colors focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-shpe-navy sm:p-8"
                     style={{ borderTopColor: tier.color }}
                   >
                     <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6 flex-shrink-0">
                       <div
-                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white text-2xl sm:text-3xl font-bold flex-shrink-0"
+                        className="flex h-16 w-16 shrink-0 items-center justify-center text-2xl font-bold text-white sm:h-20 sm:w-20 sm:text-3xl"
                         style={{ backgroundColor: tier.color }}
                         aria-hidden="true"
                       >
@@ -292,10 +291,15 @@ import {
                         >
                           {tier.name} {tier.nameEnglish}
                         </h3>
-                        <p
-                          className="text-2xl sm:text-3xl font-semibold"
-                          style={{ color: tier.color }}
-                        >
+                        {/*
+                          Same reason as the impact amounts: the tier price was
+                          set in tier.color, and the gold tier's #F5A623 is
+                          2.04:1 on white. The tier is already identified by its
+                          name, its medallion and the 6px bar across the top of
+                          the card — three carriers, none of which need the
+                          price to be the fourth.
+                        */}
+                        <p className="text-2xl font-bold tabular-nums text-shpe-navy sm:text-3xl">
                           {tier.price}
                         </p>
                       </div>
@@ -326,7 +330,7 @@ import {
           </section>
   
           {/* Call to Action */}
-          <section className="bg-gradient-to-r from-blue-50 to-orange-50 rounded-2xl sm:rounded-3xl p-8 sm:p-12 text-center" aria-labelledby="cta-heading">
+          <section className="border border-shpe-rule bg-shpe-navy-soft p-8 text-center sm:p-12" aria-labelledby="cta-heading">
             <h2 id="cta-heading" className="text-2xl sm:text-3xl lg:text-4xl mb-4 sm:mb-6 text-[var(--color-primary-blue)] px-2">
               Ready to Make a Difference?
             </h2>
@@ -336,25 +340,23 @@ import {
               opportunities that transform lives.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-              <a
-                href={`${BASE_URL}/WashU_SHPE_Sponsorship_Package.pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-lg px-6 sm:px-8 py-3 sm:py-4 transition-all hover:scale-105 shadow-lg flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white font-semibold text-sm sm:text-base min-h-[44px]"
-                style={{ backgroundColor: "#E84E1B", color: "#FFFFFF" }}
-                aria-label="Download Corporate Packet PDF (opens in new window)"
+              <LinkButton
+                to={`${BASE_URL}/WashU_SHPE_Sponsorship_Package.pdf`}
+                external
+                size="lg"
+                aria-label="Download Corporate Packet PDF (opens in a new tab)"
               >
-                <FileText className="w-5 h-5 flex-shrink-0" aria-hidden="true" style={{ color: "#FFFFFF" }} />
-                <span>Corporate Packet (PDF)</span>
-              </a>
-              <button
+                <FileText className="h-4 w-4 shrink-0" aria-hidden />
+                Corporate Packet (PDF)
+              </LinkButton>
+              <Button
+                variant="secondary"
+                size="lg"
                 onClick={() => setShowDonateModal(true)}
-                className="rounded-lg px-6 sm:px-8 py-3 sm:py-4 transition-all hover:scale-105 shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white font-semibold text-sm sm:text-base min-h-[44px]"
-                style={{ backgroundColor: "#1B365D", color: "#FFFFFF" }}
-                aria-label="Open donation modal"
+                aria-label="Open donation instructions"
               >
                 Donate Online
-              </button>
+              </Button>
             </div>
           </section>
         </div>
@@ -374,7 +376,7 @@ import {
           >
             <div 
               ref={modalRef}
-              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-4"
+              className="mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto border border-shpe-rule-strong bg-white"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6 sm:p-8">
@@ -401,10 +403,10 @@ import {
                     these steps to complete your donation:
                   </p>
   
-                  <ol className="bg-blue-50 rounded-lg p-4 sm:p-6 space-y-3 sm:space-y-4 list-none" aria-label="Donation steps">
+                  <ol className="list-none space-y-3 border border-shpe-rule bg-shpe-navy-soft p-4 sm:space-y-4 sm:p-6" aria-label="Donation steps">
                     <li className="flex gap-3 sm:gap-4">
                       <div
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white text-base sm:text-lg font-bold"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center text-base font-bold tabular-nums text-white sm:h-10 sm:w-10 sm:text-lg"
                         style={{ backgroundColor: "#1B365D" }}
                         aria-hidden="true"
                       >
@@ -424,7 +426,7 @@ import {
   
                     <li className="flex gap-3 sm:gap-4">
                       <div
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white text-base sm:text-lg font-bold"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center text-base font-bold tabular-nums text-white sm:h-10 sm:w-10 sm:text-lg"
                         style={{ backgroundColor: "#E84E1B" }}
                         aria-hidden="true"
                       >
@@ -448,7 +450,7 @@ import {
   
                     <li className="flex gap-3 sm:gap-4">
                       <div
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white text-base sm:text-lg font-bold"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center text-base font-bold tabular-nums text-white sm:h-10 sm:w-10 sm:text-lg"
                         style={{ backgroundColor: "#5B9BD5" }}
                         aria-hidden="true"
                       >
@@ -462,7 +464,7 @@ import {
                           In the designation field, type:
                         </p>
                         <div
-                          className="bg-white border-2 rounded-lg p-3 sm:p-4 border-[var(--color-primary-blue)]"
+                          className="border-l-4 border-shpe-orange bg-white p-3 sm:p-4"
                         >
                           <p className="text-sm sm:text-base lg:text-lg">
                             <strong>
@@ -481,7 +483,7 @@ import {
   
                     <li className="flex gap-3 sm:gap-4">
                       <div
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white text-base sm:text-lg font-bold"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center text-base font-bold tabular-nums text-white sm:h-10 sm:w-10 sm:text-lg"
                         style={{ backgroundColor: "#1B365D" }}
                         aria-hidden="true"
                       >
@@ -506,7 +508,7 @@ import {
                       href="https://wustl.advancementform.com/campaign/gifts-wustl-edu/give?sc=GA2024&_gl=1*1iwzsaz*_ga*MTQ0NzM0OTM4My4xNzYxNjg4MDgy*_ga_YVW0WQRFV8*czE3Njc2NDA5MzEkbzIkZzEkdDE3Njc2NDA5NDIkajQ5JGwwJGgw*_ga_644M6QG3YF*czE3Njc2NDA5MzIkbzIkZzEkdDE3Njc2NDA5NDIkajUwJGwwJGgw*_ga_D6PN61M2D3*czE3Njc2NDA5MzIkbzIkZzEkdDE3Njc2NDA5NDIkajUwJGwwJGgw*_ga_97GKM0B0NF*czE3Njc2NDA5MzIkbzIkZzEkdDE3Njc2NDA5NDIkajUwJGwwJGgw"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 text-center rounded-lg px-6 sm:px-8 py-3 sm:py-4 transition-all hover:scale-105 shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white font-semibold text-sm sm:text-base min-h-[44px] flex items-center justify-center"
+                      className="flex-1 text-center px-6 sm:px-8 py-3 sm:py-4 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white font-semibold text-sm sm:text-base min-h-[44px] flex items-center justify-center"
                       style={{ backgroundColor: "#E84E1B", color: "#FFFFFF" }}
                       aria-label="Go to WashU Donation Portal (opens in new window)"
                     >
@@ -514,7 +516,7 @@ import {
                     </a>
                     <button
                       onClick={() => setShowDonateModal(false)}
-                      className="flex-1 bg-white rounded-lg px-6 sm:px-8 py-3 sm:py-4 transition-all hover:scale-105 shadow-lg border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1B365D] font-semibold text-sm sm:text-base min-h-[44px] flex items-center justify-center"
+                      className="flex-1 bg-white px-6 sm:px-8 py-3 sm:py-4 transition-all border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1B365D] font-semibold text-sm sm:text-base min-h-[44px] flex items-center justify-center"
                       style={{ borderColor: "#1B365D", color: "#1B365D" }}
                       aria-label="Close modal"
                     >

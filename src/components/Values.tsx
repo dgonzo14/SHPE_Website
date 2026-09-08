@@ -1,60 +1,83 @@
 import { Heart, HandHelping, GraduationCap, Shield } from "lucide-react";
 
-export function Values() {
-  const values = [
-    {
-      icon: Heart,
-      title: "Familia",
-      description: "We build strong communities and support one another as family",
-      bgColor: '#FEF2EE',
-      iconColor: '#E84E1B'
-    },
-    {
-      icon: HandHelping,
-      title: "Service",
-      description: "We are committed to serving our community and making a positive impact",
-      bgColor: '#E8F4F8',
-      iconColor: '#5B9BD5'
-    },
-    {
-      icon: GraduationCap,
-      title: "Education",
-      description: "We value learning, growth, and the pursuit of knowledge",
-      bgColor: '#E8ECF2',
-      iconColor: '#1B365D'
-    },
-    {
-      icon: Shield,
-      title: "Resilience",
-      description: "We persevere through challenges and emerge stronger together",
-      bgColor: '#FEF2EE',
-      iconColor: '#E84E1B'
-    }
-  ];
+import { Section, SectionHeader } from "@/components/ui/section";
 
+const VALUES = [
+  {
+    icon: Heart,
+    title: "Familia",
+    description: "We build strong communities and support one another as family",
+  },
+  {
+    icon: HandHelping,
+    title: "Service",
+    description: "We are committed to serving our community and making a positive impact",
+  },
+  {
+    icon: GraduationCap,
+    title: "Education",
+    description: "We value learning, growth, and the pursuit of knowledge",
+  },
+  {
+    icon: Shield,
+    title: "Resilience",
+    description: "We persevere through challenges and emerge stronger together",
+  },
+] as const;
+
+/**
+ * The four chapter values.
+ *
+ * Previously four cards each with a 2px border in a different colour, a tinted
+ * icon chip, and a shadow that grew on hover. Three separate systems doing the
+ * same job, and the colours were decorative — nothing distinguished Familia
+ * from Service except hue, which is invisible to anyone who cannot separate
+ * #E84E1B from #5B9BD5.
+ *
+ * Now the ordinal carries it. An oversized number at the top-left of each block
+ * is the Vignelli move for exactly this situation: it gives four equal items a
+ * reading order without inventing four meanings for four colours. The numbers
+ * are tabular so they align on the baseline grid across the row.
+ */
+export function Values() {
   return (
-    <section className="py-14 sm:py-16 lg:py-20 px-4 sm:px-6 pb-16 sm:pb-24 lg:pb-28" aria-labelledby="values-heading">
-      <div className="max-w-7xl mx-auto">
-        <h2 id="values-heading" className="text-3xl sm:text-4xl lg:text-5xl text-center mb-8 sm:mb-12 lg:mb-14 text-[var(--color-primary-blue)] px-2">Our Values</h2>
-        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-7 list-none" role="list">
-          {values.map((value) => (
-            <li key={value.title} role="listitem" className="flex">
-              <article 
-                className="bg-white rounded-2xl shadow-lg p-6 sm:p-6 lg:p-7 border-2 hover:shadow-xl transition-shadow focus-within:ring-2 focus-within:ring-[var(--color-primary-blue)] focus-within:ring-offset-2 flex flex-col w-full h-full"
-                style={{ borderColor: value.iconColor }}
-              >
-                <div className="p-2 sm:p-3 rounded-lg w-fit mb-3 sm:mb-4 flex-shrink-0" style={{ backgroundColor: value.bgColor }} aria-hidden="true">
-                  <value.icon className="w-6 h-6 sm:w-6 sm:h-6 lg:w-7 lg:h-7" style={{ color: value.iconColor }} aria-hidden="true" />
-                </div>
-                <h3 className="text-lg sm:text-xl lg:text-2xl mb-2 sm:mb-3 text-[var(--color-primary-blue)] flex-shrink-0">{value.title}</h3>
-                <p className="text-sm sm:text-base lg:text-lg text-[var(--color-text-tertiary)] flex-grow">
-                  {value.description}
-                </p>
-              </article>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+    <Section tone="soft" space="lg" aria-labelledby="values-heading">
+      <SectionHeader
+        eyebrow="What we stand for"
+        title="Our Values"
+        id="values-heading"
+        lede="Four commitments that shape how the chapter runs, who we make room for, and what we ask of each other."
+      />
+
+      <ul className="grid grid-cols-1 gap-px border border-shpe-rule bg-shpe-rule sm:grid-cols-2 lg:grid-cols-4">
+        {VALUES.map((value, index) => (
+          <li key={value.title} className="min-w-0 bg-white">
+            {/*
+              The 1px gaps come from `gap-px` over a ruled background, so the
+              grid itself draws the dividing lines. It means one continuous
+              rule across the row instead of four cards each with their own
+              border doubling up at the seams.
+            */}
+            <article className="flex h-full flex-col p-6 lg:p-7">
+              <div className="mb-5 flex items-baseline justify-between gap-3">
+                <span
+                  className="text-[2.5rem] font-bold leading-none tabular-nums text-shpe-navy/20"
+                  aria-hidden="true"
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <value.icon className="h-6 w-6 shrink-0 text-shpe-orange-dark" aria-hidden />
+              </div>
+              <h3 className="text-lg font-bold tracking-tight text-shpe-navy sm:text-xl">
+                {value.title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-700 sm:text-base">
+                {value.description}
+              </p>
+            </article>
+          </li>
+        ))}
+      </ul>
+    </Section>
   );
 }

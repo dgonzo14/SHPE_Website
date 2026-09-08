@@ -3,25 +3,22 @@ import { Mission } from "../components/Mission";
 import { Vision } from "../components/Vision";
 import { Values } from "../components/Values";
 import { ExploreMore } from "../components/ExploreMore";
-import { History } from "../components/History"
+import { History } from "../components/History";
 import { Contact } from "../components/Contact";
 import { SEOHead } from "../components/SEOHead";
+import { Section, SectionHeader } from "@/components/ui/section";
 import { OptimizedPicture } from "@/components/OptimizedPicture";
 import conImg from "/images/conventionImg.jpeg";
 import conImgWebp from "/images/conventionImg.webp";
 
-
-// NEXT STEPS: Fix home layout
-// Ensure values is larger at full screen and vision + mission + image block doesnt reuce its size
-//reduce gap between vision and mission block and convention image
+// NEXT STEPS
 // Add favicon
-// add subscribe to newletter option
+// add subscribe to newsletter option
 // update exec board emails photos and linkedin
 // why get plugged in change icons
-//sponsorship  Conference Meal change icon to food
-// remove hover effect on how contributuons make an impact section]
-// Get plugged in page add contact 
-// get plugged in add WUGO link 
+// sponsorship Conference Meal change icon to food
+// Get plugged in page add contact
+// get plugged in add WUGO link
 
 export function Home() {
   return (
@@ -32,27 +29,45 @@ export function Home() {
         keywords="SHPE, WashU, Washington University, Hispanic Engineers, STEM, Engineering, St. Louis, Society of Hispanic Professional Engineers, mentorship, professional development"
       />
       <Hero />
-      <div className="mt-8 sm:mt-10 lg:mt-14 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-6 items-stretch mb-8 sm:mb-12 px-6 sm:px-12">
-        <div className="flex flex-col gap-4 sm:gap-5 justify-center">
-          <Mission />
-          <Vision />
-        </div>
-        <div className="flex justify-center lg:justify-end">
-          <div className="rounded-2xl overflow-hidden shadow-lg w-full max-w-none h-64 sm:h-80 lg:h-[420px] xl:h-[480px]">
+
+      {/*
+        Mission, vision and the convention photograph on one grid.
+
+        Previously this was a bare flex row whose left column was
+        `justify-center`, so the two cards floated against a fixed-height image
+        and the block's internal alignment changed with the viewport. Now the
+        image is a grid child with `h-full`: the row is one rectangle at every
+        width, and the cards stretch to meet it instead of hovering inside it.
+      */}
+      <Section space="lg" aria-labelledby="purpose-heading">
+        <SectionHeader
+          eyebrow="Who we are"
+          title="Why the chapter exists"
+          id="purpose-heading"
+          lede="SHPE is a national organisation with a specific promise. Here is the version of it we are accountable to at WashU."
+        />
+
+        <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-2 lg:items-stretch">
+          <div className="grid min-w-0 grid-rows-2 gap-5 sm:gap-6">
+            <Mission />
+            <Vision />
+          </div>
+          <div className="min-h-[16rem] overflow-hidden border border-shpe-rule lg:min-h-0">
             <OptimizedPicture
               webp={conImgWebp}
               fallback={conImg}
-              alt="National Convention 2025"
-              className="w-full h-full object-cover"
+              alt="WashU SHPE members at the 2025 SHPE National Convention"
+              className="h-full w-full object-cover"
               loading="lazy"
             />
           </div>
         </div>
-      </div>
+      </Section>
+
       <Values />
       <ExploreMore />
       <History />
-      <Contact/>
+      <Contact />
     </>
   );
 }
