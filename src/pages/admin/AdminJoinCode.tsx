@@ -168,29 +168,51 @@ export function AdminJoinCode() {
                 </div>
 
                 {/*
-                  A spike here is the signal that someone is guessing. Attempts
-                  are throttled per member in the database, so this is for
-                  awareness rather than for action — but a number in the
-                  hundreds means the code should be rotated.
+                  Two different messages, because "turn it back on" is the right
+                  action in one case and the wrong one in the other. If the code
+                  switched itself off it was being guessed at, and re-enabling
+                  the same code just resumes the attack — the fix is a new one.
                 */}
-                {status.data.failed_attempts_24h >= 25 && (
-                  <Alert tone="warning" title="Unusual number of failed attempts">
+                {status.data.auto_disabled ? (
+                  <Alert tone="danger" title="The join code turned itself off">
                     <span className="flex items-start gap-2">
                       <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                      Attempts are rate limited, but consider setting a new code if you didn't
-                      expect this.
+                      <span>
+                        It was guessed at enough times to trip the chapter-wide limit. Set a{" "}
+                        <strong>new</strong> code rather than switching this one back on. Members
+                        can still be approved by hand below.
+                      </span>
                     </span>
                   </Alert>
+                ) : (
+                  status.data.failed_attempts_24h >= 25 && (
+                    <Alert tone="warning" title="Unusual number of failed attempts">
+                      <span className="flex items-start gap-2">
+                        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                        Attempts are rate limited chapter-wide, so this is for awareness — but
+                        consider setting a new code if you didn't expect it.
+                      </span>
+                    </Alert>
+                  )
                 )}
 
                 {status.data.configured && (
                   <Button
-                    variant={status.data.enabled ? "outline" : "primary"}
+                    // Never the primary action after an auto-disable: setting a
+                    // new code is, and this one is still there for an officer
+                    // who has decided otherwise.
+                    variant={
+                      !status.data.enabled && !status.data.auto_disabled ? "primary" : "outline"
+                    }
                     block
                     loading={setEnabled.isPending}
                     onClick={() => void toggle(!status.data.enabled)}
                   >
-                    {status.data.enabled ? "Turn the join code off" : "Turn the join code on"}
+                    {status.data.enabled
+                      ? "Turn the join code off"
+                      : status.data.auto_disabled
+                        ? "Turn this code back on anyway"
+                        : "Turn the join code on"}
                   </Button>
                 )}
 

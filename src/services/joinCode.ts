@@ -74,6 +74,11 @@ export interface JoinCodeStatus {
   /** Whether a code has ever been set. The code itself is never returned. */
   configured: boolean;
   enabled: boolean;
+  /**
+   * True when the chapter-wide failure cap turned the code off, rather than an
+   * officer doing it. Clears when a new code is set, because that is the fix.
+   */
+  auto_disabled: boolean;
   rotated_at: string | null;
   failed_attempts_24h: number;
   pending_members: number;

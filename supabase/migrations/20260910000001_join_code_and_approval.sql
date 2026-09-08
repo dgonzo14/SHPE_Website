@@ -110,11 +110,13 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_member uuid := auth.uid();
-  v_code   text := public.normalize_checkin_code(p_code);
-  v_secret public.join_code_secret;
-  v_fails  integer;
-  v_status public.membership_status;
+  v_member   uuid := auth.uid();
+  v_code     text := public.normalize_checkin_code(p_code);
+  v_secret   public.join_code_secret;
+  v_fails    integer;
+  v_global   integer;
+  v_sustained integer;
+  v_status   public.membership_status;
 begin
   if v_member is null then
     return jsonb_build_object('ok', false, 'code', 'UNAUTHORIZED');
@@ -129,6 +131,71 @@ begin
      and a.attempted_at > now() - interval '15 minutes';
 
   if v_fails >= 5 then
+    return jsonb_build_object('ok', false, 'code', 'RATE_LIMITED');
+  end if;
+
+  /*
+   * Chapter-wide caps, because the per-member one above does not bound an
+   * attacker.
+   *
+   * Five guesses per account only limits anyone who is limited to one account,
+   * and nobody is: email confirmation is off, so registering any address at an
+   * allowed domain yields a working session without touching a mailbox. The
+   * attacker's real budget is therefore the sign-up rate limit -- which is 150
+   * per five minutes per IP -- multiplied by five. That is roughly 9,000
+   * guesses an hour against a code an officer reads off a slide, and a code
+   * like SHPE2026 does not survive it.
+   *
+   * Two tiers, because a room full of typos and a scripted search are not the
+   * same event:
+   *
+   *   soft  60 failures chapter-wide in 15 minutes -> refuse, code stays on.
+   *         Self-healing as the window slides. A 100-person meeting where a
+   *         fifth of the room mistypes once produces about 20, so this sits
+   *         well clear of legitimate use while cutting the attack rate to
+   *         240/hour -- about 37x slower.
+   *
+   *   hard  200 failures chapter-wide in an hour -> turn the code off and say
+   *         so in the audit log. Reachable only by someone grinding through
+   *         soft refusals for the better part of an hour, which is not
+   *         something a meeting does.
+   *
+   * This is a rate control, not a quota: the per-member advisory lock does not
+   * serialise these counts, so concurrent callers can read the same value and
+   * both pass. Being a few over a threshold of 60 does not matter. A global
+   * lock would make it exact and would serialise the one path that must not
+   * stall while a room is signing up -- the wrong trade.
+   *
+   * Turning the code off is a denial of service an attacker can trigger, and
+   * that is accepted deliberately: it degrades to officer approval, which is a
+   * path this migration already builds and which officers were going to use
+   * anyway. An officer rotates and re-enables from the admin screen in seconds.
+   * The alternative -- leaving a code up while it is being ground down -- fails
+   * silently, and silence is worse than a fallback.
+   */
+  select count(*)::integer into v_global
+    from public.join_code_attempts a
+   where not a.succeeded
+     and a.attempted_at > now() - interval '15 minutes';
+
+  if v_global >= 60 then
+    select count(*)::integer into v_sustained
+      from public.join_code_attempts a
+     where not a.succeeded
+       and a.attempted_at > now() - interval '1 hour';
+
+    if v_sustained >= 200 then
+      update public.join_code_secret set enabled = false where id;
+
+      -- Actor is null: this is the system reacting, not a person acting.
+      perform public.write_audit_log(
+        null, 'join_code.auto_disabled', 'system', null,
+        jsonb_build_object('failures_1h', v_sustained, 'failures_15m', v_global)
+      );
+
+      return jsonb_build_object('ok', false, 'code', 'JOIN_CODE_DISABLED');
+    end if;
+
     return jsonb_build_object('ok', false, 'code', 'RATE_LIMITED');
   end if;
 
@@ -218,10 +285,18 @@ declare
   v_salt  text;
 begin
   -- Normalisation strips punctuation and upper-cases, so "shpe fall 26" and
-  -- "SHPE-FALL-26" are the same code. Four characters is the floor: shorter
-  -- than that and the 5-per-15-minute throttle stops being meaningful.
-  if length(v_code) < 4 then
-    raise exception 'A join code needs at least 4 letters or digits'
+  -- "SHPE-FALL-26" are the same code.
+  --
+  -- Six characters, matching the form. The floor used to be four and the form
+  -- said six, which meant the rule everyone actually relied on lived in Zod --
+  -- i.e. in the browser, where it is advice rather than a rule. An officer
+  -- calling this RPC directly could set a four-character code.
+  --
+  -- Six is still not much against an offline attack, but this code is never
+  -- exposed to one: only its salted hash is stored, and every guess has to go
+  -- through redeem_join_code(), which is throttled per member and chapter-wide.
+  if length(v_code) < 6 then
+    raise exception 'A join code needs at least 6 letters or digits'
       using errcode = '22023';
   end if;
 
@@ -323,6 +398,19 @@ begin
     'enabled', coalesce(v_secret.enabled, false),
     'rotated_at', v_secret.rotated_at,
     'failed_attempts_24h', v_recent,
+    -- Distinguishes "an officer turned it off" from "it turned itself off
+    -- because it was being guessed at". Anchored to rotated_at so a rotation
+    -- clears it: setting a new code is the remedy, and the screen should stop
+    -- warning once the remedy has been applied.
+    'auto_disabled', (
+      v_configured
+      and not coalesce(v_secret.enabled, false)
+      and exists (
+        select 1 from public.admin_audit_log l
+         where l.action = 'join_code.auto_disabled'
+           and l.created_at > coalesce(v_secret.rotated_at, '-infinity'::timestamptz)
+      )
+    ),
     'pending_members', (
       select count(*)::integer from public.profiles p
        where p.membership_status = 'pending'
@@ -357,6 +445,55 @@ $$;
 
 revoke execute on function public.prune_join_code_attempts(integer)
   from public, anon, authenticated;
+
+
+-- Admin-callable form. Without this the function above was revoked from every
+-- client role and never scheduled, so nothing could call it and the table grew
+-- without bound -- attacker-influenced rows on a 500 MB tier. Same shape as
+-- admin_prune_checkin_attempts, and audited the same way.
+create or replace function public.admin_prune_join_code_attempts(p_days integer default 90)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor   uuid := public.require_admin();
+  v_deleted integer;
+begin
+  v_deleted := public.prune_join_code_attempts(p_days);
+
+  perform public.write_audit_log(
+    v_actor, 'join_code_attempts.pruned', 'system', null,
+    jsonb_build_object('days_kept', p_days, 'rows_deleted', v_deleted)
+  );
+
+  return jsonb_build_object('ok', true, 'rows_deleted', v_deleted, 'days_kept', p_days);
+end;
+$$;
+
+revoke execute on function public.admin_prune_join_code_attempts(integer) from public, anon;
+grant execute on function public.admin_prune_join_code_attempts(integer) to authenticated;
+
+
+-- Scheduled if pg_cron happens to be installed, guarded so the migration is
+-- valid on a project where it never was -- which is the default, and is why the
+-- admin-callable form exists.
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.schedule(
+      'prune-join-code-attempts',
+      '31 4 * * 0',                       -- 04:31 every Sunday
+      $cron$select public.prune_join_code_attempts(90);$cron$
+    );
+    raise notice 'Scheduled weekly prune of public.join_code_attempts via pg_cron.';
+  else
+    raise notice 'pg_cron not installed; call public.admin_prune_join_code_attempts() periodically instead.';
+  end if;
+end;
+$$;
 
 
 -- ── Teach the profile guard about the join-code path ────────────────────────
