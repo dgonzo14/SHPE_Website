@@ -83,11 +83,10 @@ export function Register() {
 
       /*
        * Confirmation is off, so signUp returned a session and they are already
-       * signed in. Sending them to /login would bounce off
-       * RedirectIfAuthenticated and land on the dashboard behind a "you're not
-       * active yet" banner. Go straight to the thing they need to do instead.
+       * signed in -- but pending, so the portal is closed to them. Straight to
+       * the gate, which is where RequireApprovedMember would send them anyway.
        */
-      navigate("/portal/join", { replace: true });
+      navigate("/join", { replace: true });
     } catch (error) {
       const { title, detail } = describeError(error, "We couldn't create your account");
       setFormError(detail ? `${title}. ${detail}` : title);

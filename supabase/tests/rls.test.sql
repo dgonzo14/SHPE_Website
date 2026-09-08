@@ -19,7 +19,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(42);
+select plan(50);
 
 -- ── Fixtures (fictional people only) ────────────────────────────────────────
 
@@ -55,6 +55,26 @@ select public.test_create_user('aaaaaaaa-0000-4000-8000-000000000004', 'diego.pa
 insert into public.member_roles (member_id, role) values
   ('aaaaaaaa-0000-4000-8000-000000000003', 'officer'),
   ('aaaaaaaa-0000-4000-8000-000000000004', 'admin');
+
+/*
+ * State the membership status these fixtures need rather than inheriting it.
+ *
+ * test_create_user() goes through handle_new_user(), which reads
+ * app_settings.default_membership_status -- 'pending' since 20260910000001.
+ * Every assertion below describes a member who has been admitted, and since
+ * 20260911000001 a pending account cannot see announcements, member resources
+ * or internal events at all. Left to the default, four tests here would fail
+ * for a reason that has nothing to do with what they are named after.
+ *
+ * The pending case is not skipped; it gets its own section at the end.
+ */
+update public.profiles set membership_status = 'active'
+ where id in (
+   'aaaaaaaa-0000-4000-8000-000000000001',
+   'aaaaaaaa-0000-4000-8000-000000000002',
+   'aaaaaaaa-0000-4000-8000-000000000003',
+   'aaaaaaaa-0000-4000-8000-000000000004'
+ );
 
 insert into public.event_categories (id, name, slug, sort_order)
 values ('cccccccc-0000-4000-8000-000000000001', 'Test Category', 'test-category', 1);
@@ -468,6 +488,97 @@ select throws_ok(
   '22023',
   null,
   'an admin cannot revoke their own admin role and lock the chapter out'
+);
+
+-- =============================================================================
+-- AS A PENDING MEMBER
+--
+-- Registering is free while email confirmation is off, so a session proves
+-- nothing about who someone is. Until an account is admitted -- by join code or
+-- by an officer -- it must see exactly what a signed-out visitor sees.
+--
+-- The routing guard in the app sends these accounts to /join, but that is
+-- decoration: these assertions are what makes it true, because they are issued
+-- the way an attacker would issue them, straight at the `authenticated` role.
+-- =============================================================================
+
+reset role;
+-- Cleared so auth.uid() is null and profiles_guard_protected_columns() treats
+-- this as a trusted setup write rather than a member promoting themselves.
+select set_config('request.jwt.claims', '', true);
+update public.profiles set membership_status = 'pending'
+ where id = 'aaaaaaaa-0000-4000-8000-000000000002';
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+                  '{"sub":"aaaaaaaa-0000-4000-8000-000000000002","role":"authenticated"}',
+                  true);
+
+select is(
+  (select count(*)::int from public.announcements),
+  0,
+  'a pending member sees no announcements at all'
+);
+
+select is(
+  (select count(*)::int from public.resources
+    where id = 'ffffffff-0000-4000-8000-000000000002'),
+  0,
+  'a pending member cannot read a member-only resource'
+);
+
+select is(
+  (select count(*)::int from public.resources
+    where id = 'ffffffff-0000-4000-8000-000000000001'),
+  1,
+  'but still reads public resources, exactly as a signed-out visitor would'
+);
+
+select is(
+  (select count(*)::int from public.events
+    where id = 'dddddddd-0000-4000-8000-000000000007'),
+  0,
+  'a pending member cannot read an internal (is_public = false) event'
+);
+
+select is(
+  (select count(*)::int from public.events
+    where id = 'dddddddd-0000-4000-8000-000000000001'),
+  1,
+  'but still reads the public event, keeping the public site intact'
+);
+
+-- ── The same account, once admitted ─────────────────────────────────────────
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+update public.profiles set membership_status = 'active'
+ where id = 'aaaaaaaa-0000-4000-8000-000000000002';
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+                  '{"sub":"aaaaaaaa-0000-4000-8000-000000000002","role":"authenticated"}',
+                  true);
+
+select is(
+  (select count(*)::int from public.announcements
+    where id = 'eeeeeeee-0000-4000-8000-000000000001'),
+  1,
+  'admitting the account opens announcements'
+);
+
+select is(
+  (select count(*)::int from public.resources
+    where id = 'ffffffff-0000-4000-8000-000000000002'),
+  1,
+  'and member-only resources'
+);
+
+select is(
+  (select count(*)::int from public.events
+    where id = 'dddddddd-0000-4000-8000-000000000007'),
+  1,
+  'and internal events'
 );
 
 reset role;
