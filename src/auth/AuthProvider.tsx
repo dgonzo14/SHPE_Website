@@ -7,7 +7,13 @@ import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import { absoluteAppUrl } from "@/lib/config";
 import type { AppRole, ProfileRow } from "@/types/database";
 import type { RegisterValues } from "@/lib/validation";
-import { AuthContext, type AuthContextValue, type AuthStatus } from "./authContext";
+import { retryOnRateLimit } from "@/lib/retry";
+import {
+  AuthContext,
+  type AuthAttemptOptions,
+  type AuthContextValue,
+  type AuthStatus,
+} from "./authContext";
 
 /**
  * The single owner of authentication state.
@@ -176,33 +182,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (id) await loadProfile(id);
   }, [loadProfile, user?.id]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await getSupabase().auth.signInWithPassword({ email, password });
-    if (error) throw error;
-  }, []);
+  /*
+   * Sign-in and sign-up both retry past the shared per-IP burst limit.
+   *
+   * Everyone at a general body meeting is behind one campus NAT, so they share
+   * one token bucket: measured against production, 30 requests go through at
+   * once and the rest are rejected instantly even though capacity returns
+   * within seconds. Retrying with jitter turns that into a queue. See
+   * lib/retry.ts for why it is safe to retry these two specifically.
+   */
+  const signIn = useCallback(
+    async (email: string, password: string, opts?: AuthAttemptOptions) => {
+      const { error } = await retryOnRateLimit(
+        () => getSupabase().auth.signInWithPassword({ email, password }),
+        { onRetry: opts?.onRetry },
+      );
+      if (error) throw error;
+    },
+    [],
+  );
 
-  const signUp = useCallback(async (values: RegisterValues) => {
+  const signUp = useCallback(async (values: RegisterValues, opts?: AuthAttemptOptions) => {
     // Everything except the credentials rides along as user metadata, which the
     // handle_new_user() trigger reads to build the profile row. `role` is
     // deliberately absent: registration can never assign one.
-    const { data, error } = await getSupabase().auth.signUp({
-      email: values.email,
-      password: values.password,
-      options: {
-        emailRedirectTo: absoluteAppUrl("/login"),
-        data: {
-          first_name: values.first_name,
-          last_name: values.last_name,
-          major: values.major,
-          secondary_major: values.secondary_major ?? "",
-          graduation_year: String(values.graduation_year),
-          degree_level: values.degree_level,
-          shpe_national_member: values.shpe_national_member ? "true" : "false",
-          shpe_national_member_id: values.shpe_national_member_id ?? "",
-          linkedin_url: values.linkedin_url ?? "",
+    const { data, error } = await retryOnRateLimit(() =>
+      getSupabase().auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          emailRedirectTo: absoluteAppUrl("/login"),
+          data: {
+            first_name: values.first_name,
+            last_name: values.last_name,
+            major: values.major,
+            secondary_major: values.secondary_major ?? "",
+            graduation_year: String(values.graduation_year),
+            degree_level: values.degree_level,
+            shpe_national_member: values.shpe_national_member ? "true" : "false",
+            shpe_national_member_id: values.shpe_national_member_id ?? "",
+            linkedin_url: values.linkedin_url ?? "",
+          },
         },
-      },
-    });
+      }),
+      { onRetry: opts?.onRetry },
+    );
     if (error) throw error;
     return { needsEmailConfirmation: data.session === null };
   }, []);

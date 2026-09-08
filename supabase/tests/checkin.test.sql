@@ -51,6 +51,25 @@ select public.test_create_user('aaaaaaaa-0000-4000-8000-000000000001', 'ana.rive
 select public.test_create_user('aaaaaaaa-0000-4000-8000-000000000003', 'sofia.castro@wustl.edu', 'Sofia', 'Castro');
 select public.test_create_user('aaaaaaaa-0000-4000-8000-000000000005', 'mateo.solis@wustl.edu',  'Mateo', 'Solis');
 
+/*
+ * State the membership status these fixtures need rather than inheriting it.
+ *
+ * test_create_user() goes through handle_new_user(), which reads
+ * app_settings.default_membership_status. That default is now 'pending', so
+ * these members would be refused by checkin_preflight before any of the code
+ * or window logic below was reached -- every assertion would return
+ * MEMBER_NOT_ACTIVE and the file would stop testing what it names. Depending on
+ * a global default was always the weaker version of this setup; it passed by
+ * coincidence rather than intent.
+ */
+update public.profiles
+   set membership_status = 'active'
+ where id in (
+   'aaaaaaaa-0000-4000-8000-000000000001',
+   'aaaaaaaa-0000-4000-8000-000000000003',
+   'aaaaaaaa-0000-4000-8000-000000000005'
+ );
+
 insert into public.member_roles (member_id, role)
 values ('aaaaaaaa-0000-4000-8000-000000000003', 'officer');
 

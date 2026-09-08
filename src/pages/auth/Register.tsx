@@ -30,6 +30,8 @@ export function Register() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const [formError, setFormError] = useState<string | null>(null);
+  // True once the sign-up has been rate limited at least once and is waiting.
+  const [queued, setQueued] = useState(false);
 
   const {
     register,
@@ -58,19 +60,39 @@ export function Register() {
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
+    setQueued(false);
     try {
-      const { needsEmailConfirmation } = await signUp(values);
-      navigate("/login", {
-        replace: true,
-        state: {
-          notice: needsEmailConfirmation
-            ? "Almost there — check your email for a confirmation link, then sign in."
-            : "Your account is ready. Sign in to open My SHPE.",
-        },
+      // Everyone at a meeting shares one campus IP and therefore one rate
+      // limit, so signUp() waits the limiter out rather than failing. That can
+      // take tens of seconds; setQueued turns the silent spinner into an
+      // explanation so nobody assumes it broke and refreshes into a fresh
+      // rejection.
+      const { needsEmailConfirmation } = await signUp(values, {
+        onRetry: () => setQueued(true),
       });
+
+      if (needsEmailConfirmation) {
+        navigate("/login", {
+          replace: true,
+          state: {
+            notice: "Almost there — check your email for a confirmation link, then sign in.",
+          },
+        });
+        return;
+      }
+
+      /*
+       * Confirmation is off, so signUp returned a session and they are already
+       * signed in. Sending them to /login would bounce off
+       * RedirectIfAuthenticated and land on the dashboard behind a "you're not
+       * active yet" banner. Go straight to the thing they need to do instead.
+       */
+      navigate("/portal/join", { replace: true });
     } catch (error) {
       const { title, detail } = describeError(error, "We couldn't create your account");
       setFormError(detail ? `${title}. ${detail}` : title);
+    } finally {
+      setQueued(false);
     }
   });
 
@@ -218,6 +240,20 @@ export function Register() {
                   {(props) => <Input {...props} {...register("shpe_national_member_id")} />}
                 </Field>
               </div>
+            )}
+          </div>
+
+          {/*
+            Only appears once the request has actually been throttled, so it
+            never shows up in the ordinary case. aria-live because the visible
+            change is the whole point of it.
+          */}
+          <div aria-live="polite" className="empty:hidden">
+            {queued && isSubmitting && (
+              <Alert tone="info" title="Lots of people are signing up right now">
+                You're in the queue — this can take up to a minute. Keep this page open; there's no
+                need to press the button again.
+              </Alert>
             )}
           </div>
 

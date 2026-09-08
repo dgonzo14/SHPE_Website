@@ -71,6 +71,9 @@ const PortalResources = lazy(() =>
 const Membership = lazy(() =>
   import("./pages/portal/Membership").then((m) => ({ default: m.Membership })),
 );
+const JoinCode = lazy(() =>
+  import("./pages/portal/JoinCode").then((m) => ({ default: m.JoinCode })),
+);
 const Profile = lazy(() => import("./pages/portal/Profile").then((m) => ({ default: m.Profile })));
 const Settings = lazy(() =>
   import("./pages/portal/Settings").then((m) => ({ default: m.Settings })),
@@ -115,6 +118,9 @@ const AdminAnalytics = lazy(() =>
 );
 const AdminAuditLog = lazy(() =>
   import("./pages/admin/AdminAuditLog").then((m) => ({ default: m.AdminAuditLog })),
+);
+const AdminJoinCode = lazy(() =>
+  import("./pages/admin/AdminJoinCode").then((m) => ({ default: m.AdminJoinCode })),
 );
 
 /**
@@ -172,6 +178,10 @@ export default function App() {
                       <Route path="announcements" element={<PortalAnnouncements />} />
                       <Route path="resources" element={<PortalResources />} />
                       <Route path="membership" element={<Membership />} />
+                      {/* Where a pending member activates their account. Not in
+                          the sidebar: it is reached from the banner, and once
+                          they are active it just confirms that. */}
+                      <Route path="join" element={<JoinCode />} />
                       <Route path="profile" element={<Profile />} />
                       <Route path="settings" element={<Settings />} />
                     </Route>
@@ -192,6 +202,7 @@ export default function App() {
                         <Route path="resources" element={<AdminResources />} />
                         <Route path="analytics" element={<AdminAnalytics />} />
                         <Route path="audit-log" element={<AdminAuditLog />} />
+                        <Route path="join-code" element={<AdminJoinCode />} />
                       </Route>
                     </Route>
                   </Route>

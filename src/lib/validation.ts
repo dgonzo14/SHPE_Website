@@ -224,6 +224,36 @@ export const checkInSchema = z.object({
 });
 export type CheckInValues = z.infer<typeof checkInSchema>;
 
+/*
+ * Join code.
+ *
+ * The server normalises with the same normalize_checkin_code() used for event
+ * codes and rejects anything under 4 characters *after* normalising, so the
+ * bounds here mirror that. They are a courtesy — the rule that counts is in
+ * redeem_join_code() and admin_set_join_code(), which never see this file.
+ */
+export const joinCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(4, "Join codes are at least 4 characters")
+    .max(24, "That code is too long"),
+});
+export type JoinCodeValues = z.infer<typeof joinCodeSchema>;
+
+export const setJoinCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    // Longer floor than redeeming: a 4-character code is guessable at leisure
+    // by anyone with an account, and this is the one place we can stop a weak
+    // one being chosen in the first place.
+    .min(6, "Use at least 6 characters")
+    .max(24, "Keep it under 24 characters")
+    .refine((v) => /[a-z0-9]/i.test(v), "Use letters and numbers"),
+});
+export type SetJoinCodeValues = z.infer<typeof setJoinCodeSchema>;
+
 /* ── Admin ───────────────────────────────────────────────────────────────── */
 
 export const eventSchema = z

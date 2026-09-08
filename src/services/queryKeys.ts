@@ -50,5 +50,6 @@ export const queryKeys = {
     attendanceFeed: ["admin", "attendance-feed"] as const,
     analytics: (termId: string | null) => ["admin", "analytics", termId] as const,
     auditLog: (filters: Record<string, unknown>) => ["admin", "audit-log", filters] as const,
+    joinCode: ["admin", "join-code"] as const,
   },
 } as const;

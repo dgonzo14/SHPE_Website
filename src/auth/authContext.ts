@@ -10,6 +10,16 @@ import type { RegisterValues } from "@/lib/validation";
  */
 export type AuthStatus = "loading" | "signed-in" | "signed-out" | "unconfigured";
 
+/**
+ * Sign-in and sign-up wait out the shared per-IP rate limit rather than
+ * failing, which means they can take tens of seconds when a whole meeting
+ * registers at once. `onRetry` lets the form say so instead of spinning
+ * silently — see lib/retry.ts.
+ */
+export interface AuthAttemptOptions {
+  onRetry?: (attempt: number) => void;
+}
+
 export interface AuthContextValue {
   status: AuthStatus;
   session: Session | null;
@@ -24,8 +34,11 @@ export interface AuthContextValue {
   isAdmin: boolean;
   hasRole: (role: AppRole) => boolean;
 
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (values: RegisterValues) => Promise<{ needsEmailConfirmation: boolean }>;
+  signIn: (email: string, password: string, opts?: AuthAttemptOptions) => Promise<void>;
+  signUp: (
+    values: RegisterValues,
+    opts?: AuthAttemptOptions,
+  ) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;

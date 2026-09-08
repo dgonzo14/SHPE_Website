@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Bell,
   BookOpen,
   CalendarDays,
   ExternalLink,
   History,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   type LucideIcon,
@@ -19,7 +20,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/auth/useAuth";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { Alert } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/shared/BrandMark";
@@ -132,6 +133,7 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
 export function PortalLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { profile } = useAuth();
+  const location = useLocation();
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -140,8 +142,21 @@ export function PortalLayout() {
     return () => document.removeEventListener("keydown", onKey);
   }, [drawerOpen]);
 
-  const inactive =
-    profile && profile.membership_status !== "active" ? profile.membership_status : null;
+  /*
+   * 'pending' is separated from the other non-active statuses because it is the
+   * only one the member can resolve themselves.
+   *
+   * Since email confirmation was turned off, every new account starts here, so
+   * this is the most-seen banner in the portal — it has to say what to do, not
+   * just what is wrong. Suspended or inactive members genuinely do need to talk
+   * to an officer, and still get the original message.
+   *
+   * Suppressed on the join page itself, which says all of this at full length.
+   */
+  const status = profile?.membership_status ?? null;
+  const onJoinPage = location.pathname === "/portal/join";
+  const pending = status === "pending" && !onJoinPage;
+  const inactive = status && status !== "active" && status !== "pending" ? status : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -213,6 +228,19 @@ export function PortalLayout() {
         )}
 
         <main id="portal-content" className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          {pending && (
+            <Alert tone="warning" title="Your membership isn't active yet" className="mb-6">
+              <p>
+                Enter the chapter join code to finish joining, or ask an officer to approve your
+                account. You can browse events in the meantime — only check-in needs an active
+                membership.
+              </p>
+              <LinkButton to="/portal/join" size="sm" className="mt-3">
+                <KeyRound className="h-4 w-4" aria-hidden />
+                Enter join code
+              </LinkButton>
+            </Alert>
+          )}
           {inactive && (
             <Alert tone="warning" title="Your chapter membership isn't active" className="mb-6">
               Your membership is currently marked <strong>{inactive}</strong>. You can browse
