@@ -12,6 +12,24 @@
   command   = "npm run build"
   publish   = "dist"
 
+  # Skip the build when nothing that reaches the bundle changed.
+  #
+  # A production deploy costs a flat 15 credits on the free plan -- 300 a month,
+  # so twenty deploys, whether the build takes ten seconds or ten minutes. A
+  # migration-only or docs-only commit that rebuilds an identical bundle spends
+  # 5% of the monthly allowance to publish nothing.
+  #
+  # Exit 0 means skip, non-zero means build, which is why this reads backwards:
+  # `git diff --quiet` succeeds when there is no difference. The guard on
+  # CACHED_COMMIT_REF covers the first build after a cache clear, where the
+  # variable is unset and the diff would be meaningless -- there, build.
+  #
+  # Tests are deliberately NOT excluded. They are absent from the bundle, but
+  # `npm run build` runs `tsc -b`, which type-checks them, and a test-only
+  # commit that breaks the build should fail now rather than ambush the next
+  # real deploy and cost 15 credits to discover.
+  ignore = '[ -n "$CACHED_COMMIT_REF" ] && git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ":(exclude)supabase" ":(exclude)docs" ":(exclude).claude" ":(exclude)*.md"'
+
 [build.environment]
   NODE_VERSION = "20"
   VITE_BASE_PATH = "/"
