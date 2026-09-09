@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 
 import { useAuth } from "@/auth/useAuth";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import {
   Input,
   Select,
 } from "@/components/ui/primitives";
-import { ConfirmDialog } from "@/components/ui/dialog";
+import { ConfirmDialog, Dialog } from "@/components/ui/dialog";
 import {
   EmptyState,
   ErrorState,
@@ -28,6 +28,7 @@ import {
 } from "@/components/shared/states";
 import { useToast } from "@/components/ui/useToast";
 import {
+  deleteMember,
   fetchProfile,
   fetchRoles,
   memberName,
@@ -74,6 +75,11 @@ export function AdminMemberDetail() {
   const { options, selectedId, setSelectedId, scope, label } = useScopeOptions(terms.data);
   const [tab, setTab] = useState<Tab>("attendance");
   const [pendingRole, setPendingRole] = useState<{ role: AppRole; grant: boolean } | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  // Typed back by the admin to arm the delete. Deliberately not a checkbox: the
+  // point is to make them read which account they are about to destroy.
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const navigate = useNavigate();
 
   const profile = useQuery({
     queryKey: queryKeys.member.profile(memberId),
@@ -140,6 +146,31 @@ export function AdminMemberDetail() {
       setPendingRole(null);
       toast.error("We couldn't change that role", errorText(error));
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteMember(memberId),
+    onSuccess: (result) => {
+      /*
+       * Reported rather than a bare "deleted", because the cascade is the part
+       * an admin cannot see coming: removing a member who attended events
+       * lowers those events' attendance counts retroactively.
+       */
+      const lost = [
+        result.attendance_removed > 0 && `${result.attendance_removed} attendance records`,
+        result.point_transactions_removed > 0 &&
+          `${result.point_transactions_removed} point entries`,
+      ].filter(Boolean) as string[];
+
+      toast.success(
+        `${result.email} deleted`,
+        lost.length > 0 ? `Also removed ${lost.join(" and ")}.` : undefined,
+      );
+      setDeleteOpen(false);
+      refreshMember();
+      navigate("/admin/members", { replace: true });
+    },
+    onError: (error) => toast.error("We couldn't delete this member", errorText(error)),
   });
 
   const adjustForm = useForm<PointAdjustmentValues>({
@@ -498,9 +529,100 @@ export function AdminMemberDetail() {
                 </form>
               </CardBody>
             </Card>
+
+            {/*
+              Admin only, and hidden from the admin's own page. The database
+              refuses both cases anyway -- admin_delete_member() calls
+              require_admin() and rejects self-deletion -- so this is about not
+              offering a button that can only fail.
+            */}
+            {isAdmin && member.id !== user?.id && (
+              <Card className="border-red-200">
+                <CardHeader>
+                  <CardTitle className="text-red-700">Delete this member</CardTitle>
+                </CardHeader>
+                <CardBody>
+                  <p className="text-sm text-gray-700">
+                    Permanently removes {memberName(member)}, their attendance history and their
+                    point ledger. <strong>This cannot be undone.</strong>
+                  </p>
+                  <p className="mt-2 text-sm text-gray-600">
+                    To remove someone who has left the chapter, set their status to{" "}
+                    <strong>Alumni</strong> or <strong>Inactive</strong> above instead — that keeps
+                    their record intact. Deleting is for duplicates and junk signups.
+                  </p>
+                  <Button
+                    variant="danger"
+                    className="mt-4"
+                    onClick={() => {
+                      setDeleteConfirm("");
+                      setDeleteOpen(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                    Delete member
+                  </Button>
+                </CardBody>
+              </Card>
+            )}
           </div>
         )}
       </div>
+
+      {/*
+        The base Dialog rather than ConfirmDialog: this needs the confirm button
+        disabled until the email is typed back, and ConfirmDialog's button is
+        always live.
+      */}
+      <Dialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        size="sm"
+        title="Delete this member permanently?"
+        description={
+          <>
+            This removes {memberName(member)}, {attendance.data?.length ?? 0} attendance record
+            {(attendance.data?.length ?? 0) === 1 ? "" : "s"} and their point history. Events they
+            attended will show lower attendance counts afterwards. This cannot be undone.
+          </>
+        }
+        footer={
+          <>
+            <Button
+              variant="subtle"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleteMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              loading={deleteMutation.isPending}
+              // Armed only by an exact match, so a mistyped or half-read address
+              // cannot delete the wrong person.
+              disabled={deleteConfirm.trim().toLowerCase() !== member.email.toLowerCase()}
+              onClick={() => deleteMutation.mutate()}
+            >
+              Delete permanently
+            </Button>
+          </>
+        }
+      >
+        <Field label={`Type ${member.email} to confirm`}>
+          {(props) => (
+            <Input
+              {...props}
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder={member.email}
+            />
+          )}
+        </Field>
+      </Dialog>
 
       <ConfirmDialog
         open={pendingRole !== null}

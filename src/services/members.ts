@@ -168,6 +168,40 @@ export async function setNationalStatus(
   if (error) throw error;
 }
 
+export interface DeleteMemberResult {
+  ok: boolean;
+  member_id: string;
+  email: string;
+  /** Counted before the delete; the rows themselves no longer exist. */
+  attendance_removed: number;
+  point_transactions_removed: number;
+  net_points_removed: number;
+}
+
+/**
+ * Permanently removes a member and everything that cascades from their profile.
+ *
+ * There is no undo and no soft-delete fallback: use setMembershipStatus for
+ * someone who has left the chapter, where their attendance and points should
+ * outlive their membership. This is for duplicates, typos and junk signups.
+ *
+ * Admin only, and not because of this function -- admin_delete_member() calls
+ * require_admin() before it does anything, refuses to delete the caller, and
+ * refuses to remove the last administrator. An officer who calls this directly
+ * gets 42501.
+ */
+export async function deleteMember(
+  memberId: string,
+  reason?: string,
+): Promise<DeleteMemberResult> {
+  const { data, error } = await getSupabase().rpc("admin_delete_member", {
+    p_member_id: memberId,
+    p_reason: reason ?? null,
+  });
+  if (error) throw error;
+  return data as DeleteMemberResult;
+}
+
 export function memberName(profile: {
   first_name?: string | null;
   last_name?: string | null;

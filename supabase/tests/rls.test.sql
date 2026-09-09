@@ -19,7 +19,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(50);
+select plan(54);
 
 -- ── Fixtures (fictional people only) ────────────────────────────────────────
 
@@ -579,6 +579,58 @@ select is(
     where id = 'dddddddd-0000-4000-8000-000000000007'),
   1,
   'and internal events'
+);
+
+-- =============================================================================
+-- DELETING A MEMBER
+--
+-- The one action with no undo. What matters is who is refused, so these are
+-- issued straight at the `authenticated` role rather than through the screen
+-- that renders the button.
+--
+-- The last-administrator guard in admin_delete_member() has no test because
+-- nothing can reach it: the caller is always an admin, so the admin count is
+-- never below one unless the target is the caller, and self-deletion is refused
+-- first. It is kept as a backstop, not as live behaviour, and the migration
+-- says so.
+-- =============================================================================
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims',
+                  '{"sub":"aaaaaaaa-0000-4000-8000-000000000003","role":"authenticated"}',
+                  true);
+
+select throws_ok(
+  $$select public.admin_delete_member('aaaaaaaa-0000-4000-8000-000000000001')$$,
+  '42501',
+  null,
+  'an officer cannot delete a member -- this one is admin-only'
+);
+
+select set_config('request.jwt.claims',
+                  '{"sub":"aaaaaaaa-0000-4000-8000-000000000004","role":"authenticated"}',
+                  true);
+
+select throws_ok(
+  $$select public.admin_delete_member('aaaaaaaa-0000-4000-8000-000000000004')$$,
+  '22023',
+  null,
+  'an admin cannot delete their own account'
+);
+
+select throws_ok(
+  $$select public.admin_delete_member('aaaaaaaa-0000-4000-8000-00000000ffff')$$,
+  'P0002',
+  null,
+  'deleting a member who does not exist is an error, not a silent no-op'
+);
+
+-- The member being removed here has attendance and a point transaction from the
+-- fixtures above, so this also exercises the cascade.
+select lives_ok(
+  $$select public.admin_delete_member('aaaaaaaa-0000-4000-8000-000000000001', 'test')$$,
+  'an admin can delete an ordinary member'
 );
 
 reset role;
