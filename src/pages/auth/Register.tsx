@@ -9,7 +9,6 @@ import {
   Alert,
   Card,
   CardBody,
-  Checkbox,
   Field,
   Input,
   Select,
@@ -55,8 +54,6 @@ export function Register() {
       linkedin_url: "",
     },
   });
-
-  const claimsNationalMembership = useWatch({ control, name: "shpe_national_member" });
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
@@ -212,35 +209,41 @@ export function Register() {
             </Field>
           </div>
 
-          <Field label="LinkedIn" hint="Optional" error={errors.linkedin_url?.message}>
+          <Field
+            label="LinkedIn"
+            hint="Optional — no need to type https://"
+            error={errors.linkedin_url?.message}
+          >
             {(props) => (
               <Input
                 {...props}
                 {...register("linkedin_url")}
-                type="url"
-                placeholder="https://linkedin.com/in/…"
+                // text, not url: the schema now accepts "linkedin.com/in/you"
+                // and adds the scheme itself, but type="url" makes the browser
+                // mark that same value invalid. inputMode keeps the URL
+                // keyboard on a phone without the semantic mismatch.
+                type="text"
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="linkedin.com/in/you"
               />
             )}
           </Field>
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <Checkbox
-              {...register("shpe_national_member")}
-              label="I'm a SHPE National member"
-              description="An officer confirms this against the National roster — until then it shows as self-reported."
-            />
-            {claimsNationalMembership && (
-              <div className="mt-3">
-                <Field
-                  label="SHPE National member ID"
-                  hint="Optional — helps officers verify faster."
-                  error={errors.shpe_national_member_id?.message}
-                >
-                  {(props) => <Input {...props} {...register("shpe_national_member_id")} />}
-                </Field>
-              </div>
-            )}
-          </div>
+          {/*
+            The "I'm a SHPE National member" checkbox and its ID field are
+            hidden for the first GBM: almost everyone in the room will be at
+            their first SHPE meeting, and asking about National membership
+            invites a room full of "am I one of those?".
+
+            Hidden, not deleted. The schema still carries both fields, the
+            defaults above still submit shpe_national_member: false, and
+            handle_new_user() still records 'not_provided' -- so a member can
+            set it later on their profile, and putting this back is a matter of
+            restoring this block. Nothing downstream had to change.
+          */}
 
           {/*
             Only appears once the request has actually been throttled, so it

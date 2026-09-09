@@ -103,6 +103,40 @@ const optionalUrl = z
   ])
   .optional();
 
+/*
+ * The same protocol rule, but for a URL a member types about themselves.
+ *
+ * Nobody types "https://" when asked for their LinkedIn -- they paste or type
+ * `linkedin.com/in/name`, and optionalUrl rejected that with "Enter a full URL
+ * starting with https://", which reads as a scolding for an optional field.
+ * The scheme is added for them instead.
+ *
+ * The security property is unchanged, and the order of operations is what keeps
+ * it that way: a value that already carries *any* scheme is left exactly as it
+ * is, then validated against the same /^https?$/ protocol rule. So
+ * `javascript:alert(1)` is not quietly turned into an https URL -- it keeps its
+ * scheme and is rejected, exactly as before. Only a value with no scheme at all
+ * gets https:// put in front of it.
+ *
+ * Unlike optionalUrl this does transform, which the note above warns about --
+ * but only from string to string, so input and output types both stay
+ * `string | undefined` and react-hook-form's resolver types still line up.
+ *
+ * Deliberately not applied to image_url or external_url. Those are entered by
+ * officers, who are pasting a link they already have in full, and the stricter
+ * message is the more useful one there.
+ */
+const optionalProfileUrl = z
+  .union([
+    z.literal(""),
+    z
+      .string()
+      .trim()
+      .transform((value) => (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value) ? value : `https://${value}`))
+      .pipe(z.url({ protocol: /^https?$/, error: "Enter a valid link, like linkedin.com/in/you" })),
+  ])
+  .optional();
+
 /** Empty form field -> SQL NULL. Used when handing form values to a service. */
 export function blankToNull(value: string | null | undefined): string | null {
   const trimmed = (value ?? "").trim();
@@ -151,7 +185,7 @@ export const registerSchema = z
     }),
     shpe_national_member: z.boolean(),
     shpe_national_member_id: optionalText(60),
-    linkedin_url: optionalUrl,
+    linkedin_url: optionalProfileUrl,
   })
   .superRefine((values, ctx) => {
     if (values.password !== values.confirm_password) {
@@ -209,7 +243,7 @@ export const profileSchema = z.object({
   secondary_major: optionalText(120),
   graduation_year: graduationYear.optional(),
   degree_level: z.enum(["undergraduate", "masters", "phd", "other"]).optional(),
-  linkedin_url: optionalUrl,
+  linkedin_url: optionalProfileUrl,
   shpe_national_member: z.boolean(),
   shpe_national_member_id: optionalText(60),
 });

@@ -48,9 +48,10 @@ export function History() {
           </p>
           <p className="mt-5 max-w-[62ch] text-base leading-relaxed text-gray-700 sm:text-lg">
             After becoming inactive during the COVID-19 pandemic, the chapter was reestablished in
-            October 2022 through the leadership of Nicole Lucas, who led the effort to re-register
-            with both SHPE National and the university. Today, WashU SHPE continues to grow,
-            grounded in resilience, familia, service, and professional development.
+            October 2022 through the leadership of Gustavo De Paiva and Oscar Ortiz, who led the
+            effort to re-register with both SHPE National and the university. Today, WashU SHPE
+            continues to grow, grounded in resilience, familia, service, and professional
+            development.
           </p>
 
           <div className="mt-8">

@@ -110,6 +110,55 @@ describe("registerSchema", () => {
     ).toBe(true);
   });
 
+  /*
+   * Nobody types the scheme. These pin the leniency and, more importantly, that
+   * it did not open the hole the test above closes: the scheme is only added to
+   * values that have none, so a javascript: URI keeps its own scheme and is
+   * still rejected rather than being rewritten into something acceptable.
+   */
+  it("adds https:// when the member types a bare link", () => {
+    for (const [typed, expected] of [
+      ["linkedin.com/in/diego", "https://linkedin.com/in/diego"],
+      ["www.linkedin.com/in/diego", "https://www.linkedin.com/in/diego"],
+      ["  linkedin.com/in/diego  ", "https://linkedin.com/in/diego"],
+    ] as const) {
+      const result = registerSchema.safeParse({ ...validRegistration, linkedin_url: typed });
+      expect(result.success, `expected ${typed} to be accepted`).toBe(true);
+      if (result.success) expect(result.data.linkedin_url).toBe(expected);
+    }
+  });
+
+  it("leaves an explicit scheme alone rather than prefixing it", () => {
+    const result = registerSchema.safeParse({
+      ...validRegistration,
+      linkedin_url: "http://linkedin.com/in/diego",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.linkedin_url).toBe("http://linkedin.com/in/diego");
+  });
+
+  it("does not rescue a dangerous scheme by prefixing it", () => {
+    // The bug this guards against: prefixing unconditionally would turn
+    // "javascript:alert(1)" into "https://javascript:alert(1)".
+    const result = registerSchema.safeParse({
+      ...validRegistration,
+      linkedin_url: "javascript:alert(1)",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("still rejects something that is not a link at all", () => {
+    expect(
+      registerSchema.safeParse({ ...validRegistration, linkedin_url: "my linkedin page" }).success,
+    ).toBe(false);
+  });
+
+  it("leaves the field optional", () => {
+    expect(
+      registerSchema.safeParse({ ...validRegistration, linkedin_url: "" }).success,
+    ).toBe(true);
+  });
+
   it("rejects a short password", () => {
     expect(
       registerSchema.safeParse({

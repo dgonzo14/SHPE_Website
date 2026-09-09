@@ -44,7 +44,7 @@ export function Home() {
           eyebrow="Who we are"
           title="Why the chapter exists"
           id="purpose-heading"
-          lede="SHPE is a national organisation with a specific promise. Here is the version of it we are accountable to at WashU."
+          lede="SHPE is a national organization with a specific promise. Here is the version of it we are accountable to at WashU."
         />
 
         <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-2 lg:items-stretch">
