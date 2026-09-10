@@ -79,6 +79,15 @@ export function AdminMemberDetail() {
   // Typed back by the admin to arm the delete. Deliberately not a checkbox: the
   // point is to make them read which account they are about to destroy.
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  /*
+   * Set when the database refuses because the member has attendance or points.
+   * Holds the counts it reported, which is what turns the second confirmation
+   * from a repeated "are you sure" into a statement of what will be lost.
+   */
+  const [deleteBlocked, setDeleteBlocked] = useState<{
+    attendance: number;
+    point_transactions: number;
+  } | null>(null);
   const navigate = useNavigate();
 
   const profile = useQuery({
@@ -149,8 +158,21 @@ export function AdminMemberDetail() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteMember(memberId),
+    mutationFn: (force: boolean) => deleteMember(memberId, { force }),
     onSuccess: (result) => {
+      /*
+       * The database stops rather than deleting when the member has history, so
+       * a successful call is not necessarily a deletion. Show what it would
+       * cost and let the admin decide again, this time knowing the number.
+       */
+      if (!result.ok) {
+        setDeleteBlocked({
+          attendance: result.attendance,
+          point_transactions: result.point_transactions,
+        });
+        return;
+      }
+
       /*
        * Reported rather than a bare "deleted", because the cascade is the part
        * an admin cannot see coming: removing a member who attended events
@@ -556,6 +578,7 @@ export function AdminMemberDetail() {
                     className="mt-4"
                     onClick={() => {
                       setDeleteConfirm("");
+                      setDeleteBlocked(null);
                       setDeleteOpen(true);
                     }}
                   >
@@ -573,18 +596,42 @@ export function AdminMemberDetail() {
         The base Dialog rather than ConfirmDialog: this needs the confirm button
         disabled until the email is typed back, and ConfirmDialog's button is
         always live.
+
+        Two states, not two dialogs. The first attempt is the ordinary case and
+        for a junk signup it is the only one -- an account with no history
+        deletes straight away. The second appears only when the database refuses
+        because there is history to lose, and it names the number rather than
+        asking "are you sure?" a second time.
       */}
       <Dialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         size="sm"
-        title="Delete this member permanently?"
+        title={
+          deleteBlocked ? "This member has history" : "Delete this member permanently?"
+        }
         description={
-          <>
-            This removes {memberName(member)}, {attendance.data?.length ?? 0} attendance record
-            {(attendance.data?.length ?? 0) === 1 ? "" : "s"} and their point history. Events they
-            attended will show lower attendance counts afterwards. This cannot be undone.
-          </>
+          deleteBlocked ? (
+            <>
+              {memberName(member)} has{" "}
+              <strong>
+                {deleteBlocked.attendance} attendance record
+                {deleteBlocked.attendance === 1 ? "" : "s"}
+              </strong>{" "}
+              and{" "}
+              <strong>
+                {deleteBlocked.point_transactions} point entr
+                {deleteBlocked.point_transactions === 1 ? "y" : "ies"}
+              </strong>
+              . Deleting them removes those too, so the events they attended will show lower
+              attendance counts afterwards.
+            </>
+          ) : (
+            <>
+              This removes {memberName(member)} and everything attached to their account. This
+              cannot be undone.
+            </>
+          )
         }
         footer={
           <>
@@ -599,29 +646,38 @@ export function AdminMemberDetail() {
               variant="danger"
               loading={deleteMutation.isPending}
               // Armed only by an exact match, so a mistyped or half-read address
-              // cannot delete the wrong person.
+              // cannot delete the wrong person. Still required on the second
+              // step: the escalation should not be one click away either.
               disabled={deleteConfirm.trim().toLowerCase() !== member.email.toLowerCase()}
-              onClick={() => deleteMutation.mutate()}
+              onClick={() => deleteMutation.mutate(deleteBlocked !== null)}
             >
-              Delete permanently
+              {deleteBlocked ? "Delete anyway" : "Delete permanently"}
             </Button>
           </>
         }
       >
-        <Field label={`Type ${member.email} to confirm`}>
-          {(props) => (
-            <Input
-              {...props}
-              value={deleteConfirm}
-              onChange={(e) => setDeleteConfirm(e.target.value)}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              placeholder={member.email}
-            />
-          )}
-        </Field>
+        {deleteBlocked ? (
+          <Alert tone="warning" title="Consider marking them Alumni instead">
+            That keeps their attendance and points intact and stops them signing in. Deleting is
+            for duplicates and junk signups. If you go ahead, the individual records are copied
+            into the audit log first, so this can be reconstructed.
+          </Alert>
+        ) : (
+          <Field label={`Type ${member.email} to confirm`}>
+            {(props) => (
+              <Input
+                {...props}
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                placeholder={member.email}
+              />
+            )}
+          </Field>
+        )}
       </Dialog>
 
       <ConfirmDialog

@@ -168,15 +168,36 @@ export async function setNationalStatus(
   if (error) throw error;
 }
 
-export interface DeleteMemberResult {
-  ok: boolean;
-  member_id: string;
-  email: string;
-  /** Counted before the delete; the rows themselves no longer exist. */
-  attendance_removed: number;
-  point_transactions_removed: number;
-  net_points_removed: number;
-}
+/**
+ * Either the member was deleted, or they have history and the call stopped to
+ * say what deleting them would cost.
+ *
+ * HAS_HISTORY is an ordinary answer, not an error: attendance and point rows
+ * cascade away with the profile, so removing someone who attended events
+ * silently lowers those events' attendance counts. The database refuses that
+ * until the caller passes `force`, and returns the counts so this screen can
+ * say exactly what is about to be destroyed.
+ */
+export type DeleteMemberResult =
+  | {
+      ok: true;
+      code: "DELETED";
+      member_id: string;
+      email: string;
+      /** Counted before the delete; the rows themselves no longer exist. */
+      attendance_removed: number;
+      point_transactions_removed: number;
+      net_points_removed: number;
+    }
+  | {
+      ok: false;
+      code: "HAS_HISTORY";
+      member_id: string;
+      email: string;
+      attendance: number;
+      point_transactions: number;
+      net_points: number;
+    };
 
 /**
  * Permanently removes a member and everything that cascades from their profile.
@@ -192,11 +213,12 @@ export interface DeleteMemberResult {
  */
 export async function deleteMember(
   memberId: string,
-  reason?: string,
+  { reason, force = false }: { reason?: string; force?: boolean } = {},
 ): Promise<DeleteMemberResult> {
   const { data, error } = await getSupabase().rpc("admin_delete_member", {
     p_member_id: memberId,
     p_reason: reason ?? null,
+    p_force: force,
   });
   if (error) throw error;
   return data as DeleteMemberResult;

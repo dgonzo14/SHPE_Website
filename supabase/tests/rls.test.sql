@@ -19,7 +19,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(54);
+select plan(59);
 
 -- ── Fixtures (fictional people only) ────────────────────────────────────────
 
@@ -626,11 +626,71 @@ select throws_ok(
   'deleting a member who does not exist is an error, not a silent no-op'
 );
 
--- The member being removed here has attendance and a point transaction from the
--- fixtures above, so this also exercises the cascade.
-select lives_ok(
-  $$select public.admin_delete_member('aaaaaaaa-0000-4000-8000-000000000001', 'test')$$,
-  'an admin can delete an ordinary member'
+-- ── History is refused, not silently destroyed ──────────────────────────────
+--
+-- Member 001 has an attendance row and a point transaction from the fixtures,
+-- so this is the case that would quietly lower an event's attendance count.
+
+select is(
+  (public.admin_delete_member('aaaaaaaa-0000-4000-8000-000000000001'))->>'code',
+  'HAS_HISTORY',
+  'deleting a member with attendance stops and reports rather than deleting'
+);
+
+select is(
+  (select count(*)::int from public.profiles
+    where id = 'aaaaaaaa-0000-4000-8000-000000000001'),
+  1,
+  'and the member is still there afterwards'
+);
+
+-- ── Forcing it works, and leaves a reconstructible record ───────────────────
+
+select is(
+  (public.admin_delete_member('aaaaaaaa-0000-4000-8000-000000000001', 'test', true))->>'code',
+  'DELETED',
+  'passing force deletes the member with history'
+);
+
+-- Dropped out of `authenticated` for this one: the role deliberately has no
+-- SELECT on auth.users, so verifying the account is gone has to be done from
+-- outside it. That the assertion needs this at all is the grant working.
+reset role;
+
+select is(
+  (select count(*)::int from auth.users
+    where id = 'aaaaaaaa-0000-4000-8000-000000000001')
+  + (select count(*)::int from public.profiles
+      where id = 'aaaaaaaa-0000-4000-8000-000000000001')
+  + (select count(*)::int from public.event_attendance
+      where member_id = 'aaaaaaaa-0000-4000-8000-000000000001'),
+  0,
+  'the auth user, the profile and the attendance rows all go with it'
+);
+
+-- The counts survive the rows they describe; without this the deletion is
+-- recorded but not recoverable.
+select ok(
+  jsonb_array_length(
+    (select l.metadata->'attendance_detail'
+       from public.admin_audit_log l
+      where l.action = 'member.deleted'
+        and l.entity_id = 'aaaaaaaa-0000-4000-8000-000000000001')
+  ) > 0,
+  'the audit entry keeps the individual attendance rows, not just a count'
+);
+
+-- ── No history means no ceremony ────────────────────────────────────────────
+--
+-- The case this feature was actually built for: a junk signup, which has
+-- nothing attached and should not need forcing.
+
+set local role authenticated;
+
+select is(
+  (public.admin_delete_member('aaaaaaaa-0000-4000-8000-000000000003'))->>'code',
+  'DELETED',
+  'a member with no history deletes without needing force'
 );
 
 reset role;
