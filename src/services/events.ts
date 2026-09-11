@@ -184,13 +184,33 @@ export interface EventAttendee {
   > | null;
 }
 
+/**
+ * The `!event_attendance_member_id_fkey` hint is load-bearing, not tidiness.
+ *
+ * event_attendance has TWO foreign keys to profiles -- member_id and
+ * verified_by -- so a bare `profiles(...)` embed is ambiguous and PostgREST
+ * refuses the whole request with PGRST201 before it ever reaches the database.
+ * The admin page then rendered "We couldn't load this" above a check-in count
+ * of zero, which reads like the attendance was lost. It was not; the rows were
+ * always there.
+ *
+ * Ambiguity is resolved at planning time, so it failed identically with a
+ * thousand attendees or none. That is why it survived from the day it was
+ * written until the first meeting that put real rows behind it.
+ *
+ * Pulled out as a constant so a test can assert the hint is still present --
+ * there is no PostgREST in the unit tests, so this is the cheap guard, not a
+ * guarantee the query is valid. See __tests__/selects.test.ts.
+ */
+export const EVENT_ATTENDANCE_SELECT =
+  "id, member_id, checked_in_at, check_in_method, verified_by, " +
+  "member:profiles!event_attendance_member_id_fkey(" +
+  "id, first_name, last_name, email, graduation_year, major)";
+
 export async function fetchEventAttendance(eventId: string): Promise<EventAttendee[]> {
   const { data, error } = await getSupabase()
     .from("event_attendance")
-    .select(
-      "id, member_id, checked_in_at, check_in_method, verified_by, " +
-        "member:profiles(id, first_name, last_name, email, graduation_year, major)",
-    )
+    .select(EVENT_ATTENDANCE_SELECT)
     .eq("event_id", eventId)
     .order("checked_in_at", { ascending: true });
   if (error) throw error;

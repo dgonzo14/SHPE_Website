@@ -119,14 +119,21 @@ export interface RecentAttendanceRow {
   event: { id: string; title: string; points_value: number } | null;
 }
 
+/**
+ * Same ambiguity as EVENT_ATTENDANCE_SELECT: event_attendance has two foreign
+ * keys to profiles, so the embed has to name one or PostgREST rejects the whole
+ * request with PGRST201. The points ledger further down already disambiguated
+ * for exactly this reason -- it had been hit once and fixed in one place.
+ */
+export const RECENT_ATTENDANCE_SELECT =
+  "id, checked_in_at, check_in_method, " +
+  "member:profiles!event_attendance_member_id_fkey(id, first_name, last_name, email), " +
+  "event:events(id, title, points_value)";
+
 export async function fetchRecentAttendance(limit = 50): Promise<RecentAttendanceRow[]> {
   const { data, error } = await getSupabase()
     .from("event_attendance")
-    .select(
-      "id, checked_in_at, check_in_method, " +
-        "member:profiles(id, first_name, last_name, email), " +
-        "event:events(id, title, points_value)",
-    )
+    .select(RECENT_ATTENDANCE_SELECT)
     .order("checked_in_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
