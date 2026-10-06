@@ -349,4 +349,45 @@ export interface AppConfig {
   membership_requirements_enabled?: boolean;
   membership_requirements?: unknown[];
   points_display_label?: string;
+  /** Whether members can see the points leaderboard. Officers always can. */
+  leaderboard_enabled?: boolean;
 }
+
+/**
+ * The three boards the leaderboard offers. "term" and "academic_year" are
+ * whichever term was active when the snapshot was built, not a term the
+ * client picks: the snapshot only holds the current period.
+ */
+export type LeaderboardScope = "term" | "academic_year" | "all_time";
+
+export interface LeaderboardEntry {
+  rank: number;
+  display_name: string;
+  total_points: number;
+  events_attended: number;
+  is_me: boolean;
+}
+
+/** What a member gets while the board is hidden: the switch, and nothing else. */
+export interface LeaderboardHidden {
+  enabled: false;
+  scope?: undefined;
+}
+
+export interface LeaderboardBoard {
+  /** false only when an officer is previewing a board members cannot see. */
+  enabled: boolean;
+  scope: LeaderboardScope;
+  /** When the daily snapshot was built. Points earned since then are not in it. */
+  refreshed_at: string;
+  term_name: string | null;
+  academic_year: string | null;
+  top_n: number;
+  ranked_member_count: number;
+  /** Everyone ranked top_n or better, so a tie at the cut-off can make this longer. */
+  entries: LeaderboardEntry[];
+  /** The caller's own row, even when it is below the cut-off. null when unranked. */
+  me: LeaderboardEntry | null;
+}
+
+export type LeaderboardResponse = LeaderboardHidden | LeaderboardBoard;

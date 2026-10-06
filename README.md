@@ -89,7 +89,8 @@ auth.users ──1:1── profiles ──1:N── member_roles          (membe
 ```
 
 Supporting tables: `announcements`, `resources`, `app_settings`, `notification_preferences`,
-`checkin_attempts` (durable brute-force throttle), `admin_audit_log`.
+`checkin_attempts` (durable brute-force throttle), `admin_audit_log`, `points_leaderboard`
+(the daily leaderboard snapshot, reachable only through `get_points_leaderboard()`).
 
 ---
 
@@ -241,6 +242,26 @@ to a hosted project. Every person in it is invented.
 | `admin_set_role(member, role, granted)` | admin only | The only path to officer/admin |
 | `admin_set_membership_status(member, status)` | officer | Preserves all history |
 | `admin_analytics(term)` | officer | Chapter aggregates, computed in SQL |
+| `get_points_leaderboard(scope)` | approved members | Top 25 plus the caller's own place, from a daily snapshot. While hidden, members get `{ "enabled": false }` and nothing else |
+| `admin_set_leaderboard_enabled(enabled)` | officer | Shows or hides the leaderboard; audited |
+| `admin_refresh_points_leaderboard()` | officer | Rebuilds the snapshot now instead of tonight; audited |
+
+### The leaderboard is a daily snapshot
+
+The leaderboard in My SHPE reads from `points_leaderboard`, a snapshot rebuilt **once a day**
+rather than aggregated from the ledger on every visit. If `pg_cron` is enabled, the
+`refresh-points-leaderboard` job rebuilds it at 06:05 UTC. Without `pg_cron` (the default), the
+first visit after midnight Central rebuilds it instead. Either way it's built at most once a day,
+and an advisory lock stops two simultaneous visitors from both rebuilding it. Points earned today
+appear on the board tomorrow. My Points is always live. Officers can force a rebuild from
+**Admin → Leaderboard** after correcting attendance.
+
+It ships hidden. Members see neither the board nor its menu link until an officer turns it on
+from **Admin → Leaderboard**, where they can preview it first.
+
+Ranked means an active membership and a positive point total for the period, which is the same
+cohort as the percentile on My Points. Ties share a place (1, 1, 3), and a tie at 25th place is
+shown in full rather than cut off alphabetically.
 
 ---
 
@@ -323,6 +344,11 @@ scoped to each suite's own fixture rows rather than assuming an empty schema:
   another member's ledger, cannot insert attendance, cannot award themselves points, cannot
   grant themselves a role, cannot read a check-in hash, and cannot reinstate their own
   suspended membership. An officer cannot grant roles; an admin cannot revoke their own.
+- `leaderboard.test.sql` — the leaderboard ships hidden, and the switch is enforced by the
+  database (a member asking while it is hidden gets no rows, and the snapshot tables have no
+  grants). The board
+  is a snapshot: points earned after the day's build do not appear until the next one. It also
+  covers who is ranked, ties, the top-25 cut-off, and that no member id or email is returned.
 
 ---
 
@@ -416,7 +442,7 @@ one of them off.
 | Auditability | `admin_audit_log` records role changes, point adjustments, attendance corrections, status changes and code rotations — with actor, timestamp, and reason |
 | Error messages | Structured codes mapped to member-facing sentences. No SQLSTATE, PostgREST body or stack trace ever reaches a user |
 | Public calendar | `anon` reads events through a column-level GRANT plus a row policy (`status <> 'draft' AND is_public`). Organiser contacts, capacity and check-in windows are not in the grant, so they cannot be selected at all |
-| Privacy | Member emails, attendance and points are never public. Portal pages are `noindex, nofollow`; page titles are generic |
+| Privacy | Member emails and attendance are never public. Points are shown to other members only on the members-only leaderboard: name, rank, total and event count for the top 25. It ships hidden until an officer turns it on, and pending accounts never see it. Portal pages are `noindex, nofollow`; page titles are generic |
 
 Historical records are not deleted to fix mistakes. Events with attendance cannot be deleted
 at all (`ON DELETE RESTRICT`, plus a delete policy limited to admins and drafts); they are
@@ -437,6 +463,7 @@ it through **Admin** or with `admin_set_app_setting()`:
 | `checkin_allowed_statuses` | `["active"]` | Which statuses may check in |
 | `membership_requirements_enabled` | `false` | Whether the Membership page evaluates requirements |
 | `membership_requirements` | `[]` | Requirement definitions (see below) |
+| `leaderboard_enabled` | `false` | Whether members can see the points leaderboard. Ships off; officers turn it on in **Admin → Leaderboard** |
 
 **Active-member requirements ship disabled and empty on purpose.** WashU SHPE has not defined
 official requirements, and this system does not invent chapter policy. When leadership decides

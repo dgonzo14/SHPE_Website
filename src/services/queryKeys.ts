@@ -44,6 +44,11 @@ export const queryKeys = {
     all: ["resources", "all"] as const,
   },
 
+  leaderboard: {
+    all: ["leaderboard"] as const,
+    board: (scope: string) => ["leaderboard", scope] as const,
+  },
+
   admin: {
     members: (filters: Record<string, unknown>) => ["admin", "members", filters] as const,
     memberDetail: (memberId: string) => ["admin", "members", memberId] as const,

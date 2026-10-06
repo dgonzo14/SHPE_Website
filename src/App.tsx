@@ -84,6 +84,9 @@ const CheckIn = lazy(() =>
 const Points = lazy(() =>
   import("./pages/portal/Points").then((m) => ({ default: m.Points })),
 );
+const Leaderboard = lazy(() =>
+  import("./pages/portal/Leaderboard").then((m) => ({ default: m.Leaderboard })),
+);
 const History = lazy(() =>
   import("./pages/portal/History").then((m) => ({ default: m.History })),
 );
@@ -147,6 +150,11 @@ const AdminMemberDetail = lazy(() =>
 );
 const AdminPoints = lazy(() =>
   import("./pages/admin/AdminPoints").then((m) => ({ default: m.AdminPoints })),
+);
+const AdminLeaderboard = lazy(() =>
+  import("./pages/admin/AdminLeaderboard").then((m) => ({
+    default: m.AdminLeaderboard,
+  })),
 );
 const AdminAnnouncements = lazy(() =>
   import("./pages/admin/AdminAnnouncements").then((m) => ({
@@ -242,6 +250,7 @@ export default function App() {
                         />
                         <Route path="check-in" element={<CheckIn />} />
                         <Route path="points" element={<Points />} />
+                        <Route path="leaderboard" element={<Leaderboard />} />
                         <Route path="history" element={<History />} />
                         <Route
                           path="announcements"
@@ -280,6 +289,10 @@ export default function App() {
                           element={<AdminMemberDetail />}
                         />
                         <Route path="points" element={<AdminPoints />} />
+                        <Route
+                          path="leaderboard"
+                          element={<AdminLeaderboard />}
+                        />
                         <Route
                           path="announcements"
                           element={<AdminAnnouncements />}
