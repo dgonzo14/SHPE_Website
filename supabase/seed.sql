@@ -399,3 +399,123 @@ begin
   raise notice '';
 end;
 $$;
+
+
+-- ── Business cards ──────────────────────────────────────────────────────────
+-- A few cards to look at on /card/<handle> and in Admin > Cards. Written
+-- directly rather than through save_my_card(), which needs a JWT -- so every
+-- value here has to satisfy the table's CHECK constraints on its own.
+--
+-- Since 20260910000001 new accounts start pending, and the seed predates that,
+-- so without this every development account above would still be waiting for
+-- approval -- and a pending member's card never resolves. Sara stays pending on
+-- purpose (see "A spread of membership states" above).
+update public.profiles
+   set membership_status = 'active'
+ where membership_status = 'pending'
+   and email <> 'sara.villalobos@example.test';
+
+-- Locally the feature is on, so the cards below resolve. It ships off.
+update public.app_settings set value = 'true'::jsonb where key = 'cards_enabled';
+
+insert into public.chapter_positions (member_id, title, sort_order, granted_by)
+select p.id, v.title, v.sort_order, (select id from public.profiles where email = 'admin@example.test')
+  from (values
+    ('officer@example.test',       'President',      10),
+    ('sofia.castro@example.test',  'Vice President', 20),
+    ('tomas.herrera@example.test', 'Treasurer',      30)
+  ) as v(email, title, sort_order)
+  join public.profiles p on p.email = v.email
+on conflict (member_id) do nothing;
+
+do $$
+declare
+  v_marco   uuid := (select id from public.profiles where email = 'member@example.test');
+  v_olivia  uuid := (select id from public.profiles where email = 'officer@example.test');
+  v_ana     uuid := (select id from public.profiles where email = 'ana.rivera@example.test');
+  v_luis    uuid := (select id from public.profiles where email = 'luis.mendez@example.test');
+  v_today   date := (now() at time zone 'America/Chicago')::date;
+  v_website uuid;
+begin
+  -- Every handle a card points at must be held in card_handles first. Marco
+  -- renamed once, so /card/marco redirects to /card/marco-member.
+  insert into public.card_handles (handle, member_id, claimed_at) values
+    ('marco',          v_marco,  now() - interval '60 days'),
+    ('marco-member',   v_marco,  now() - interval '30 days'),
+    ('olivia-officer', v_olivia, now() - interval '45 days'),
+    ('ana-rivera',     v_ana,    now() - interval '10 days'),
+    ('luis-mendez',    v_luis,   now() - interval '10 days')
+  on conflict (handle) do nothing;
+
+  -- A member-made card with most of the trimmings.
+  insert into public.member_cards (
+    member_id, handle, is_published, created_by, member_opened_at,
+    display_name, pronouns, headline, status_line, bio, location, skills, languages,
+    show_member_since, theme, sections, chip_handle, chip_written_at
+  ) values (
+    v_marco, 'marco-member', true, v_marco, now() - interval '60 days',
+    'Marco Member', 'he/him', 'Biomedical Engineering student',
+    'Looking for Summer 2027 research positions',
+    E'Second-year BME. I build low-cost lab hardware.\nAsk me about the prosthetics project.',
+    'St. Louis, MO', '{Python,SolidWorks,MATLAB}', '{English,Español}',
+    true,
+    '{"preset":"sunrise","layout":"banner","buttons":{"shape":"pill","style":"filled","arrangement":"list","icons":true}}'::jsonb,
+    '["status","featured","links","about","skills","languages","education","shpe"]'::jsonb,
+    'marco', now() - interval '20 days'
+  )
+  on conflict (member_id) do nothing;
+
+  insert into public.member_card_links (member_id, kind, label, value, sort_order, is_featured, is_visible)
+  values
+    (v_marco, 'linkedin', null,         'https://www.linkedin.com/in/marco-member-example', 1, false, true),
+    (v_marco, 'email',    null,         'marco.member@example.test',                        2, false, true),
+    (v_marco, 'github',   null,         'https://github.com/marco-member-example',          3, false, true),
+    (v_marco, 'phone',    'Cell',       '+1 314 555 0142',                                  4, false, false)
+  on conflict do nothing;
+
+  insert into public.member_card_links (member_id, kind, label, value, sort_order, is_featured, is_visible)
+  values (v_marco, 'website', 'Book a coffee chat', 'https://example.test/marco/coffee', 0, true, true)
+  returning id into v_website;
+
+  -- The officer's card, showing the verified position line.
+  insert into public.member_cards (
+    member_id, handle, is_published, created_by, member_opened_at,
+    display_name, pronouns, headline, theme
+  ) values (
+    v_olivia, 'olivia-officer', true, v_olivia, now() - interval '45 days',
+    'Olivia Officer', 'she/her', 'Mechanical Engineering · Class of 2027',
+    '{"preset":"shpe-classic"}'::jsonb
+  )
+  on conflict (member_id) do nothing;
+
+  insert into public.member_card_links (member_id, kind, label, value, sort_order, is_featured, is_visible)
+  values
+    (v_olivia, 'linkedin', null, 'https://www.linkedin.com/in/olivia-officer-example', 0, false, true),
+    (v_olivia, 'email',    null, 'olivia.officer@example.test',                        1, false, true);
+
+  -- Officer-made: Ana's is a published starter card (name, school, education
+  -- only), Luis's is unpublished and resolves as not found.
+  -- officer_created is what the app reads ("an officer set up your card");
+  -- admin_create_card() sets it, so a direct insert has to as well.
+  insert into public.member_cards (member_id, handle, is_published, created_by, officer_created, member_opened_at, display_name)
+  values
+    (v_ana,  'ana-rivera',  true,  v_olivia, true, null, 'Ana Rivera'),
+    (v_luis, 'luis-mendez', false, v_olivia, true, null, 'Luis Mendez')
+  on conflict (member_id) do nothing;
+
+  -- Two weeks of insights for Marco, so the Insights tab has a shape.
+  insert into public.card_daily_stats (member_id, day, source, views, saves, shares)
+  select v_marco, v_today - d, s.source,
+         (abs(hashtext(d::text || s.source)) % 6) + case s.source when 'nfc' then 2 else 0 end,
+         case when d % 4 = 0 and s.source = 'nfc' then 1 else 0 end,
+         case when d % 6 = 0 and s.source = 'link' then 1 else 0 end
+    from generate_series(0, 13) as d
+   cross join (values ('nfc'), ('qr'), ('link')) as s(source)
+  on conflict do nothing;
+
+  insert into public.card_link_daily_clicks (link_id, day, clicks)
+  select v_website, v_today - d, (abs(hashtext('click' || d::text)) % 3)
+    from generate_series(0, 13) as d
+  on conflict do nothing;
+end;
+$$;

@@ -54,3 +54,37 @@ describe("PortalLayout leaderboard link", () => {
     expect(leaderboardLink()).toBeInTheDocument();
   });
 });
+
+describe("PortalLayout My Card link", () => {
+  it("is shown to members once officers switch business cards on", async () => {
+    fetchAppConfig.mockResolvedValue({ cards_enabled: true });
+    renderWithProviders(<PortalLayout />, { route: "/portal" });
+
+    expect(await screen.findByRole("link", { name: "My Card" })).toHaveAttribute(
+      "href",
+      "/portal/card",
+    );
+  });
+
+  it("is removed for members while business cards are switched off", async () => {
+    fetchAppConfig.mockResolvedValue({ cards_enabled: false });
+    const { queryClient } = renderWithProviders(<PortalLayout />, { route: "/portal" });
+
+    // Absent while the config loads too, so wait for the answer first.
+    await waitFor(() =>
+      expect(queryClient.getQueryState(queryKeys.appConfig)?.status).toBe("success"),
+    );
+    expect(screen.getByRole("link", { name: "Profile" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "My Card" })).not.toBeInTheDocument();
+  });
+
+  it("stays for officers, so they can set up their card before launch", async () => {
+    fetchAppConfig.mockResolvedValue({ cards_enabled: false });
+    renderWithProviders(<PortalLayout />, {
+      route: "/portal",
+      auth: { isOfficer: true, roles: ["member", "officer"] },
+    });
+
+    expect(screen.getByRole("link", { name: "My Card" })).toHaveAttribute("href", "/portal/card");
+  });
+});
