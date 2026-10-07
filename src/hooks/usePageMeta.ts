@@ -7,6 +7,10 @@ import { useEffect } from "react";
  * Titles here are always generic ("Points | My SHPE"), never personalised —
  * a title leaks into browser history, screen shares and tab previews, so it is
  * not a place for a member's name or standing.
+ *
+ * The one exception is a published business card (/card/:handle), whose title
+ * is the member's name: publishing the card is the member choosing to put
+ * that name in front of strangers, and the title is what a shared link shows.
  */
 export function usePageMeta({
   title,

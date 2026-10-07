@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ExternalLink,
   History,
+  IdCard,
   LayoutDashboard,
   LogOut,
   type LucideIcon,
@@ -44,6 +45,7 @@ const MEMBER_NAV: NavItem[] = [
   { to: "/portal/resources", label: "Resources", icon: BookOpen },
   { to: "/portal/membership", label: "Membership", icon: ShieldCheck },
   { to: "/portal/profile", label: "Profile", icon: UserRound },
+  { to: "/portal/card", label: "My Card", icon: IdCard },
   { to: "/portal/settings", label: "Settings", icon: Settings },
 ];
 
@@ -58,8 +60,13 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
    * get_points_leaderboard() is what actually withholds a hidden board.
    */
   const showLeaderboard = isOfficer || config.data?.leaderboard_enabled === true;
+  // Same rule for business cards: officers can set theirs up before launch;
+  // get_my_card() is what actually withholds the editor while it's switched off.
+  const showCard = isOfficer || config.data?.cards_enabled === true;
   const items = MEMBER_NAV.filter(
-    (item) => item.to !== "/portal/leaderboard" || showLeaderboard,
+    (item) =>
+      (item.to !== "/portal/leaderboard" || showLeaderboard) &&
+      (item.to !== "/portal/card" || showCard),
   );
 
   return (

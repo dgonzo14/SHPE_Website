@@ -6,6 +6,8 @@
  * If you change a migration, change this file in the same commit.
  */
 
+import type { CardLinkKind, CardSectionId, CardTheme } from "@/features/cards/model";
+
 export type MembershipStatus =
   | "pending"
   | "active"
@@ -351,6 +353,8 @@ export interface AppConfig {
   points_display_label?: string;
   /** Whether members can see the points leaderboard. Officers always can. */
   leaderboard_enabled?: boolean;
+  /** Whether business cards are live at /card/<handle>. Officers can always edit theirs. */
+  cards_enabled?: boolean;
 }
 
 /**
@@ -391,3 +395,331 @@ export interface LeaderboardBoard {
 }
 
 export type LeaderboardResponse = LeaderboardHidden | LeaderboardBoard;
+
+/* ── Business cards (20260914000001_member_business_cards.sql) ──────────── */
+
+/*
+ * The vocabulary (link kinds, theme, sections) lives in features/cards/model.ts
+ * because the Zod schemas and the renderer need it as runtime values, not just
+ * types. Re-exported here so this file still describes the whole schema.
+ */
+export type {
+  CardLinkKind,
+  CardSectionId,
+  CardSource,
+  CardEvent,
+  CardTheme,
+} from "@/features/cards/model";
+
+/** A link as the owner sees it in the editor, hidden ones included. */
+export interface CardLink {
+  id: string;
+  kind: CardLinkKind;
+  /** Overrides the kind's default label ("LinkedIn"). */
+  label: string | null;
+  /** An https URL, an email address, or a phone number, depending on kind. */
+  value: string;
+  sort_order: number;
+  is_featured: boolean;
+  is_visible: boolean;
+}
+
+/**
+ * A link as save_my_card() accepts it. Order in the array is display order.
+ * `id` is set for links that already exist, so their click history survives
+ * the save; omit it for new ones. Existing links left out are deleted.
+ */
+export interface CardLinkInput {
+  id?: string | null;
+  kind: CardLinkKind;
+  label: string | null;
+  value: string;
+  is_featured: boolean;
+  is_visible: boolean;
+}
+
+/** One member's card, as its owner sees it. */
+export interface MemberCard {
+  member_id: string;
+  handle: string;
+  is_published: boolean;
+  /** Opt-in. Cards are noindex unless this is on. */
+  allow_indexing: boolean;
+
+  /** Set when an officer has hidden the card; it then resolves as not found. */
+  hidden_at: string | null;
+  hidden_reason: string | null;
+
+  /** True when an officer created the card rather than the member. */
+  created_by_officer: boolean;
+  /** The member's first save. null means officer-made and not yet opened. */
+  member_opened_at: string | null;
+  /** The handle written to the member's NFC chip, if an officer recorded one. */
+  chip_handle: string | null;
+  /**
+   * Whether that chip still lands on this card: true while chip_handle is one of
+   * the member's handles (an old one redirects), false once an officer's handle
+   * reset deleted it and the chip needs rewriting. null when no chip is recorded.
+   */
+  chip_handle_active: boolean | null;
+  chip_written_at: string | null;
+
+  display_name: string;
+  pronouns: string | null;
+  headline: string | null;
+  organization: string | null;
+  status_line: string | null;
+  bio: string | null;
+  location: string | null;
+  skills: string[];
+  languages: string[];
+
+  /** Storage object paths in the card-media bucket, never URLs. */
+  avatar_path: string | null;
+  banner_path: string | null;
+  background_path: string | null;
+
+  show_major: boolean;
+  show_graduation_year: boolean;
+  show_member_since: boolean;
+  /** Only ever shows anything when an officer has verified the membership. */
+  show_national_member: boolean;
+  show_chapter_position: boolean;
+
+  theme: CardTheme;
+  /** Ordered list of the content blocks shown. Unlisted blocks are hidden. */
+  sections: CardSectionId[];
+
+  created_at: string;
+  updated_at: string;
+}
+
+/** The fields save_my_card() writes. Everything else is set by the database. */
+export type MemberCardInput = Pick<
+  MemberCard,
+  | "handle"
+  | "display_name"
+  | "pronouns"
+  | "headline"
+  | "organization"
+  | "status_line"
+  | "bio"
+  | "location"
+  | "skills"
+  | "languages"
+  | "avatar_path"
+  | "banner_path"
+  | "background_path"
+  | "show_major"
+  | "show_graduation_year"
+  | "show_member_since"
+  | "show_national_member"
+  | "show_chapter_position"
+  | "theme"
+  | "sections"
+  | "allow_indexing"
+>;
+
+/** Profile facts a card can show, read live from profiles at request time. */
+export interface CardProfileFields {
+  first_name: string;
+  last_name: string;
+  major: string | null;
+  secondary_major: string | null;
+  graduation_year: number | null;
+  degree_level: DegreeLevel | null;
+  member_since: string;
+  /** True only for officer-verified National membership. */
+  national_member_verified: boolean;
+  membership_status: MembershipStatus;
+}
+
+/** get_my_card() while cards are switched off, for anyone but an officer. */
+export interface MyCardDisabled {
+  enabled: false;
+  card?: undefined;
+}
+
+/** get_my_card(), save_my_card() and set_my_card_published(). */
+export interface MyCardState {
+  /** The feature switch. false only when an officer is working on a card before launch. */
+  enabled: boolean;
+  /** null until the member (or an officer) creates one. */
+  card: MemberCard | null;
+  links: CardLink[];
+  /** The officer-assigned chapter position, if any. */
+  position: string | null;
+  profile: CardProfileFields;
+}
+
+export type MyCardResponse = MyCardDisabled | MyCardState;
+
+/**
+ * check_card_handle(). "removed" means an officer reset or released this handle
+ * from the caller's card: it stays claimable by everyone else, never by them.
+ */
+export type HandleAvailability =
+  | "available"
+  | "yours"
+  | "taken"
+  | "reserved"
+  | "removed"
+  | "invalid";
+
+/** A visible link on a public card. Hidden links never leave the database. */
+export interface PublicCardLink {
+  id: string;
+  kind: CardLinkKind;
+  label: string | null;
+  value: string;
+  is_featured: boolean;
+}
+
+/**
+ * Everything the card renderer needs. get_public_card() returns it for a live
+ * card, and the editor builds the same shape for its preview (see
+ * features/cards/viewModel.ts), which is what keeps the preview honest.
+ */
+export interface PublicCardData {
+  handle: string;
+  display_name: string;
+  pronouns: string | null;
+  headline: string | null;
+  organization: string | null;
+  status_line: string | null;
+  bio: string | null;
+  location: string | null;
+  skills: string[];
+  languages: string[];
+  avatar_path: string | null;
+  banner_path: string | null;
+  background_path: string | null;
+  theme: CardTheme;
+  sections: CardSectionId[];
+  allow_indexing: boolean;
+  /**
+   * Officer-made and not yet opened by the member. The database returns only
+   * name, school, education and position for these, whatever the row holds.
+   */
+  is_starter: boolean;
+  /** null when the member shows none of these. */
+  education: {
+    major: string | null;
+    secondary_major: string | null;
+    graduation_year: number | null;
+    degree_level: DegreeLevel | null;
+  } | null;
+  shpe: {
+    /** Verified, officer-assigned. The only source of the ✔ position line. */
+    position: string | null;
+    member_since: string | null;
+    national_member_verified: boolean;
+    is_alumni: boolean;
+  };
+  links: PublicCardLink[];
+}
+
+/**
+ * get_public_card(). Unpublished, hidden, pending, suspended, switched-off and
+ * nonexistent cards are all the same `not_found`, so none can be probed.
+ */
+export type PublicCardResponse =
+  | { status: "not_found" }
+  | { status: "redirect"; handle: string }
+  | { status: "ok"; card: PublicCardData };
+
+/** get_my_card_insights(). */
+export interface CardInsights {
+  days: number;
+  totals: {
+    views: number;
+    saves: number;
+    shares: number;
+    nfc: number;
+    qr: number;
+    link: number;
+  };
+  /** One row per day in the window, oldest first, zero-filled. */
+  daily: { day: string; views: number; saves: number; shares: number }[];
+  /** Every current link, zero clicks included, in display order. */
+  links: { link_id: string; kind: CardLinkKind; label: string | null; clicks: number }[];
+}
+
+/* ── Business cards: officer views ───────────────────────────────────────── */
+
+export type CardAdminStatus = "none" | "hidden" | "published" | "officer_unopened" | "member";
+
+export interface AdminCardRow {
+  member_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  membership_status: MembershipStatus;
+  /** null when the member has no card. */
+  handle: string | null;
+  /**
+   * One label, in precedence order: no card, hidden, published, officer-made
+   * and unopened, member-made draft. created_by_officer and member_opened_at
+   * carry the rest (a published starter card is "published" and unopened).
+   */
+  status: CardAdminStatus;
+  is_published: boolean;
+  hidden_at: string | null;
+  hidden_reason: string | null;
+  created_by_officer: boolean;
+  member_opened_at: string | null;
+  chip_handle: string | null;
+  /** See MemberCard.chip_handle_active: false means the chip is dead and needs rewriting. */
+  chip_handle_active: boolean | null;
+  chip_written_at: string | null;
+  /**
+   * The member's other handles, oldest first. Each still redirects to the card
+   * and stays theirs until an officer releases it (admin_release_card_handle).
+   */
+  old_handles: string[];
+  position: string | null;
+  views_30d: number;
+  updated_at: string | null;
+}
+
+/** admin_list_cards(): every non-pending member, with or without a card. */
+export interface AdminCardsResponse {
+  enabled: boolean;
+  rows: AdminCardRow[];
+}
+
+/** admin_create_card(). */
+export interface AdminCreateCardResult {
+  ok: true;
+  member_id: string;
+  handle: string;
+  is_published: boolean;
+}
+
+/**
+ * admin_mark_chips_written(). `skipped` lists members whose card was missing or
+ * who no longer hold the handle the officer said was written.
+ */
+export interface MarkChipsWrittenResult {
+  ok: true;
+  count: number;
+  skipped: string[];
+}
+
+/** admin_release_card_handle(). */
+export interface ReleaseCardHandleResult {
+  ok: true;
+  handle: string;
+  /** True when the released handle was the card's current one... */
+  was_current: boolean;
+  /** ...in which case the card moved to this new handle. null otherwise. */
+  new_handle: string | null;
+}
+
+/** admin_create_missing_cards(). With dry_run nothing is written. */
+export interface BulkCreateCardsResult {
+  dry_run: boolean;
+  published: boolean;
+  created: { member_id: string; name: string; handle: string }[];
+  skipped: { member_id: string; name: string; email: string; reason: "no_name" }[];
+}

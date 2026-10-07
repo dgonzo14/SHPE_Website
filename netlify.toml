@@ -19,6 +19,16 @@
   # VITE_ALLOWED_EMAIL_DOMAINS are set in the Netlify UI, not committed here.
   # The anon key is safe in a client bundle; the service role key must never
   # appear in any VITE_-prefixed variable.
+  #
+  # The first three must include the Functions scope in the Netlify UI ("All
+  # scopes", the default, does): keep-supabase-awake and the card-meta edge
+  # function read them at runtime, and values set in this file are visible to
+  # the build only, never to functions or edge functions.
+  #
+  # VITE_SITE_URL must be the production origin in every deploy context,
+  # previews included. Card URLs, QR codes and the NFC programming sheet are
+  # built from it, and a chip written with a deploy-preview address breaks the
+  # day that preview is deleted.
 
 # ── Dev server (netlify dev) ──────────────────────────────────
 [dev]
@@ -42,6 +52,27 @@
 
 # =============================================================
 # Security & performance headers applied to every response
+#
+# Business cards (/card/*) need nothing extra, and nothing here is
+# loosened for them:
+#   - img-src already allows https://*.supabase.co (card photos come
+#     from the card-media bucket) and style-src/font-src already allow
+#     Google Fonts (the card font catalog). QR codes and vCards are
+#     generated in the browser, so no new origin is contacted.
+#   - The card-meta edge function adds only <title>, <meta> and
+#     <link rel="canonical">, never an inline <script>, so script-src
+#     stays as strict as it is.
+#   - Referrer-Policy strict-origin-when-cross-origin means a site a
+#     visitor opens from a card's links sees "washushpe.org", not which
+#     member's card they came from.
+#   - X-Frame-Options DENY / frame-ancestors 'none': a card can't be
+#     framed by someone else's page to borrow SHPE's name.
+#   - Cache-Control is Netlify's default for HTML (max-age=0,
+#     must-revalidate), which is what a card page wants: a renamed or
+#     hidden card must not linger in a browser cache.
+#   - Robots: cards are noindex unless the member opts in, decided per
+#     card by the page and the edge function, so there is deliberately
+#     no blanket X-Robots-Tag rule for /card/* here.
 # =============================================================
 [[headers]]
   for = "/*"
@@ -161,6 +192,29 @@
 # The member portal deliberately does NOT depend on these. All privileged
 # logic lives in Supabase (Postgres functions + RLS), which is what lets the
 # same static bundle work on GitHub Pages, where functions cannot run at all.
+#
+#   keep-supabase-awake  Scheduled (@daily, declared in the file). Calls
+#                        get_app_config with the anon key so a free
+#                        Supabase project never sits idle long enough to
+#                        pause over summer. Runs on published deploys only.
 # =============================================================
 [functions]
   directory = "netlify/functions"
+
+# =============================================================
+# Netlify Edge Functions
+#
+#   card-meta  /card/* — writes each card's title, description, photo and
+#              robots rule into <head> so link previews (iMessage, Slack,
+#              LinkedIn) show the member rather than the homepage. Fails
+#              open: on any error or a slow Supabase the page is served
+#              untouched and the SPA renders the card as usual.
+#
+# Declared inline (`export const config` in
+# netlify/edge-functions/card-meta.ts), not with an [[edge_functions]] block
+# here, so the path, method and onError setting live next to the code that
+# depends on them. Netlify merges a toml declaration with the inline one if
+# both exist, so adding one here would only create a second place to edit.
+# netlify/edge-functions is Netlify's default directory, so no
+# `edge_functions` key is needed under [build] either.
+# =============================================================
