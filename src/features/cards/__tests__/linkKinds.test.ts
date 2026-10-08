@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { LINK_KINDS, isExternalHref, linkDisplayLabel, linkHref, linkIcon } from "../linkKinds";
+import {
+  LINK_GROUPS,
+  LINK_KINDS,
+  isExternalHref,
+  linkDetail,
+  linkDisplayLabel,
+  linkGroup,
+  linkHref,
+  linkIcon,
+} from "../linkKinds";
 import { CARD_LINK_KINDS, isLinkValueValid, type CardLinkKind } from "../model";
 
 const normalize = (kind: CardLinkKind, raw: string) => LINK_KINDS[kind].normalize(raw);
@@ -211,5 +220,48 @@ describe("labels and icons", () => {
     expect(isExternalHref("https://x.example")).toBe(true);
     expect(isExternalHref("mailto:a@b.co")).toBe(false);
     expect(isExternalHref("tel:+13145550123")).toBe(false);
+  });
+});
+
+describe("linkDetail", () => {
+  it.each<[CardLinkKind, string, string | null]>([
+    // The address itself for email and phone, as typed.
+    ["email", "ana@wustl.edu", "ana@wustl.edu"],
+    ["phone", "+1 (314) 555-0123", "+1 (314) 555-0123"],
+    // Host and path, without the scheme, "www." or a trailing slash.
+    ["linkedin", "https://www.linkedin.com/in/ana-rivera/", "linkedin.com/in/ana-rivera"],
+    ["github", "https://github.com/ana", "github.com/ana"],
+    ["portfolio", "https://ana.design", "ana.design"],
+    ["website", "https://WWW.Example.COM:8443/about", "example.com/about"],
+    // Query strings and fragments never show.
+    ["custom", "https://example.com/talk?utm_source=card#slides", "example.com/talk"],
+    // An opaque id in the path, or a deep path, shows only the host.
+    ["resume", "https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsTuVwXyZ/view", "drive.google.com"],
+    ["custom", "https://example.com/a/b/c/d", "example.com"],
+    // Nothing useful to say.
+    ["website", "", null],
+    ["website", "not a link", null],
+  ])("%s %s → %s", (kind, value, expected) => {
+    expect(linkDetail({ kind, value })).toBe(expected);
+  });
+});
+
+describe("linkGroup", () => {
+  it("puts every kind in one of the three groups", () => {
+    const ids = LINK_GROUPS.map((group) => group.id);
+    for (const kind of CARD_LINK_KINDS) expect(ids, kind).toContain(linkGroup(kind));
+  });
+
+  it("separates work, professional and social links", () => {
+    expect(["portfolio", "github", "devpost", "resume", "website", "custom"].map((k) => linkGroup(k as CardLinkKind)))
+      .toEqual(Array(6).fill("work"));
+    expect(["linkedin", "email", "phone", "calendly", "handshake"].map((k) => linkGroup(k as CardLinkKind)))
+      .toEqual(Array(5).fill("professional"));
+    expect(["instagram", "x", "tiktok", "discord"].map((k) => linkGroup(k as CardLinkKind)))
+      .toEqual(Array(4).fill("social"));
+  });
+
+  it("treats a kind it doesn't know as work, like a custom link", () => {
+    expect(linkGroup("myspace" as CardLinkKind)).toBe("work");
   });
 });

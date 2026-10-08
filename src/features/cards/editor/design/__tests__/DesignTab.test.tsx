@@ -138,6 +138,101 @@ describe("DesignTab: presets", () => {
     await user.click(screen.getByRole("button", { name: "Use Sunrise" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Sunrise" })).toHaveFocus());
   });
+
+  it("groups the presets: the professional collection, then the seven originals", () => {
+    setup();
+    const names = (group: HTMLElement) => within(group).getAllByRole("button").map((b) => b.textContent);
+    const professional = screen.getByRole("group", { name: "Professional" });
+    const originals = screen.getByRole("group", { name: "Originals" });
+    expect(within(professional).getAllByRole("button").map((b) => b.getAttribute("data-preset"))).toEqual([
+      "executive",
+      "editorial",
+      "studio",
+      "slate",
+      "heritage",
+      "signature",
+    ]);
+    expect(within(originals).getAllByRole("button").map((b) => b.getAttribute("data-preset"))).toEqual([
+      "shpe-classic",
+      "sunrise",
+      "midnight",
+      "paper",
+      "washu",
+      "engineer",
+      "glass",
+    ]);
+    // Each says what it's for, and draws a miniature of its own layout.
+    const executive = within(professional).getByRole("button", { name: "Executive" });
+    expect(executive).toHaveAccessibleDescription(/navy and ivory/i);
+    expect(executive.querySelector("[data-miniature]")).toHaveAttribute("data-miniature", "profile");
+    expect(names(originals)).toHaveLength(7);
+  });
+
+  it("applies a professional preset straight away, keeping the content as it is", async () => {
+    const { user, theme, form } = setup({ headline: "SWE Intern", avatar_path: null });
+    await user.click(screen.getByRole("button", { name: "Signature" }));
+    expect(theme()).toEqual({ preset: "signature" });
+    expect(screen.getByRole("button", { name: "Signature" })).toHaveAttribute("aria-pressed", "true");
+    expect(form().getValues("headline")).toBe("SWE Intern");
+    // The member's name is drawn into the miniatures.
+    expect(within(screen.getByRole("button", { name: "Signature" })).getByText("Ana Rivera")).toBeInTheDocument();
+  });
+
+  it("marks a customised preset as such, and resets it to its own defaults", async () => {
+    const { user, theme } = setup({ theme: { preset: "executive" } });
+    await user.click(within(screen.getByRole("group", { name: "Add to Contacts" })).getByRole("radio", { name: /Accent color/ }));
+    expect(theme()).toEqual({ preset: "executive", buttons: { primary: "accent" } });
+    expect(within(screen.getByRole("button", { name: "Executive" })).getByText("Customized")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Reset to Executive" }));
+    await user.click(screen.getByRole("button", { name: "Reset design" }));
+    expect(theme()).toEqual({ preset: "executive" });
+    expect(within(screen.getByRole("button", { name: "Executive" })).getByText("Selected")).toBeInTheDocument();
+  });
+});
+
+describe("DesignTab: the professional design options", () => {
+  it("picks any of the new layouts for any preset", async () => {
+    const { user, theme } = setup();
+    for (const [label, layout] of [
+      ["Profile", "profile"],
+      ["Editorial", "editorial"],
+      ["Studio", "studio"],
+      ["Layered", "layered"],
+      ["Letterhead", "letterhead"],
+      ["Monogram", "monogram"],
+    ] as const) {
+      await user.click(screen.getByRole("radio", { name: label }));
+      expect(theme()).toEqual({ preset: "shpe-classic", layout });
+    }
+  });
+
+  it("chooses the main button colour, hairline buttons and the new arrangements", async () => {
+    const { user, theme } = setup();
+    await user.click(within(screen.getByRole("group", { name: "Add to Contacts" })).getByRole("radio", { name: /Text color/ }));
+    await user.click(screen.getByRole("radio", { name: "Hairline" }));
+    await user.click(screen.getByRole("radio", { name: "Rows" }));
+    expect(theme().buttons).toEqual({ primary: "ink", style: "hairline", arrangement: "rows" });
+
+    await user.click(screen.getByRole("radio", { name: "Two columns" }));
+    expect(theme().buttons?.arrangement).toBe("compact");
+    await user.click(screen.getByRole("radio", { name: "Grouped" }));
+    expect(theme().buttons?.arrangement).toBe("grouped");
+  });
+
+  it("offers spacious spacing", async () => {
+    const { user, theme } = setup();
+    await user.click(screen.getByRole("radio", { name: "Spacious" }));
+    expect(theme()).toEqual({ preset: "shpe-classic", density: "spacious" });
+    expect(cardThemeSchema.safeParse(theme()).success).toBe(true);
+  });
+
+  it("explains the monogram's photo choices", async () => {
+    const { user } = setup({ theme: { preset: "signature" } });
+    expect(screen.getByText(/Without one, the Monogram layout shows your initials/)).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "Profile" }));
+    expect(screen.queryByText(/Without one, the Monogram layout shows your initials/)).not.toBeInTheDocument();
+  });
 });
 
 describe("DesignTab: colors", () => {

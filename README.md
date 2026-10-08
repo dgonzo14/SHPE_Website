@@ -488,7 +488,7 @@ anything about access; the database still does that.
 | Function | Runs | What it does |
 | --- | --- | --- |
 | `netlify/functions/keep-supabase-awake.ts` | Daily at 00:00 UTC, published deploys only (not previews) | Calls `get_app_config` so the free project never sits idle long enough to pause. Logs success or failure, never the key |
-| `netlify/edge-functions/card-meta.ts` | Every `GET /card/<handle>` | Writes the card's title, description, photo and robots rule into `<head>` for link previews; 301s an old handle to the current one; 404 plus `noindex` for a card that isn't live. **Fails open**: on any error, a missing variable, or Supabase taking over 1.5 s, the page is served untouched |
+| `netlify/edge-functions/card-meta.ts` | Every `GET /card/<handle>` | Writes the card's title, description, photo and robots rule into `<head>` for link previews, plus the stylesheets for the card's fonts so the name appears in its own face from the first paint; 301s an old handle to the current one; 404 plus `noindex` for a card that isn't live. **Fails open**: on any error, a missing variable, or Supabase taking over 1.5 s, the page is served untouched |
 
 Both read `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (the edge function also reads
 `VITE_SITE_URL`) **at runtime**, so in Netlify → Site configuration → Environment variables
@@ -803,9 +803,10 @@ netlify/
 docs/              digital-business-cards.md, the business card design
 ```
 
-The edge function copies two patterns from `features/cards/model.ts` (the handle shape and the
-card-media path) rather than importing them, because Netlify bundles it separately and can't
-resolve the app's `@/` imports. Change them together.
+The edge function imports `features/cards/model.ts`, `photoVisibility.ts` and `fontLinks.ts` by
+relative `.ts` path, because Netlify bundles it with Deno, which can't resolve the app's `@/`
+imports or packages. Those files must keep to that; `cardMetaEdge.test.ts` walks the imports and
+fails if they don't.
 
 Two rules to preserve: **components do not call Supabase directly** (they go through
 `services/`), and **query keys are built in `services/queryKeys.ts`** so invalidation after a

@@ -21,6 +21,7 @@ import {
   type CardLayout,
   type CardPattern,
   type CardPresetId,
+  type CardPrimaryFill,
   type CardSectionId,
   type CardTheme,
 } from "../../model";
@@ -39,6 +40,7 @@ import {
   DensityPicture,
   LayoutPicture,
   PatternSwatch,
+  PrimaryFillPicture,
 } from "./illustrations";
 import { DesignSection, OptionGroup, type OptionItem } from "./parts";
 import { PresetGallery } from "./PresetGallery";
@@ -75,6 +77,16 @@ const LAYOUT_OPTIONS: OptionItem<CardLayout>[] = (
     { value: "split", label: "Split", description: "Left-aligned. Two columns on a wide screen." },
     { value: "minimal", label: "Minimal", description: "No photo. Just your name and words." },
     { value: "badge", label: "Badge", description: "A conference lanyard look." },
+    { value: "profile", label: "Profile", description: "Your portrait beside your name, details under a fine rule." },
+    {
+      value: "editorial",
+      label: "Editorial",
+      description: "A large name under a running head, set like a magazine. Two columns on a wide screen.",
+    },
+    { value: "studio", label: "Studio", description: "A compact header with tags. Two columns on a wide screen." },
+    { value: "layered", label: "Layered", description: "A centered header, with each block on a raised panel." },
+    { value: "letterhead", label: "Letterhead", description: "Your school or employer at the top, like headed paper." },
+    { value: "monogram", label: "Monogram", description: "Your name set large, under your photo or initials." },
   ] satisfies OptionItem<CardLayout>[]
 ).map((option) => ({ ...option, preview: <LayoutPicture layout={option.value} /> }));
 
@@ -84,6 +96,7 @@ const STYLE_LABELS: Record<CardButtonStyle, string> = {
   outline: "Outline",
   soft: "Soft",
   glass: "Glass",
+  hairline: "Hairline",
 };
 const AVATAR_LABELS: Record<CardAvatarShape, string> = {
   circle: "Circle",
@@ -273,9 +286,14 @@ export function DesignTab({
 
       <DesignSection
         title="Start from a preset"
-        description="Each preset sets the colors, fonts, layout and buttons together. You can fine-tune anything below."
+        description="Each preset sets the layout, colors, fonts and buttons together, and your preview updates as soon as you pick one. Your content and photos stay as they are, and you can fine-tune anything below."
       >
-        <PresetGallery current={resolved.preset} hasOverrides={overrides} onChoose={choosePreset} />
+        <PresetGallery
+          current={resolved.preset}
+          hasOverrides={overrides}
+          onChoose={choosePreset}
+          sampleName={hasText(displayName) ? String(displayName).trim() : undefined}
+        />
       </DesignSection>
 
       <DesignSection title="Layout">
@@ -421,6 +439,27 @@ export function DesignTab({
 
       <DesignSection title="Buttons">
         {contrastNotice}
+        <OptionGroup<CardPrimaryFill>
+          legend="Add to Contacts"
+          hint="Add to Contacts uses this color. Your featured link shares it in the original layouts; the professional ones outline it in your accent instead, so Add to Contacts leads."
+          value={resolved.buttons.primary}
+          options={[
+            {
+              value: "accent",
+              label: "Accent color",
+              description: "Bold, in your accent.",
+              preview: <PrimaryFillPicture fill="accent" theme={resolved} />,
+            },
+            {
+              value: "ink",
+              label: "Text color",
+              description: "Quieter and more formal, in your text color.",
+              preview: <PrimaryFillPicture fill="ink" theme={resolved} />,
+            },
+          ]}
+          onChange={(primary) => patch({ buttons: { primary } })}
+          columns="grid-cols-2"
+        />
         <OptionGroup
           legend="Shape"
           value={resolved.buttons.shape}
@@ -433,7 +472,7 @@ export function DesignTab({
         />
         <OptionGroup
           legend="Style"
-          hint="Add to Contacts and your featured link are always filled, so they stand out."
+          hint="How your links are drawn. In rows and grouped cards, the style sets the small mark behind each icon."
           value={resolved.buttons.style}
           options={(Object.keys(STYLE_LABELS) as CardButtonStyle[]).map((style) => ({
             value: style,
@@ -441,7 +480,7 @@ export function DesignTab({
             preview: <ButtonStylePicture style={style} theme={resolved} />,
           }))}
           onChange={(style) => patch({ buttons: { style } })}
-          columns="grid-cols-2 sm:grid-cols-4"
+          columns="grid-cols-2 sm:grid-cols-3"
         />
         <OptionGroup<CardButtonArrangement>
           legend="Arrangement"
@@ -459,9 +498,27 @@ export function DesignTab({
               description: "A compact grid of icons. Without icons, two columns of buttons.",
               preview: <ArrangementPicture arrangement="icon-grid" />,
             },
+            {
+              value: "rows",
+              label: "Rows",
+              description: "One line per link, with its address underneath.",
+              preview: <ArrangementPicture arrangement="rows" />,
+            },
+            {
+              value: "compact",
+              label: "Two columns",
+              description: "Smaller buttons, side by side.",
+              preview: <ArrangementPicture arrangement="compact" />,
+            },
+            {
+              value: "grouped",
+              label: "Grouped",
+              description: "Cards sorted into work, professional and social.",
+              preview: <ArrangementPicture arrangement="grouped" />,
+            },
           ]}
           onChange={(arrangement) => patch({ buttons: { arrangement } })}
-          columns="grid-cols-2"
+          columns="grid-cols-2 sm:grid-cols-3"
         />
         <Checkbox
           label="Show icons on buttons"
@@ -476,7 +533,9 @@ export function DesignTab({
         description={
           resolved.layout === "minimal"
             ? "The Minimal layout doesn't show a photo. These settings apply if you switch layouts."
-            : "Upload or change your photo on the Content tab."
+            : resolved.layout === "monogram"
+              ? "Upload or change your photo on the Content tab. Without one, the Monogram layout shows your initials; choose No photo to show just your name."
+              : "Upload or change your photo on the Content tab."
         }
       >
         <OptionGroup
@@ -517,9 +576,15 @@ export function DesignTab({
               description: "Tighter, so more fits on one screen.",
               preview: <DensityPicture density="compact" />,
             },
+            {
+              value: "spacious",
+              label: "Spacious",
+              description: "Generous room between blocks, and wider margins on a big screen.",
+              preview: <DensityPicture density="spacious" />,
+            },
           ]}
           onChange={(density) => patch({ density })}
-          columns="grid-cols-2"
+          columns="grid-cols-2 sm:grid-cols-3"
         />
       </DesignSection>
 

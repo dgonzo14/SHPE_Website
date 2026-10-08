@@ -363,3 +363,65 @@ export function linkDisplayLabel(link: { kind: CardLinkKind; label: string | nul
 export function linkIcon(kind: CardLinkKind): ComponentType<{ className?: string }> {
   return isKnownKind(kind) ? LINK_KINDS[kind].icon : LINK_KINDS.custom.icon;
 }
+
+/** A path segment this long is an id (a Drive file, a share token), not a name. */
+const LONG_SEGMENT = 20;
+
+/**
+ * The second line of a link row: where the link goes, in the words a person
+ * would say it. The address for email, the number for phone, and for a web
+ * link the host and path without the scheme or "www." -- linkedin.com/in/ana,
+ * github.com/ana -- or just the host when the path is an opaque id, so a
+ * résumé on Drive reads "drive.google.com" rather than a string of noise.
+ * Query strings and fragments never show. null when there's nothing useful to
+ * say. Plain text: the card renders it as text, never as markup.
+ */
+export function linkDetail(link: { kind: CardLinkKind; value: string }): string | null {
+  const value = typeof link.value === "string" ? link.value.trim() : "";
+  if (value === "") return null;
+  if (link.kind === "email" || link.kind === "phone") return value;
+
+  const match = /^https?:\/\/([^/?#\s]+)([^?#\s]*)/i.exec(value);
+  if (!match) return null;
+  const host = match[1].toLowerCase().replace(/^www\./, "").replace(/:\d+$/, "");
+  const segments = match[2].split("/").filter(Boolean);
+  if (segments.length === 0 || segments.length > 3 || segments.some((s) => s.length > LONG_SEGMENT)) {
+    return host;
+  }
+  return `${host}/${segments.join("/")}`;
+}
+
+/**
+ * The groups the "grouped" arrangement sorts links into, in display order:
+ * things the member made, ways to reach them professionally, and everything
+ * social. A custom link is usually a project, so it counts as work.
+ */
+export const LINK_GROUPS = [
+  { id: "work", title: "Work" },
+  { id: "professional", title: "Professional" },
+  { id: "social", title: "Social" },
+] as const;
+export type LinkGroupId = (typeof LINK_GROUPS)[number]["id"];
+
+const LINK_GROUP_OF: Record<CardLinkKind, LinkGroupId> = {
+  portfolio: "work",
+  website: "work",
+  github: "work",
+  devpost: "work",
+  resume: "work",
+  youtube: "work",
+  custom: "work",
+  linkedin: "professional",
+  email: "professional",
+  phone: "professional",
+  calendly: "professional",
+  handshake: "professional",
+  instagram: "social",
+  x: "social",
+  tiktok: "social",
+  discord: "social",
+};
+
+export function linkGroup(kind: CardLinkKind): LinkGroupId {
+  return isKnownKind(kind) ? LINK_GROUP_OF[kind] : "work";
+}
