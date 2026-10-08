@@ -20,6 +20,7 @@ import {
   SkeletonStats,
   StatCard,
 } from "@/components/shared/states";
+import { OfficerCardPrompt } from "@/features/cards/admin/OfficerCardPrompt";
 import { fetchDashboard } from "@/services/points";
 import { queryKeys } from "@/services/queryKeys";
 import { useTerms } from "@/hooks/useTerms";
@@ -80,6 +81,10 @@ export function Dashboard() {
           </LinkButton>
         }
       />
+
+      {/* Renders nothing unless an officer made this member's card and they
+          haven't opened it yet. Independent of the dashboard query. */}
+      <OfficerCardPrompt className="mb-6" />
 
       {loading ? (
         <div className="space-y-6">

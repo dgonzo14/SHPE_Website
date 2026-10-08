@@ -6,6 +6,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
   TableHTMLAttributes,
+  TdHTMLAttributes,
 } from "react";
 import { useId } from "react";
 import { AlertCircle, CheckCircle2, Info, TriangleAlert } from "lucide-react";
@@ -318,7 +319,7 @@ export function Th({ className, ...props }: HTMLAttributes<HTMLTableCellElement>
   );
 }
 
-export function Td({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) {
+export function Td({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
   return (
     <td className={cn("h-12 border-b border-shpe-rule px-3 py-2 align-middle md:h-10", className)} {...props} />
   );

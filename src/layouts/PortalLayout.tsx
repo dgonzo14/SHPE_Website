@@ -6,19 +6,23 @@ import {
   CalendarDays,
   ExternalLink,
   History,
+  IdCard,
   LayoutDashboard,
   LogOut,
   type LucideIcon,
+  Medal,
   Menu,
   QrCode,
   Settings,
   ShieldCheck,
   Trophy,
   UserRound,
+  Users,
   X,
 } from "lucide-react";
 
 import { useAuth } from "@/auth/useAuth";
+import { useAppConfig } from "@/hooks/useAppConfig";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
@@ -36,20 +40,40 @@ const MEMBER_NAV: NavItem[] = [
   { to: "/portal/events", label: "Events", icon: CalendarDays },
   { to: "/portal/check-in", label: "Check In", icon: QrCode },
   { to: "/portal/points", label: "My Points", icon: Trophy },
+  { to: "/portal/leaderboard", label: "Leaderboard", icon: Medal },
   { to: "/portal/history", label: "History", icon: History },
   { to: "/portal/announcements", label: "Announcements", icon: Bell },
+  { to: "/portal/officers", label: "Officers", icon: Users },
   { to: "/portal/resources", label: "Resources", icon: BookOpen },
   { to: "/portal/membership", label: "Membership", icon: ShieldCheck },
   { to: "/portal/profile", label: "Profile", icon: UserRound },
+  { to: "/portal/card", label: "My Card", icon: IdCard },
   { to: "/portal/settings", label: "Settings", icon: Settings },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const { isOfficer } = useAuth();
+  const config = useAppConfig();
+
+  /*
+   * The leaderboard link follows the officers' switch. Hidden until the config
+   * has loaded, so it never flashes in and back out. Officers always see it, to
+   * preview a hidden board. Like the admin link below, this is a convenience:
+   * get_points_leaderboard() is what actually withholds a hidden board.
+   */
+  const showLeaderboard = isOfficer || config.data?.leaderboard_enabled === true;
+  // Same rule for business cards: officers can set theirs up before launch;
+  // get_my_card() is what actually withholds the editor while it's switched off.
+  const showCard = isOfficer || config.data?.cards_enabled === true;
+  const items = MEMBER_NAV.filter(
+    (item) =>
+      (item.to !== "/portal/leaderboard" || showLeaderboard) &&
+      (item.to !== "/portal/card" || showCard),
+  );
 
   return (
     <nav aria-label="Member portal" className="space-y-1">
-      {MEMBER_NAV.map(({ to, label, icon: Icon, end }) => (
+      {items.map(({ to, label, icon: Icon, end }) => (
         <NavLink
           key={to}
           to={to}

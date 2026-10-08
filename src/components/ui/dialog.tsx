@@ -37,13 +37,27 @@ export function Dialog({
   const titleId = useId();
   const descId = useId();
 
+  /*
+   * The latest onClose, read through a ref so the open/close effect below does
+   * not depend on it. Most callers pass an inline arrow, which is a new
+   * function on every render; when the effect depended on it, any re-render of
+   * the parent while the dialog was open (typing into a field inside it, say)
+   * ran the cleanup -- focus back to the trigger -- and then the setup -- focus
+   * to the first control, the close button. The next Space press closed the
+   * dialog. The effect must run on open and close, and only then.
+   */
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (!open) return;
 
       if (event.key === "Escape") {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -69,7 +83,7 @@ export function Dialog({
         first.focus();
       }
     },
-    [open, onClose],
+    [open],
   );
 
   useEffect(() => {

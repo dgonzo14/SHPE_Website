@@ -42,6 +42,27 @@ const NotFound = lazy(() =>
   import("./pages/NotFound").then((m) => ({ default: m.NotFound })),
 );
 
+// Business cards: the page an NFC tap opens. Its own chunk, no site chrome.
+const PublicCard = lazy(() =>
+  import("./pages/card/PublicCard").then((m) => ({ default: m.PublicCard })),
+);
+
+/**
+ * What a card tap shows while the card's chunk downloads: the same quiet grey
+ * the card skeleton opens on, rather than the portal's spinner on white, so
+ * the page settles into the card instead of flashing between two loaders.
+ * Inline and dependency-free because it ships in the main bundle.
+ */
+function CardRouteFallback() {
+  return (
+    <div className="min-h-dvh w-full bg-gray-100" aria-busy="true">
+      <span role="status" className="sr-only">
+        Loading business card
+      </span>
+    </div>
+  );
+}
+
 // Auth
 const AuthLayout = lazy(() =>
   import("./layouts/AuthLayout").then((m) => ({ default: m.AuthLayout })),
@@ -84,8 +105,14 @@ const CheckIn = lazy(() =>
 const Points = lazy(() =>
   import("./pages/portal/Points").then((m) => ({ default: m.Points })),
 );
+const Leaderboard = lazy(() =>
+  import("./pages/portal/Leaderboard").then((m) => ({ default: m.Leaderboard })),
+);
 const History = lazy(() =>
   import("./pages/portal/History").then((m) => ({ default: m.History })),
+);
+const Officers = lazy(() =>
+  import("./pages/portal/Officers").then((m) => ({ default: m.Officers })),
 );
 const PortalAnnouncements = lazy(() =>
   import("./pages/portal/Announcements").then((m) => ({
@@ -106,6 +133,9 @@ const Profile = lazy(() =>
 );
 const Settings = lazy(() =>
   import("./pages/portal/Settings").then((m) => ({ default: m.Settings })),
+);
+const MyCard = lazy(() =>
+  import("./pages/portal/MyCard").then((m) => ({ default: m.MyCard })),
 );
 
 // Admin
@@ -148,6 +178,11 @@ const AdminMemberDetail = lazy(() =>
 const AdminPoints = lazy(() =>
   import("./pages/admin/AdminPoints").then((m) => ({ default: m.AdminPoints })),
 );
+const AdminLeaderboard = lazy(() =>
+  import("./pages/admin/AdminLeaderboard").then((m) => ({
+    default: m.AdminLeaderboard,
+  })),
+);
 const AdminAnnouncements = lazy(() =>
   import("./pages/admin/AdminAnnouncements").then((m) => ({
     default: m.AdminAnnouncements,
@@ -171,6 +206,11 @@ const AdminAuditLog = lazy(() =>
 const AdminJoinCode = lazy(() =>
   import("./pages/admin/AdminJoinCode").then((m) => ({
     default: m.AdminJoinCode,
+  })),
+);
+const AdminCards = lazy(() =>
+  import("./pages/admin/AdminCards").then((m) => ({
+    default: m.AdminCards,
   })),
 );
 
@@ -203,6 +243,19 @@ export default function App() {
                     <Route path="/get-plugged-in" element={<GetPluggedIn />} />
                     <Route path="/leadership" element={<Leadership />} />
                   </Route>
+
+                  {/* ── Business cards ──────────────────────────────── */}
+                  {/* Outside PublicLayout: a card is the whole screen, with no
+                      site navbar. Public, so outside every auth guard; what a
+                      stranger may see is decided by get_public_card(). */}
+                  <Route
+                    path="/card/:handle"
+                    element={
+                      <Suspense fallback={<CardRouteFallback />}>
+                        <PublicCard />
+                      </Suspense>
+                    }
+                  />
 
                   {/* ── Authentication ──────────────────────────────── */}
                   <Route element={<AuthLayout />}>
@@ -242,6 +295,8 @@ export default function App() {
                         />
                         <Route path="check-in" element={<CheckIn />} />
                         <Route path="points" element={<Points />} />
+                        <Route path="leaderboard" element={<Leaderboard />} />
+                        <Route path="officers" element={<Officers />} />
                         <Route path="history" element={<History />} />
                         <Route
                           path="announcements"
@@ -251,6 +306,7 @@ export default function App() {
                         <Route path="membership" element={<Membership />} />
                         <Route path="profile" element={<Profile />} />
                         <Route path="settings" element={<Settings />} />
+                        <Route path="card" element={<MyCard />} />
                       </Route>
                     </Route>
 
@@ -281,6 +337,10 @@ export default function App() {
                         />
                         <Route path="points" element={<AdminPoints />} />
                         <Route
+                          path="leaderboard"
+                          element={<AdminLeaderboard />}
+                        />
+                        <Route
                           path="announcements"
                           element={<AdminAnnouncements />}
                         />
@@ -288,6 +348,7 @@ export default function App() {
                         <Route path="analytics" element={<AdminAnalytics />} />
                         <Route path="audit-log" element={<AdminAuditLog />} />
                         <Route path="join-code" element={<AdminJoinCode />} />
+                        <Route path="cards" element={<AdminCards />} />
                       </Route>
                     </Route>
                   </Route>

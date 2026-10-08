@@ -9,6 +9,28 @@
 
 import { z } from "zod";
 import { ALLOWED_EMAIL_DOMAINS } from "./config";
+import {
+  BACKGROUND_DIM_MAX,
+  CARD_AVATAR_SHAPES,
+  CARD_BACKGROUND_TYPES,
+  CARD_BUTTON_ARRANGEMENTS,
+  CARD_BUTTON_SHAPES,
+  CARD_BUTTON_STYLES,
+  CARD_DENSITIES,
+  CARD_FONT_IDS,
+  CARD_LAYOUTS,
+  CARD_LIMITS,
+  CARD_LINK_KINDS,
+  CARD_MEDIA_PATH_PATTERN,
+  CARD_PATTERNS,
+  CARD_PRESET_IDS,
+  CARD_SECTION_IDS,
+  GRADIENT_ANGLE_MAX,
+  HANDLE_PATTERN,
+  HEX_COLOR_PATTERN,
+  RESERVED_HANDLES,
+  isLinkValueValid,
+} from "@/features/cards/model";
 
 export const DEGREE_LEVELS = [
   { value: "undergraduate", label: "Undergraduate" },
@@ -397,6 +419,201 @@ export const pointAdjustmentSchema = z.object({
     .max(300),
 });
 export type PointAdjustmentValues = z.infer<typeof pointAdjustmentSchema>;
+
+/* ── Business cards ──────────────────────────────────────────────────────── */
+/*
+ * Mirrors private.card_theme_is_valid(), private.card_sections_are_valid() and
+ * the CHECK constraints in 20260914000001_member_business_cards.sql. The
+ * database is the authority -- save_my_card() re-validates everything -- so
+ * these exist for an instant, field-level message, and must never accept
+ * anything the database would reject. Strict objects for the theme for the same
+ * reason: the database refuses unknown keys, so the form must too.
+ */
+
+const hexColor = z.string().regex(HEX_COLOR_PATTERN, "Use a color like #1b365d");
+
+export const cardThemeSchema = z.strictObject({
+  preset: z.enum(CARD_PRESET_IDS),
+  layout: z.enum(CARD_LAYOUTS).optional(),
+  colors: z
+    .strictObject({
+      background: hexColor.optional(),
+      surface: hexColor.optional(),
+      text: hexColor.optional(),
+      muted: hexColor.optional(),
+      accent: hexColor.optional(),
+      accentText: hexColor.optional(),
+    })
+    .optional(),
+  background: z
+    .strictObject({
+      type: z.enum(CARD_BACKGROUND_TYPES),
+      from: hexColor.optional(),
+      to: hexColor.optional(),
+      angle: z.number().int().min(0).max(GRADIENT_ANGLE_MAX).optional(),
+      dim: z.number().int().min(0).max(BACKGROUND_DIM_MAX).optional(),
+      pattern: z.enum(CARD_PATTERNS).optional(),
+    })
+    .optional(),
+  font: z
+    .strictObject({
+      heading: z.enum(CARD_FONT_IDS).optional(),
+      body: z.enum(CARD_FONT_IDS).optional(),
+    })
+    .optional(),
+  buttons: z
+    .strictObject({
+      shape: z.enum(CARD_BUTTON_SHAPES).optional(),
+      style: z.enum(CARD_BUTTON_STYLES).optional(),
+      arrangement: z.enum(CARD_BUTTON_ARRANGEMENTS).optional(),
+      icons: z.boolean().optional(),
+    })
+    .optional(),
+  avatar: z
+    .strictObject({
+      shape: z.enum(CARD_AVATAR_SHAPES).optional(),
+      ring: z.boolean().optional(),
+    })
+    .optional(),
+  density: z.enum(CARD_DENSITIES).optional(),
+});
+export type CardThemeValues = z.infer<typeof cardThemeSchema>;
+
+const LINK_VALUE_MESSAGES: Partial<Record<(typeof CARD_LINK_KINDS)[number], string>> = {
+  email: "Enter a valid email address",
+  phone: "Enter a phone number, like +1 314 555 0123",
+};
+
+export const cardLinkFormSchema = z
+  .object({
+    /** Present for links that already exist, so their click history survives. */
+    id: z.string().nullable().optional(),
+    kind: z.enum(CARD_LINK_KINDS),
+    label: z
+      .string()
+      .trim()
+      .max(CARD_LIMITS.linkLabel, `Keep labels under ${CARD_LIMITS.linkLabel} characters`),
+    value: z.string().trim().min(1, "Add the link or remove this row").max(CARD_LIMITS.linkValue),
+    is_featured: z.boolean(),
+    is_visible: z.boolean(),
+  })
+  .superRefine((link, ctx) => {
+    if (link.value && !isLinkValueValid(link.kind, link.value)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["value"],
+        message: LINK_VALUE_MESSAGES[link.kind] ?? "Enter a full link starting with https://",
+      });
+    }
+  });
+export type CardLinkFormValues = z.infer<typeof cardLinkFormSchema>;
+
+const cardText = (max: number) =>
+  z.string().trim().max(max, `Keep this under ${max} characters`);
+
+const tagList = (maxItems: number, maxLength: number, noun: string) =>
+  z
+    .array(z.string().trim().min(1).max(maxLength, `Keep each ${noun} under ${maxLength} characters`))
+    .max(maxItems, `Up to ${maxItems} ${noun}s`);
+
+const mediaPath = z
+  .string()
+  .regex(CARD_MEDIA_PATH_PATTERN, "That image didn't upload correctly. Try again.")
+  .nullable();
+
+export const cardHandleSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "Use at least 3 characters")
+  .max(30, "Keep it to 30 characters")
+  .regex(HANDLE_PATTERN, "Use letters, numbers and single hyphens, starting and ending with a letter or number")
+  .refine((handle) => !RESERVED_HANDLES.includes(handle), "That handle is reserved");
+
+/**
+ * The editor's whole form: the card plus its links. Text fields are always
+ * strings here ("" for empty); viewModel.formValuesToInput() turns blanks into
+ * nulls on the way to save_my_card().
+ */
+export const cardFormSchema = z
+  .object({
+    handle: cardHandleSchema,
+    display_name: z
+      .string()
+      .trim()
+      .min(1, "Enter the name to show on your card")
+      .max(CARD_LIMITS.displayName),
+    pronouns: cardText(CARD_LIMITS.pronouns),
+    headline: cardText(CARD_LIMITS.headline),
+    organization: cardText(CARD_LIMITS.organization),
+    status_line: cardText(CARD_LIMITS.statusLine),
+    bio: cardText(CARD_LIMITS.bio),
+    location: cardText(CARD_LIMITS.location),
+    skills: tagList(CARD_LIMITS.skills, CARD_LIMITS.skillLength, "skill"),
+    languages: tagList(CARD_LIMITS.languages, CARD_LIMITS.languageLength, "language"),
+    avatar_path: mediaPath,
+    banner_path: mediaPath,
+    background_path: mediaPath,
+    show_major: z.boolean(),
+    show_graduation_year: z.boolean(),
+    show_member_since: z.boolean(),
+    show_national_member: z.boolean(),
+    show_chapter_position: z.boolean(),
+    theme: cardThemeSchema,
+    sections: z
+      .array(z.enum(CARD_SECTION_IDS))
+      .max(CARD_SECTION_IDS.length)
+      .refine((s) => new Set(s).size === s.length, "Each section can appear once"),
+    allow_indexing: z.boolean(),
+    links: z.array(cardLinkFormSchema).max(CARD_LIMITS.links, `Up to ${CARD_LIMITS.links} links`),
+  })
+  .superRefine((values, ctx) => {
+    if (values.links.filter((l) => l.is_featured).length > 1) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["links"],
+        message: "Only one link can be featured",
+      });
+    }
+    const lowerSkills = values.skills.map((s) => s.toLowerCase());
+    if (new Set(lowerSkills).size !== lowerSkills.length) {
+      ctx.addIssue({ code: "custom", path: ["skills"], message: "That skill is already listed" });
+    }
+  });
+export type CardFormValues = z.infer<typeof cardFormSchema>;
+
+/** Officer: hiding a card needs a reason, which goes to the audit log. */
+export const cardHideSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Say why — the member sees this, and it's recorded in the audit log")
+    .max(CARD_LIMITS.hiddenReason),
+});
+export type CardHideValues = z.infer<typeof cardHideSchema>;
+
+/** Officer: resetting a handle needs a reason, which goes to the audit log. */
+export const cardHandleResetSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Say why — this is recorded in the audit log")
+    .max(CARD_LIMITS.hiddenReason),
+});
+export type CardHandleResetValues = z.infer<typeof cardHandleResetSchema>;
+
+/**
+ * Blank clears the position; anything else is 2–60 characters, the same rule as
+ * admin_set_chapter_position() and the chapter_positions CHECK.
+ */
+export const chapterPositionSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .max(CARD_LIMITS.positionTitle, "Keep titles short, like “President”")
+    .refine((t) => t === "" || t.length >= 2, "Use at least 2 characters, like “VP”"),
+});
+export type ChapterPositionValues = z.infer<typeof chapterPositionSchema>;
 
 export const removeAttendanceSchema = z.object({
   reason: z

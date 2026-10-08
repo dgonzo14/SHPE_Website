@@ -44,6 +44,27 @@ export const queryKeys = {
     all: ["resources", "all"] as const,
   },
 
+  officers: {
+    board: ["officers", "board"] as const,
+  },
+
+  leaderboard: {
+    all: ["leaderboard"] as const,
+    board: (scope: string) => ["leaderboard", scope] as const,
+  },
+
+  cards: {
+    all: ["cards"] as const,
+    /** The caller's own card. Not under "member", which some screens clear wholesale. */
+    mine: ["cards", "mine"] as const,
+    insights: (days: number) => ["cards", "mine", "insights", days] as const,
+    handleCheck: (handle: string) => ["cards", "handle-check", handle] as const,
+    suggestedHandle: ["cards", "suggested-handle"] as const,
+    publicCard: (handle: string) => ["cards", "public", handle] as const,
+    admin: ["cards", "admin"] as const,
+    adminSuggestion: (memberId: string) => ["cards", "admin", "suggestion", memberId] as const,
+  },
+
   admin: {
     members: (filters: Record<string, unknown>) => ["admin", "members", filters] as const,
     memberDetail: (memberId: string) => ["admin", "members", memberId] as const,

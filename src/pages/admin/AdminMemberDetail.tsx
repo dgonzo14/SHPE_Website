@@ -45,6 +45,9 @@ import {
 } from "@/services/points";
 import { queryKeys } from "@/services/queryKeys";
 import { activeTerm } from "@/services/content";
+import { removeMemberCardMedia } from "@/services/cards";
+import { MemberCardSummary } from "@/features/cards/admin/MemberCardSummary";
+import { MemberPositionCard } from "@/features/cards/admin/MemberPositionCard";
 import { useScopeOptions, useTerms } from "@/hooks/useTerms";
 import { formatDate, formatShortDate } from "@/lib/datetime";
 import { errorText } from "@/lib/errors";
@@ -123,6 +126,8 @@ export function AdminMemberDetail() {
   const refreshMember = () => {
     void queryClient.invalidateQueries({ queryKey: ["member"] });
     void queryClient.invalidateQueries({ queryKey: ["admin"] });
+    // The card list carries each member's status and whether they're eligible.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.cards.admin });
   };
 
   const statusMutation = useMutation({
@@ -172,6 +177,14 @@ export function AdminMemberDetail() {
         });
         return;
       }
+
+      /*
+       * Their card rows went with the account, but the photos are files in
+       * storage, which no foreign key reaches; left alone they'd stay public at
+       * their old URLs. Not awaited and never throws: the member is already
+       * deleted, and a leftover photo shouldn't turn that into an error.
+       */
+      void removeMemberCardMedia(memberId);
 
       /*
        * Reported rather than a bare "deleted", because the cascade is the part
@@ -450,6 +463,10 @@ export function AdminMemberDetail() {
               </CardBody>
             </Card>
 
+            {/* Only on this tab, so the roster-wide card list loads when an
+                officer comes here to manage the member, not on every visit. */}
+            <MemberCardSummary member={member} />
+
             <Card>
               <CardHeader>
                 <CardTitle>Roles</CardTitle>
@@ -499,6 +516,8 @@ export function AdminMemberDetail() {
                 )}
               </CardBody>
             </Card>
+
+            <MemberPositionCard member={member} />
 
             <Card>
               <CardHeader>
