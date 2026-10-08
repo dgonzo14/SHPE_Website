@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 import type { CardButtonShape, CardButtonStyle } from "../../model";
@@ -292,7 +292,12 @@ function Links({ theme }: { theme: ResolvedTheme }): ReactNode {
   );
 }
 
-export function CardMiniature({
+/*
+ * Memoised: the gallery passes each preset's own theme object, which never
+ * changes, so editing anything else on the Design tab doesn't redraw all
+ * thirteen miniatures.
+ */
+export const CardMiniature = memo(function CardMiniature({
   theme,
   name,
   className,
@@ -315,7 +320,13 @@ export function CardMiniature({
       <span
         className={cn(
           "flex h-fit w-full max-w-[8.5rem] flex-col gap-2 overflow-hidden bg-(--card-surface-fill) p-2.5 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.45)]",
-          theme.buttons.shape === "square" ? "rounded-none" : theme.buttons.shape === "pill" ? "rounded-xl" : "rounded-lg",
+          theme.buttons.shape === "square"
+            ? "rounded-none"
+            : theme.layout === "profile"
+              ? "rounded-md"
+              : theme.buttons.shape === "pill"
+                ? "rounded-xl"
+                : "rounded-lg",
           edged && "border border-(--card-border)",
         )}
       >
@@ -328,4 +339,4 @@ export function CardMiniature({
       </span>
     </span>
   );
-}
+});

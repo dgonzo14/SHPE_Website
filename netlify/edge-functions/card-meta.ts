@@ -1,20 +1,23 @@
 import type { Config, Context } from "https://edge.netlify.com";
 
 /*
- * The app's own rules, imported so the handle shape, the media path and when
- * a photo may be shown can't drift from what the page uses. Netlify bundles
- * this file with Deno, which needs the ".ts" extensions and doesn't know the
- * app's "@/" alias, so everything reachable from here must use plain relative
- * paths and import no packages. model.ts and photoVisibility.ts keep to that,
- * and src/features/cards/public/__tests__/cardMetaEdge.test.ts walks these
- * imports so CI fails if that ever stops being true, instead of the deploy.
+ * The app's own rules, imported so the handle shape, the media path, when a
+ * photo may be shown and which fonts a card loads can't drift from what the
+ * page uses. Netlify bundles this file with Deno, which needs the ".ts"
+ * extensions and doesn't know the app's "@/" alias, so everything reachable
+ * from here must use plain relative paths and import no packages. model.ts,
+ * photoVisibility.ts and fontLinks.ts keep to that, and
+ * src/features/cards/public/__tests__/cardMetaEdge.test.ts walks these imports
+ * so CI fails if that ever stops being true, instead of the deploy.
  */
 import {
   CARD_MEDIA_BUCKET,
   CARD_MEDIA_PATH_PATTERN,
   HANDLE_PATTERN,
+  type CardFontId,
 } from "../../src/features/cards/model.ts";
 import { visiblePhotoPath } from "../../src/features/cards/photoVisibility.ts";
+import { googleFontHref, storedThemeFonts } from "../../src/features/cards/fontLinks.ts";
 
 /**
  * Link previews for business cards.
@@ -26,18 +29,24 @@ import { visiblePhotoPath } from "../../src/features/cards/photoVisibility.ts";
  * edge function looks the card up while the page is being fetched and writes
  * that card's title, description, photo and robots rule into <head>.
  *
+ * Having the card in hand, it also adds the stylesheets for the card's two
+ * fonts, so they download alongside the app instead of after it has run: the
+ * name appears in its own face rather than a fallback that then reflows.
+ *
  * It is an enhancement, never a dependency, so it FAILS OPEN: a missing
  * environment variable, a slow or paused Supabase, an unexpected answer or any
  * error at all serves the untouched page, and the SPA renders the card (or its
  * own error state) exactly as it would without this file. `onError: "bypass"`
  * below covers anything that escapes the code's own checks.
  *
- * What it injects is only <title>, <meta> and <link rel="canonical">. Never a
- * <script>: the CSP has no 'unsafe-inline', and nothing here needs one. Every
- * value is HTML-escaped, and the only image URL it will build is this
- * project's own card-media bucket from a path that matches the storage
- * pattern, so a card can't point a preview at an arbitrary host. A photo the
- * card's design hides is left out of the preview too.
+ * What it injects is only <title>, <meta>, <link rel="canonical"> and font
+ * stylesheets. Never a <script>: the CSP has no 'unsafe-inline', and nothing
+ * here needs one. Every value is HTML-escaped, the only image URL it will build
+ * is this project's own card-media bucket from a path that matches the storage
+ * pattern, and the only stylesheet URLs are Google Fonts ones built from the
+ * fixed catalog in fontLinks.ts (already allowed by the CSP), so a card can't
+ * point the page at an arbitrary host. A photo the card's design hides is left
+ * out of the preview too.
  *
  * It decides nothing about who may see a card. get_public_card() is the same
  * anon RPC the page itself calls; this just asks it earlier. Views are not
@@ -83,6 +92,8 @@ interface CardMeta {
   /** Only when the card shows its photo; null when the design hides it. */
   avatarPath: string | null;
   allowIndexing: boolean;
+  /** The fonts the card's theme draws with, from the catalog only. */
+  fonts: CardFontId[];
 }
 
 type Lookup =
@@ -219,6 +230,7 @@ function parseLookup(data: unknown): Lookup | null {
       // link is pasted into, so the theme decides here.
       avatarPath: visiblePhotoPath(card),
       allowIndexing: card.allow_indexing === true,
+      fonts: storedThemeFonts(card.theme),
     },
   };
 }
@@ -333,6 +345,12 @@ function cardHeadTags(card: CardMeta, env: Env, request: CardRequest): string[] 
     // Search engines are opt-in per card: a student's phone number turning up
     // in Google is a bad default.
     tags.push(metaTag("name", "robots", NOINDEX));
+  }
+  // The card's fonts, tagged the way the app's ensureCardFont() tags its own,
+  // so the app finds them already there and doesn't add a second copy.
+  for (const id of card.fonts) {
+    const href = googleFontHref(id);
+    if (href) tags.push(`<link rel="stylesheet" href="${escapeHtml(href)}" data-card-font="${escapeHtml(id)}" />`);
   }
   return tags;
 }

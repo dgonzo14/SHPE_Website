@@ -789,3 +789,128 @@ describe("BusinessCard link arrangements", () => {
     }
   });
 });
+
+describe("BusinessCard featured link", () => {
+  const featuredLink = (container: HTMLElement) => container.querySelector<HTMLElement>('[data-section="featured"] a')!;
+
+  it.each(["executive", "editorial", "studio", "slate", "heritage", "signature"] as const)(
+    "lets Add to Contacts lead in %s: the featured link is outlined, at the same height",
+    (preset) => {
+      const { container } = renderCard({ card: withTheme({ preset }) });
+      const block = container.querySelector<HTMLElement>('[data-section="featured"]')!;
+      expect(block).toHaveAttribute("data-emphasis", "secondary");
+      const link = featuredLink(container);
+      expect(link).toHaveClass("border-(--card-accent)", "text-(--card-text)", "min-h-(--card-button-h)");
+      expect(link).not.toHaveClass("bg-(--card-primary)");
+      expect(link.className).not.toMatch(/min-h-\[calc/);
+      expect(link).toHaveAccessibleName(/^Book a coffee chat/);
+    },
+  );
+
+  it.each(["shpe-classic", "sunrise", "midnight", "paper", "washu", "engineer", "glass"] as const)(
+    "keeps %s's featured link as the big filled button it was",
+    (preset) => {
+      const { container } = renderCard({ card: withTheme({ preset }) });
+      expect(container.querySelector('[data-section="featured"]')).toHaveAttribute("data-emphasis", "primary");
+      const link = featuredLink(container);
+      expect(link).toHaveClass("bg-(--card-primary)", "text-lg");
+      expect(link.className).toMatch(/min-h-\[calc\(var\(--card-button-h\)\+0\.75rem\)\]/);
+    },
+  );
+});
+
+describe("BusinessCard professional details", () => {
+  it("rounds Executive's card more tightly than its buttons would", () => {
+    const { container } = renderCard({ card: withTheme({ preset: "executive" }) });
+    expect(container.querySelector("article")!.className).toMatch(/rounded-\[min\(var\(--card-radius\),0\.75rem\)\]/);
+    const classic = renderCard({ card: withTheme({ preset: "shpe-classic" }) });
+    expect(classic.container.querySelector("article")!.className).not.toMatch(/0\.75rem\)\]/);
+  });
+
+  it("puts the class year in Editorial's running head, and nothing when the card doesn't show one", () => {
+    const { container, unmount } = renderCard({ card: withTheme({ preset: "editorial" }) });
+    const masthead = container.querySelector('[data-part="masthead"]')!;
+    expect(masthead).toHaveTextContent("WashU SHPE");
+    expect(masthead.querySelector('[data-part="class-year"]')).toHaveTextContent("Class of 2027");
+    expect(masthead).not.toHaveTextContent(/member profile/i);
+    unmount();
+
+    const noYear = renderCard({
+      card: withTheme(
+        { preset: "editorial" },
+        { education: { major: "Computer Science", secondary_major: null, graduation_year: null, degree_level: null } },
+      ),
+    });
+    const bare = noYear.container.querySelector('[data-part="masthead"]')!;
+    expect(bare).toHaveTextContent(/^WashU SHPE$/);
+    expect(bare.querySelector('[data-part="class-year"]')).toBeNull();
+  });
+
+  it("sets Studio's school as a line under the role, leaving location and chapter as the tags", () => {
+    const { container } = renderCard({ card: withTheme({ preset: "studio" }) });
+    const header = container.querySelector<HTMLElement>('[data-part="header"]')!;
+    const tags = within(header).getByRole("list");
+    expect(within(tags).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "St. Louis, MO",
+      "WashU SHPE · President",
+    ]);
+    expect(tags).not.toHaveTextContent("Washington University in St. Louis");
+    const school = within(header).getByText("Washington University in St. Louis");
+    expect(school.tagName).toBe("P");
+    // Role first, then school.
+    const text = header.textContent ?? "";
+    expect(text.indexOf("SWE Intern @ Boeing")).toBeLessThan(text.indexOf("Washington University in St. Louis"));
+  });
+
+  it("closes up the spaced capitals of a long affiliation, in Letterhead and Monogram", () => {
+    for (const preset of ["heritage", "signature"] as const) {
+      const short = renderCard({ card: withTheme({ preset }) });
+      const shortLine = short.container.querySelector('[data-part="affiliation"]')!;
+      expect(shortLine, preset).toHaveAttribute("data-length", "short");
+      expect(shortLine, preset).toHaveClass("tracking-[0.2em]");
+      short.unmount();
+
+      const long = renderCard({
+        card: withTheme(
+          { preset },
+          { organization: "McKelvey School of Engineering, Washington University in St. Louis" },
+        ),
+      });
+      const longLine = long.container.querySelector('[data-part="affiliation"]')!;
+      expect(longLine, preset).toHaveAttribute("data-length", "long");
+      expect(longLine, preset).toHaveClass("tracking-[0.1em]");
+      long.unmount();
+    }
+  });
+
+  it("closes Letterhead with the double rule it opens with; every other layout keeps the hairline", () => {
+    const heritage = renderCard({ card: withTheme({ preset: "heritage" }) });
+    const footer = heritage.container.querySelector("footer")!;
+    expect(footer.querySelector('[data-part="footer-rule"]')).toHaveAttribute("aria-hidden", "true");
+    expect(footer).not.toHaveClass("border-t");
+    expect(within(footer).getByRole("link", { name: /member of washu shpe/i })).toBeInTheDocument();
+    heritage.unmount();
+
+    for (const preset of ["executive", "shpe-classic"] as const) {
+      const { container, unmount } = renderCard({ card: withTheme({ preset }) });
+      const plain = container.querySelector("footer")!;
+      expect(plain.querySelector('[data-part="footer-rule"]'), preset).toBeNull();
+      expect(plain, preset).toHaveClass("border-t");
+      unmount();
+    }
+  });
+
+  it("uses a font stylesheet the page already has instead of adding a second", () => {
+    // What the card-meta edge function writes into <head> before the app runs.
+    for (const el of document.head.querySelectorAll("link[data-card-font]")) el.remove();
+    const early = document.createElement("link");
+    early.rel = "stylesheet";
+    early.href = "https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap";
+    early.dataset.cardFont = "instrument-serif";
+    document.head.appendChild(early);
+
+    renderCard({ card: withTheme({ preset: "editorial" }) });
+    expect(document.head.querySelectorAll('link[data-card-font="instrument-serif"]')).toHaveLength(1);
+    expect(document.head.querySelectorAll('link[data-card-font="instrument-sans"]')).toHaveLength(1);
+  });
+});

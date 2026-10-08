@@ -279,7 +279,7 @@ function LinkRow({
     ? "This link is hidden, so it won't show until you turn on Show on my card."
     : featuredBlockHidden
       ? "Your Featured block is turned off on the Design tab, so a featured link shows with the others."
-      : "Shown as a big button near the top of your card. Only one link can be featured.";
+      : "Set apart from your other links as a button of its own. Only one link can be featured.";
 
   return (
     <li

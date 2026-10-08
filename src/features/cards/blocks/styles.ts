@@ -9,8 +9,9 @@ import type { SectionStyle } from "../layouts";
  *
  *   --card-text / --card-muted on the surface        text, muted
  *   --card-accent-text on --card-accent              filled buttons, initials, badge band
- *   --card-primary-text on --card-primary            Add to Contacts, the featured link
- *                                                    (accent pair, or text and card reversed)
+ *   --card-primary-text on --card-primary            Add to Contacts, and the featured link in
+ *                                                    the original layouts (accent pair, or text
+ *                                                    and card reversed)
  *   --card-accent on the surface or its tints        outline / soft / glass labels, icons
  *
  * Anything that would pair colours outside that list (say, accent text on a
@@ -34,8 +35,14 @@ export const LIFT =
   "motion-safe:transition-[translate,box-shadow] motion-safe:duration-150 motion-safe:hover:-translate-y-px hover:shadow-md active:translate-y-0";
 
 /** Fill, border and label colour for each button style. */
-export const BUTTON_FILLS: Record<CardButtonStyle | "primary" | "neutral", string> = {
+export const BUTTON_FILLS: Record<CardButtonStyle | "primary" | "featured" | "neutral", string> = {
   primary: "border-2 border-transparent bg-(--card-primary) text-(--card-primary-text) shadow-sm",
+  /**
+   * The featured link where it ranks below Add to Contacts: an accent edge
+   * (3:1, like icons) around a label in the text colour, so it passes under
+   * every button style without asking the accent to pass as text.
+   */
+  featured: "border-2 border-(--card-accent) bg-transparent text-(--card-text)",
   filled: "border-2 border-transparent bg-(--card-accent) text-(--card-accent-text) shadow-sm",
   outline: "border-2 border-(--card-accent) bg-transparent text-(--card-accent)",
   soft: "border-2 border-transparent bg-(--card-soft) text-(--card-accent)",

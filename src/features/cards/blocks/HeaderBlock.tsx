@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BadgeCheck, Building2, MapPin } from "lucide-react";
+import { BadgeCheck, MapPin } from "lucide-react";
 
 import type { PublicCardData } from "@/types/database";
 import type { CardLayout } from "../model";
@@ -87,9 +87,12 @@ function AlumniTag({ centered }: { centered: boolean }) {
   );
 }
 
-/** A small rounded tag for the Studio and Layered headers. */
+/**
+ * A small rounded tag for the Studio and Layered headers. Sized so a location
+ * and "WashU SHPE · President" share one row on a 375px phone.
+ */
 const CHIP =
-  "inline-flex max-w-full items-center gap-1.5 rounded-full border border-(--card-border) px-3 py-1 text-[0.8125rem] leading-snug text-(--card-text)";
+  "inline-flex max-w-full items-center gap-1 rounded-full border border-(--card-border) px-2 py-1 text-xs leading-snug text-(--card-text)";
 
 /* ── Name sizes ──────────────────────────────────────────────────────────── */
 
@@ -128,6 +131,8 @@ interface HeaderContent {
   location: string | null;
   position: string | null;
   isAlumni: boolean;
+  /** Only when the card shows it (show_graduation_year). */
+  classYear: number | null;
   /** The photo (or initials), or null when the design shows none. */
   avatar: (className?: string) => ReactNode;
 }
@@ -255,7 +260,10 @@ function ProfileHeader({ content, scale, nameLength }: ProfessionalHeaderProps) 
 
 /**
  * Editorial: a running head over a large serif name, the portrait set off to
- * the right, and the headline held to a short measure like a standfirst.
+ * the right, and the headline held to a short measure like a standfirst. The
+ * running head names the chapter like a masthead and, where the card shows
+ * it, the member's class like an issue line; with no year it is just the
+ * chapter.
  */
 function EditorialHeader({ content, scale, nameLength }: ProfessionalHeaderProps) {
   const { headline, organization, location, position, isAlumni } = content;
@@ -268,7 +276,11 @@ function EditorialHeader({ content, scale, nameLength }: ProfessionalHeaderProps
         className="flex items-baseline gap-3 border-b border-(--card-text) pb-2.5 text-[0.6875rem] font-semibold tracking-[0.22em] text-(--card-text) uppercase"
       >
         <span>WashU SHPE</span>
-        <span className="ml-auto text-(--card-muted)">Member profile</span>
+        {content.classYear && (
+          <span data-part="class-year" className="ml-auto text-(--card-muted)">
+            Class of {content.classYear}
+          </span>
+        )}
       </p>
       <div className="flex items-start gap-5">
         <div className="flex min-w-0 flex-1 flex-col gap-2 pt-1">
@@ -296,32 +308,34 @@ function EditorialHeader({ content, scale, nameLength }: ProfessionalHeaderProps
   );
 }
 
-/** Studio: a compact row of photo, name and role, with affiliations as tags. */
+/**
+ * Studio: a compact row of photo, name, role and school, with the location
+ * and chapter position as tags underneath. The school stays a line of text
+ * rather than a tag: names like "Washington University in St. Louis" are long
+ * enough to take a row of tags to themselves on a phone.
+ */
 function StudioHeader({ content, scale, nameLength }: ProfessionalHeaderProps) {
   const { headline, organization, location, position, isAlumni } = content;
-  const tags = Boolean(organization || location || position || isAlumni);
+  const tags = Boolean(location || position || isAlumni);
   return (
     <header data-part="header" data-name-length={nameLength} className="flex flex-col gap-4 text-left">
-      <div className="flex items-center gap-3.5">
+      <div className={cn("flex gap-3.5", headline || organization ? "items-start" : "items-center")}>
         {content.avatar("[--card-avatar-size:3.75rem]")}
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <NameRow content={content} className={cn(scale, "leading-tight tracking-[-0.02em]")} />
           {headline && (
-            <p className={cn("text-[0.9375rem] leading-snug text-(--card-muted)", WRAP_ANYWHERE)}>{headline}</p>
+            <p className={cn("text-[0.9375rem] leading-snug text-(--card-text)", WRAP_ANYWHERE)}>{headline}</p>
+          )}
+          {organization && (
+            <p className={cn("text-sm leading-snug text-(--card-muted)", WRAP_ANYWHERE)}>{organization}</p>
           )}
         </div>
       </div>
       {tags && (
-        <ul role="list" data-part="affiliations" className="flex flex-wrap gap-2">
-          {organization && (
-            <li className={CHIP}>
-              <Building2 aria-hidden="true" className="size-3.5 shrink-0 text-(--card-muted)" />
-              <span className={WRAP_ANYWHERE}>{organization}</span>
-            </li>
-          )}
+        <ul role="list" data-part="affiliations" className="flex flex-wrap gap-1.5">
           {location && (
             <li className={CHIP}>
-              <MapPin aria-hidden="true" className="size-3.5 shrink-0 text-(--card-muted)" />
+              <MapPin aria-hidden="true" className="size-3 shrink-0 text-(--card-muted)" />
               <span className={WRAP_ANYWHERE}>{location}</span>
             </li>
           )}
@@ -373,7 +387,7 @@ function LayeredHeader({ content, scale, nameLength }: ProfessionalHeaderProps) 
           )}
           {location && (
             <li className={raised}>
-              <MapPin aria-hidden="true" className="size-3.5 shrink-0 text-(--card-muted)" />
+              <MapPin aria-hidden="true" className="size-3 shrink-0 text-(--card-muted)" />
               <span className={WRAP_ANYWHERE}>{location}</span>
             </li>
           )}
@@ -386,6 +400,16 @@ function LayeredHeader({ content, scale, nameLength }: ProfessionalHeaderProps) 
       )}
     </header>
   );
+}
+
+/**
+ * An affiliation set in spaced capitals (Letterhead, Monogram). Wide tracking
+ * suits a short name; a long one ("McKelvey School of Engineering, Washington
+ * University in St. Louis") would run to three spaced-out lines on a phone, so
+ * past 34 characters it closes up.
+ */
+function isLongAffiliation(text: string): boolean {
+  return [...text].length > 34;
 }
 
 /** Letterhead's ornament: a small accent diamond between two rules. */
@@ -407,13 +431,19 @@ function Ornament() {
 function LetterheadHeader({ content, scale, nameLength }: ProfessionalHeaderProps) {
   const { headline, organization, location, position, isAlumni } = content;
   const details = Boolean(position || location || isAlumni);
+  const longAffiliation = organization ? isLongAffiliation(organization) : false;
   return (
     <header data-part="header" data-name-length={nameLength} className="flex flex-col items-center gap-5 text-center">
       <span aria-hidden="true" data-part="letterhead-rule" className="block h-[5px] w-full border-y border-(--card-text)" />
       {organization && (
         <p
           data-part="affiliation"
-          className={cn("text-xs font-semibold tracking-[0.2em] text-balance text-(--card-text) uppercase", WRAP_ANYWHERE)}
+          data-length={longAffiliation ? "long" : "short"}
+          className={cn(
+            "text-xs font-semibold text-balance text-(--card-text) uppercase",
+            longAffiliation ? "tracking-[0.1em]" : "tracking-[0.2em]",
+            WRAP_ANYWHERE,
+          )}
         >
           {organization}
         </p>
@@ -468,7 +498,15 @@ function MonogramHeader({ content, scale, nameLength }: ProfessionalHeaderProps)
             <p className={cn("mt-2 text-base leading-snug text-(--card-text)", WRAP_ANYWHERE)}>{headline}</p>
           )}
           {organization && (
-            <p className={cn("text-xs font-medium tracking-[0.2em] text-balance text-(--card-muted) uppercase", WRAP_ANYWHERE)}>
+            <p
+              data-part="affiliation"
+              data-length={isLongAffiliation(organization) ? "long" : "short"}
+              className={cn(
+                "text-xs font-medium text-balance text-(--card-muted) uppercase",
+                isLongAffiliation(organization) ? "tracking-[0.1em]" : "tracking-[0.2em]",
+                WRAP_ANYWHERE,
+              )}
+            >
               {organization}
             </p>
           )}
@@ -513,6 +551,7 @@ export function HeaderBlock({
     location: starter ? null : card.location,
     position: card.shpe?.position?.trim() || null,
     isAlumni: Boolean(card.shpe?.is_alumni) && !starter,
+    classYear: card.education?.graduation_year ?? null,
     avatar: (className) =>
       showAvatar ? (
         <Avatar

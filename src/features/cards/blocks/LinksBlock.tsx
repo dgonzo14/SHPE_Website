@@ -30,10 +30,12 @@ interface LinkBlockProps {
 }
 
 /**
- * The featured link: one big primary button, e.g. "Book a coffee chat" or a
- * résumé. Always in the main button colour, whatever the button style, so it
- * reads as the main thing to tap; its text on that fill is a pairing the
- * contrast checks always cover.
+ * The featured link, e.g. "Book a coffee chat" or a résumé, set apart from
+ * the others whatever the button style. In the original layouts it's one big
+ * button in the main button colour. The professional layouts give it the
+ * same height as Add to Contacts and outline it in the accent instead, so a
+ * visitor sees one main action, not two of equal weight. Either way its
+ * colours are pairings the contrast checks always cover.
  */
 export function FeaturedLinkBlock({
   link,
@@ -41,18 +43,29 @@ export function FeaturedLinkBlock({
   mode,
   onLinkClick,
 }: LinkBlockProps & { link: PublicCardLink }) {
+  const { featured } = useLayoutSpec();
+  const secondary = featured === "secondary";
   return (
-    <div data-section="featured">
+    <div data-section="featured" data-emphasis={featured}>
       <CardLink
         link={link}
         mode={mode}
         onLinkClick={onLinkClick}
         className={cn(
-          buttonClass("primary"),
-          "min-h-[calc(var(--card-button-h)+0.75rem)] justify-center text-center text-lg",
+          secondary
+            ? cn(buttonClass("featured"), "justify-center text-center")
+            : cn(
+                buttonClass("primary"),
+                "min-h-[calc(var(--card-button-h)+0.75rem)] justify-center text-center text-lg",
+              ),
         )}
       >
-        {theme.buttons.icons && <LinkKindIcon kind={link.kind} className="size-6 shrink-0" />}
+        {theme.buttons.icons && (
+          <LinkKindIcon
+            kind={link.kind}
+            className={secondary ? "size-5 shrink-0 text-(--card-accent)" : "size-6 shrink-0"}
+          />
+        )}
         <span className={WRAP_ANYWHERE}>{linkDisplayLabel(link)}</span>
       </CardLink>
     </div>

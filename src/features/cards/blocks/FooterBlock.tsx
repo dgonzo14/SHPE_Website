@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 
 import { absoluteAppUrl } from "@/lib/config";
 import { cn } from "@/lib/utils";
+import { useLayoutSpec } from "../layouts";
 import { FOCUS_RING } from "./styles";
 import type { CardMode } from "./types";
 
@@ -15,11 +16,22 @@ import type { CardMode } from "./types";
  * it's inert like every other link.
  */
 export function FooterBlock({ mode }: { mode: CardMode }) {
+  // Letterhead closes with the same double rule it opens with, like headed paper.
+  const double = useLayoutSpec().footerRule === "double";
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     if (mode === "preview") event.preventDefault();
   }
   return (
-    <footer data-part="footer" className="border-t border-(--card-rule) pt-3 text-center @3xl:col-span-2">
+    <footer
+      data-part="footer"
+      className={cn(
+        "text-center @3xl:col-span-2",
+        double ? "flex flex-col items-center gap-3" : "border-t border-(--card-rule) pt-3",
+      )}
+    >
+      {double && (
+        <span aria-hidden="true" data-part="footer-rule" className="block h-[5px] w-full border-y border-(--card-text)" />
+      )}
       <a
         href={absoluteAppUrl("/")}
         onClick={handleClick}

@@ -66,6 +66,14 @@ export interface LayoutSpec {
   initials: "tile" | "monogram";
   /** Initials in the name font rather than the text font. */
   initialsInHeadingFont: boolean;
+  /**
+   * The featured link: "primary" fills it like Add to Contacts, and larger;
+   * "secondary" outlines it in the accent at the same height, so Add to
+   * Contacts stays the one main action.
+   */
+  featured: "primary" | "secondary";
+  /** The rule over the footer: a hairline, or a double rule like headed paper. */
+  footerRule: "single" | "double";
 }
 
 /** The original layouts' deep drop shadow. */
@@ -84,6 +92,15 @@ const ORIGINAL: Omit<LayoutSpec, "centered" | "card" | "columns"> = {
   ring: "bold",
   initials: "tile",
   initialsInHeadingFont: false,
+  featured: "primary",
+  footerRule: "single",
+};
+
+/** What the six professional layouts share before their own differences. */
+const PROFESSIONAL: Omit<LayoutSpec, "centered" | "card" | "columns"> = {
+  ...ORIGINAL,
+  initialsInHeadingFont: true,
+  featured: "secondary",
 };
 
 export const LAYOUT_SPECS: Record<CardLayout, LayoutSpec> = {
@@ -99,16 +116,17 @@ export const LAYOUT_SPECS: Record<CardLayout, LayoutSpec> = {
   badge: { ...ORIGINAL, centered: true, card: ORIGINAL_SHADOW, columns: "" },
 
   profile: {
-    ...ORIGINAL,
+    ...PROFESSIONAL,
     centered: false,
-    card: SOFT_SHADOW,
+    // Tighter corners than the button shape alone would give: crisper, and
+    // the accent edge along the top stays straight to the corners.
+    card: `${SOFT_SHADOW} rounded-[min(var(--card-radius),0.75rem)]`,
     columns: "",
     sectionStyle: "accent",
     linksTitle: true,
-    initialsInHeadingFont: true,
   },
   editorial: {
-    ...ORIGINAL,
+    ...PROFESSIONAL,
     centered: false,
     // A two-page spread on a wide screen: the masthead and name on the left,
     // the blocks on the right across a fine rule.
@@ -120,20 +138,18 @@ export const LAYOUT_SPECS: Record<CardLayout, LayoutSpec> = {
     linksTitle: true,
     indexedRows: true,
     status: "quote",
-    initialsInHeadingFont: true,
   },
   studio: {
-    ...ORIGINAL,
+    ...PROFESSIONAL,
     centered: false,
     card: `border border-(--card-border) ${SOFT_SHADOW} @3xl:max-w-[56rem]`,
     // 18rem keeps "Add to Contacts" and the share button on one line beside each other.
     columns: "@3xl:grid @3xl:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] @3xl:items-start @3xl:gap-x-10",
     sectionStyle: "label",
     linksTitle: true,
-    initialsInHeadingFont: true,
   },
   layered: {
-    ...ORIGINAL,
+    ...PROFESSIONAL,
     centered: false,
     card: "border border-(--card-border) shadow-[0_32px_80px_-32px_rgba(0,0,0,0.85)]",
     // The panels pad themselves, so on a phone the card gives up some of its
@@ -142,19 +158,18 @@ export const LAYOUT_SPECS: Record<CardLayout, LayoutSpec> = {
     sectionStyle: "panel",
     linksTitle: true,
     status: "plain",
-    initialsInHeadingFont: true,
   },
   letterhead: {
-    ...ORIGINAL,
+    ...PROFESSIONAL,
     centered: true,
     card: SOFT_SHADOW,
     columns: "",
     sectionStyle: "flanked",
     ring: "fine",
-    initialsInHeadingFont: true,
+    footerRule: "double",
   },
   monogram: {
-    ...ORIGINAL,
+    ...PROFESSIONAL,
     centered: true,
     card: SOFT_SHADOW,
     columns: "",
@@ -163,7 +178,6 @@ export const LAYOUT_SPECS: Record<CardLayout, LayoutSpec> = {
     status: "plain",
     ring: "fine",
     initials: "monogram",
-    initialsInHeadingFont: true,
   },
 };
 

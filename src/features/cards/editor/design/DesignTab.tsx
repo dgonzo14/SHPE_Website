@@ -441,7 +441,7 @@ export function DesignTab({
         {contrastNotice}
         <OptionGroup<CardPrimaryFill>
           legend="Add to Contacts"
-          hint="Add to Contacts and your featured link use this color, so they always stand out."
+          hint="Add to Contacts uses this color. Your featured link shares it in the original layouts; the professional ones outline it in your accent instead, so Add to Contacts leads."
           value={resolved.buttons.primary}
           options={[
             {
