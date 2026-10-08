@@ -44,6 +44,10 @@ export const queryKeys = {
     all: ["resources", "all"] as const,
   },
 
+  officers: {
+    board: ["officers", "board"] as const,
+  },
+
   leaderboard: {
     all: ["leaderboard"] as const,
     board: (scope: string) => ["leaderboard", scope] as const,

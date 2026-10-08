@@ -723,3 +723,15 @@ export interface BulkCreateCardsResult {
   created: { member_id: string; name: string; handle: string }[];
   skipped: { member_id: string; name: string; email: string; reason: "no_name" }[];
 }
+
+/** One position holder, as get_chapter_officers() returns them. */
+export interface ChapterOfficer {
+  position: string;
+  first_name: string;
+  last_name: string;
+  major: string | null;
+  graduation_year: number | null;
+  email: string;
+  linkedin_url: string | null;
+  is_me: boolean;
+}

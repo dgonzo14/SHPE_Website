@@ -111,6 +111,9 @@ const Leaderboard = lazy(() =>
 const History = lazy(() =>
   import("./pages/portal/History").then((m) => ({ default: m.History })),
 );
+const Officers = lazy(() =>
+  import("./pages/portal/Officers").then((m) => ({ default: m.Officers })),
+);
 const PortalAnnouncements = lazy(() =>
   import("./pages/portal/Announcements").then((m) => ({
     default: m.Announcements,
@@ -293,6 +296,7 @@ export default function App() {
                         <Route path="check-in" element={<CheckIn />} />
                         <Route path="points" element={<Points />} />
                         <Route path="leaderboard" element={<Leaderboard />} />
+                        <Route path="officers" element={<Officers />} />
                         <Route path="history" element={<History />} />
                         <Route
                           path="announcements"

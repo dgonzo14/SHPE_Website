@@ -7,6 +7,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/useToast";
 import { memberName } from "@/services/members";
+import { BOARD_POSITIONS } from "@/services/officers";
 import { errorText } from "@/lib/errors";
 import { chapterPositionSchema, type ChapterPositionValues } from "@/lib/validation";
 import { CARD_LIMITS } from "@/features/cards/model";
@@ -97,6 +98,7 @@ function PositionForm({
   defaultTitle: string;
   onSubmit: (title: string) => Promise<void>;
 }) {
+  const suggestionsId = useId();
   const {
     register,
     handleSubmit,
@@ -112,16 +114,26 @@ function PositionForm({
       <Field
         label="Position"
         error={errors.title?.message}
-        hint="Leave blank to remove it. Recorded in the audit log."
+        hint="Leave blank to remove it. Also lists them on Meet your officers. Recorded in the audit log."
       >
         {(props) => (
-          <Input
-            {...props}
-            {...register("title")}
-            maxLength={CARD_LIMITS.positionTitle}
-            autoComplete="off"
-            placeholder="President"
-          />
+          <>
+            <Input
+              {...props}
+              {...register("title")}
+              list={suggestionsId}
+              maxLength={CARD_LIMITS.positionTitle}
+              autoComplete="off"
+              placeholder="President"
+            />
+            {/* The Leadership page's titles, so the board sorts and reads the
+                same everywhere. Anything else can still be typed. */}
+            <datalist id={suggestionsId}>
+              {BOARD_POSITIONS.map((title) => (
+                <option key={title} value={title} />
+              ))}
+            </datalist>
+          </>
         )}
       </Field>
     </form>

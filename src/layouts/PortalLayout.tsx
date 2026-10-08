@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Trophy,
   UserRound,
+  Users,
   X,
 } from "lucide-react";
 
@@ -42,6 +43,7 @@ const MEMBER_NAV: NavItem[] = [
   { to: "/portal/leaderboard", label: "Leaderboard", icon: Medal },
   { to: "/portal/history", label: "History", icon: History },
   { to: "/portal/announcements", label: "Announcements", icon: Bell },
+  { to: "/portal/officers", label: "Officers", icon: Users },
   { to: "/portal/resources", label: "Resources", icon: BookOpen },
   { to: "/portal/membership", label: "Membership", icon: ShieldCheck },
   { to: "/portal/profile", label: "Profile", icon: UserRound },

@@ -269,6 +269,7 @@ to a hosted project. Every person in it is invented.
 | `admin_remove_attendance(id, reason)` | officer | Removes attendance **and** posts a compensating correction |
 | `admin_adjust_points(member, amount, reason)` | officer | New ledger entry; reason required and audited |
 | `admin_set_role(member, role, granted)` | admin only | The only path to officer/admin |
+| `get_chapter_officers()` | approved members | Meet your officers: each `chapter_positions` holder's title, name, major, class year, email and LinkedIn, in Leadership-page order |
 | `admin_set_membership_status(member, status)` | officer | Preserves all history |
 | `admin_analytics(term)` | officer | Chapter aggregates, computed in SQL |
 | `get_points_leaderboard(scope)` | approved members | Top 25 plus the caller's own place, from a daily snapshot. While hidden, members get `{ "enabled": false }` and nothing else |
@@ -292,6 +293,19 @@ to a hosted project. Every person in it is invented.
 | `admin_reset_card_handle(member, reason)` | officer | Releases the member's current handle (the same as above for that handle); audited |
 | `admin_set_chapter_position(member, title)` | officer | Sets or clears the verified title a card shows with a ✔; audited |
 | `admin_set_cards_enabled(enabled)` | officer | Turns business cards on or off; audited |
+
+### Officer positions are titles, not permissions
+
+A member's position (President, Treasurer, ...) is stored once, in `chapter_positions`, and shows
+in two places: **Officers** (Meet your officers) in My SHPE, with each officer's email and
+LinkedIn, and the ✔ line on their business card. Officers set it from
+**Admin → Members → (member) → Administration**, picking from the public Leadership page's
+titles, or type any title in **Admin → Business Cards**. Board titles are listed in Leadership-page
+order however they're spelled; any other title comes after them.
+
+A position grants and revokes nothing. Officer access is still the `officer` role under **Roles**,
+and no policy or function reads a position. One position per member; several members may share
+one (co-chairs). The public Leadership page still reads `src/data/leaders.json`.
 
 ### The leaderboard is a daily snapshot
 

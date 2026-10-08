@@ -179,10 +179,15 @@ export function useReleaseCardHandle() {
 }
 
 export function useSetChapterPosition() {
+  const queryClient = useQueryClient();
   const invalidateCards = useInvalidateCards();
 
   return useMutation<void, unknown, { memberId: string; title: string | null }>({
     mutationFn: ({ memberId, title }) => adminSetChapterPosition(memberId, title),
-    onSettled: () => void invalidateCards(),
+    onSettled: () => {
+      // The same position is what Meet your officers lists.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.officers.board });
+      void invalidateCards();
+    },
   });
 }

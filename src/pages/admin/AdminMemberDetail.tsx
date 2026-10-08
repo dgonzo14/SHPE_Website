@@ -47,6 +47,7 @@ import { queryKeys } from "@/services/queryKeys";
 import { activeTerm } from "@/services/content";
 import { removeMemberCardMedia } from "@/services/cards";
 import { MemberCardSummary } from "@/features/cards/admin/MemberCardSummary";
+import { MemberPositionCard } from "@/features/cards/admin/MemberPositionCard";
 import { useScopeOptions, useTerms } from "@/hooks/useTerms";
 import { formatDate, formatShortDate } from "@/lib/datetime";
 import { errorText } from "@/lib/errors";
@@ -515,6 +516,8 @@ export function AdminMemberDetail() {
                 )}
               </CardBody>
             </Card>
+
+            <MemberPositionCard member={member} />
 
             <Card>
               <CardHeader>
