@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { BusinessCard, type BusinessCardProps } from "../BusinessCard";
 import { CARD_LAYOUTS, CARD_PRESET_IDS, type CardLayout, type CardTheme } from "../model";
 import { storedThemeShowsPhoto, visiblePhotoPath } from "../photoVisibility";
+import { CARD_PRESETS } from "../themes";
 import type { PublicCardData, PublicCardLink } from "@/types/database";
 
 // The renderer only needs paths turned into URLs; keep Supabase out of it.
@@ -561,5 +562,230 @@ describe("BusinessCard starter cards", () => {
     expect(screen.getAllByRole("link")).toHaveLength(1); // the footer
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector('[data-part="avatar"]')).toBeNull();
+  });
+});
+
+function linksBlock(container: HTMLElement) {
+  return container.querySelector<HTMLElement>('[data-section="links"]')!;
+}
+
+describe("BusinessCard professional presets", () => {
+  const PROFESSIONAL = ["executive", "editorial", "studio", "slate", "heritage", "signature"] as const;
+
+  it.each(PROFESSIONAL)("draws %s in its own layout, with Add to Contacts, Share and the footer", (preset) => {
+    const { root, container } = renderCard({ card: withTheme({ preset }) });
+    expect(root.dataset.cardPreset).toBe(preset);
+    expect(root.dataset.cardLayout).toBe(CARD_PRESETS[preset].theme.layout);
+    expect(screen.getByRole("heading", { level: 1, name: "Diego Gonzalez" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add to contacts/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /share/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /member of washu shpe/i })).toBeInTheDocument();
+    // Name first, then role, then affiliation.
+    const header = container.querySelector<HTMLElement>('[data-part="header"]')!;
+    const text = header.textContent ?? "";
+    expect(text.indexOf("SWE Intern @ Boeing")).toBeGreaterThan(-1);
+    if (preset !== "heritage") {
+      // Heritage sets the school above the name, like headed paper.
+      expect(text.indexOf("Diego Gonzalez")).toBeLessThan(text.indexOf("SWE Intern @ Boeing"));
+      expect(text.indexOf("SWE Intern @ Boeing")).toBeLessThan(text.indexOf("Washington University in St. Louis"));
+    }
+    expect(within(header).getByRole("img", { name: "Verified by chapter officers" })).toBeInTheDocument();
+  });
+
+  it("steps a long name down rather than letting it sprawl", () => {
+    for (const preset of PROFESSIONAL) {
+      const regular = renderCard({ card: withTheme({ preset }) });
+      expect(regular.container.querySelector('[data-part="header"]')).toHaveAttribute("data-name-length", "regular");
+      regular.unmount();
+      const long = renderCard({
+        card: withTheme({ preset }, { display_name: "Maria Guadalupe Hernández-Villanueva" }),
+      });
+      const header = long.container.querySelector('[data-part="header"]')!;
+      expect(header).toHaveAttribute("data-name-length", "longest");
+      const longSize = header.querySelector("h1")!.className.match(/text-\[([\d.]+)rem\]/)?.[1];
+      long.unmount();
+      const short = renderCard({ card: withTheme({ preset }) });
+      const shortSize = short.container.querySelector("h1")!.className.match(/text-\[([\d.]+)rem\]/)?.[1];
+      short.unmount();
+      expect(Number(longSize), preset).toBeLessThan(Number(shortSize));
+    }
+  });
+
+  it("collapses missing content without leaving rules, ornaments or empty groups behind", () => {
+    for (const preset of PROFESSIONAL) {
+      const { container, unmount } = renderCard({
+        card: withTheme(
+          { preset },
+          {
+            pronouns: null,
+            headline: null,
+            organization: null,
+            location: null,
+            avatar_path: null,
+            links: [],
+            status_line: null,
+            bio: null,
+            skills: [],
+            languages: [],
+            education: null,
+            shpe: { position: null, member_since: null, national_member_verified: false, is_alumni: false },
+          },
+        ),
+      });
+      const header = container.querySelector('[data-part="header"]')!;
+      expect(header.querySelector('[data-part="affiliations"]'), preset).toBeNull();
+      expect(header.querySelector('[data-part="ornament"]'), preset).toBeNull();
+      expect(header.querySelector('[data-part="divider"]'), preset).toBeNull();
+      expect(header.querySelector('[data-part="affiliation"]'), preset).toBeNull();
+      expect(container.querySelector("[data-section]"), preset).toBeNull();
+      expect(container.querySelector('[data-part="sections"]')!.children, preset).toHaveLength(0);
+      unmount();
+    }
+  });
+
+  it("uses the text colour for Executive's main button, and the accent for Studio's", () => {
+    const executive = renderCard({ card: withTheme({ preset: "executive" }) });
+    expect(executive.root.style.getPropertyValue("--card-primary")).toBe(CARD_PRESETS.executive.theme.colors.text);
+    executive.unmount();
+    const studio = renderCard({ card: withTheme({ preset: "studio" }) });
+    expect(studio.root.style.getPropertyValue("--card-primary")).toBe(CARD_PRESETS.studio.theme.colors.accent);
+  });
+
+  it("keeps the check beside the last word of a long chapter position", () => {
+    renderCard({
+      card: withTheme(
+        { preset: "executive" },
+        { shpe: { position: "External Representative and Corporate Relations Chair", member_since: null, national_member_verified: false, is_alumni: false } },
+      ),
+    });
+    const text = screen.getByText("WashU SHPE · External Representative and Corporate Relations Chair");
+    const glue = text.parentElement!;
+    expect(glue).toHaveClass("whitespace-nowrap");
+    expect(text).toHaveClass("whitespace-normal");
+    expect(within(glue).getByRole("img", { name: "Verified by chapter officers" })).toBeInTheDocument();
+  });
+});
+
+describe("BusinessCard monogram", () => {
+  it("shows the photo when there is one", () => {
+    const { container } = renderCard({ card: withTheme({ preset: "signature" }) });
+    expect(container.querySelector('[data-part="avatar"] img')).not.toBeNull();
+  });
+
+  it("sets the initials as a monogram when there's no photo", () => {
+    const { container } = renderCard({ card: withTheme({ preset: "signature" }, { avatar_path: null }) });
+    const avatar = container.querySelector('[data-part="avatar"]')!;
+    expect(avatar).toHaveAttribute("data-initials", "monogram");
+    expect(avatar).toHaveTextContent("DG");
+    expect(avatar.querySelector("img")).toBeNull();
+  });
+
+  it("shows just the name when the photo is switched off", () => {
+    const { container } = renderCard({ card: withTheme({ preset: "signature", avatar: { shape: "hidden" } }) });
+    expect(container.querySelector('[data-part="avatar"]')).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: "Diego Gonzalez" })).toBeInTheDocument();
+    expect(visiblePhotoPath(withTheme({ preset: "signature", avatar: { shape: "hidden" } }))).toBeNull();
+  });
+
+  it("keeps initial tiles for the other layouts, in the main button's colours", () => {
+    const { container } = renderCard({ card: withTheme({ preset: "executive" }, { avatar_path: null }) });
+    expect(container.querySelector('[data-part="avatar"]')).toHaveAttribute("data-initials", "tile");
+  });
+});
+
+describe("BusinessCard link arrangements", () => {
+  const MANY: PublicCardLink[] = [
+    { id: "l-github", kind: "github", label: null, value: "https://github.com/diego", is_featured: false },
+    { id: "l-linkedin", kind: "linkedin", label: null, value: "https://www.linkedin.com/in/diego", is_featured: false },
+    { id: "l-email", kind: "email", label: null, value: "diego@wustl.edu", is_featured: false },
+    { id: "l-insta", kind: "instagram", label: null, value: "https://www.instagram.com/diego", is_featured: false },
+    { id: "l-site", kind: "portfolio", label: "Design work", value: "https://diego.design", is_featured: false },
+  ];
+
+  it("lays rows out with each link's address underneath, in the member's order", () => {
+    const { container } = renderCard({
+      card: withTheme({ preset: "executive" }, { sections: ["links"], links: MANY }),
+    });
+    const section = linksBlock(container);
+    expect(section.dataset.arrangement).toBe("rows");
+    expect(within(section).getByRole("heading", { level: 2, name: "Links" })).toBeVisible();
+    const labels = [...section.querySelectorAll('[data-part="row-label"]')].map((el) => el.textContent);
+    expect(labels).toEqual(["GitHub", "LinkedIn", "Email", "Instagram", "Design work"]);
+    const details = [...section.querySelectorAll('[data-part="row-detail"]')].map((el) => el.textContent);
+    expect(details).toEqual([
+      "github.com/diego",
+      "linkedin.com/in/diego",
+      "diego@wustl.edu",
+      "instagram.com/diego",
+      "diego.design",
+    ]);
+    // Still real links, named by label then address, with a pause between.
+    // (jsdom trims the space after the comma at the element boundary; browsers keep it.)
+    expect(within(section).getByRole("link", { name: /^Email,\s?diego@wustl\.edu/ })).toHaveAttribute(
+      "href",
+      "mailto:diego@wustl.edu",
+    );
+  });
+
+  it("numbers Editorial's rows like a contents page, without reading the numbers out", () => {
+    const { container } = renderCard({
+      card: withTheme({ preset: "editorial" }, { sections: ["links"], links: MANY }),
+    });
+    const first = within(linksBlock(container)).getAllByRole("link")[0];
+    const number = first.querySelector('[aria-hidden="true"]')!;
+    expect(number).toHaveTextContent("01");
+    expect(first).toHaveAccessibleName(/^GitHub,\s?github\.com\/diego/);
+  });
+
+  it("groups links into work, professional and social, titled only when there's more than one group", () => {
+    const { container, unmount } = renderCard({
+      card: withTheme({ preset: "studio" }, { sections: ["links"], links: MANY }),
+    });
+    const section = linksBlock(container);
+    expect(section.dataset.arrangement).toBe("grouped");
+    expect([...section.querySelectorAll("[data-group]")].map((el) => (el as HTMLElement).dataset.group)).toEqual([
+      "work",
+      "professional",
+      "social",
+    ]);
+    expect(within(section).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([
+      "Work",
+      "Professional",
+      "Social",
+    ]);
+    const work = within(section).getByRole("list", { name: "Work" });
+    expect(within(work).getAllByRole("link").map((a) => a.dataset.linkKind)).toEqual(["github", "portfolio"]);
+    unmount();
+
+    const onlyWork = renderCard({
+      card: withTheme({ preset: "studio" }, { sections: ["links"], links: [MANY[0], MANY[4]] }),
+    });
+    const single = linksBlock(onlyWork.container);
+    expect(within(single).queryAllByRole("heading", { level: 3 })).toHaveLength(0);
+    expect(within(single).getAllByRole("link")).toHaveLength(2);
+  });
+
+  it("puts compact buttons in two columns, an odd last one across both", () => {
+    const { container } = renderCard({
+      card: withTheme({ preset: "heritage" }, { sections: ["links"], links: MANY }),
+    });
+    const section = linksBlock(container);
+    expect(section.dataset.arrangement).toBe("compact");
+    const items = section.querySelectorAll("li");
+    expect(items).toHaveLength(5);
+    expect(items[4].className).toMatch(/\[&:last-child:nth-child\(odd\)\]:col-\[1\/-1\]/);
+    for (const link of within(section).getAllByRole("link")) expect(link.className).toMatch(/\bmin-h-11\b/);
+  });
+
+  it("works any arrangement with any preset, including the originals", () => {
+    for (const arrangement of ["rows", "compact", "grouped"] as const) {
+      const { container, unmount } = renderCard({
+        card: withTheme({ preset: "sunrise", buttons: { arrangement } }, { sections: ["links"], links: MANY }),
+      });
+      const section = linksBlock(container);
+      expect(section.dataset.arrangement).toBe(arrangement);
+      expect(within(section).getAllByRole("link")).toHaveLength(5);
+      unmount();
+    }
   });
 });

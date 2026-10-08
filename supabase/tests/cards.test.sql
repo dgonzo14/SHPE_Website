@@ -26,7 +26,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(361);
+select plan(368);
 
 -- ── Fixtures (fictional people only) ────────────────────────────────────────
 
@@ -344,6 +344,22 @@ select ok(not private.card_theme_is_valid('{"preset":"paper","font":{"heading":"
 select ok(not private.card_theme_is_valid('{"preset":"paper","buttons":{"icons":"yes"}}'),                    'theme: icons must be a boolean');
 select ok(not private.card_theme_is_valid('{"preset":"paper","avatar":{"shape":"star"}}'),                    'theme: unknown avatar shape is refused');
 select ok(not private.card_theme_is_valid('{"preset":"paper","density":"cozy"}'),                             'theme: unknown density is refused');
+
+-- The professional collection (20260916000001): six presets and the options
+-- they are built from, which any preset may use.
+select ok(private.card_theme_is_valid('{"preset":"executive"}'), 'theme: a professional preset is valid on its own');
+select ok(private.card_theme_is_valid('{
+  "preset":"heritage","layout":"monogram",
+  "font":{"heading":"cormorant-garamond","body":"source-sans-3"},
+  "buttons":{"shape":"square","style":"hairline","arrangement":"grouped","icons":true,"primary":"ink"},
+  "density":"spacious"}'), 'theme: the collection''s new layouts, fonts, buttons and spacing are valid');
+select ok(private.card_theme_is_valid('{"preset":"paper","layout":"layered","buttons":{"arrangement":"rows"}}'),
+  'theme: an original preset can use the new options');
+select ok(not private.card_theme_is_valid('{"preset":"paper","buttons":{"primary":"accentText"}}'), 'theme: unknown main-button fill is refused');
+select ok(not private.card_theme_is_valid('{"preset":"paper","buttons":{"primary":true}}'),          'theme: main-button fill must be a string');
+select ok(not private.card_theme_is_valid('{"preset":"paper","layout":"magazine"}'),                 'theme: layouts are still a closed list');
+select ok(private.card_theme_shows_photo('{"preset":"signature"}'::jsonb),
+  'photo: the professional presets all show the photo by default');
 select ok(not private.card_theme_is_valid(jsonb_build_object('preset', 'paper', 'colors',
             (select jsonb_object_agg('k' || g, '#ffffff') from generate_series(1, 200) g))),
   'theme: a document stuffed with extra keys is refused');

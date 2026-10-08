@@ -403,7 +403,9 @@ Colors must match `^#[0-9a-f]{6}$`. Everything else comes from a fixed list.
 ```jsonc
 {
   "preset": "shpe-classic",            // starting point; anything below overrides it
-  "layout": "banner",                  // classic | banner | split | minimal | badge
+  "layout": "banner",                  // classic | banner | split | minimal | badge |
+                                       // profile | editorial | studio | layered |
+                                       // letterhead | monogram
   "colors": {
     "background": "#0b1f3a", "surface": "#ffffff", "text": "#1b365d",
     "muted": "#4b5563", "accent": "#e84e1b", "accentText": "#ffffff"
@@ -411,25 +413,33 @@ Colors must match `^#[0-9a-f]{6}$`. Everything else comes from a fixed list.
   "background": { "type": "gradient", "from": "#1b365d", "to": "#e84e1b", "angle": 135 },
                                        // solid | gradient | image (+ dim 0–80%) | pattern
   "font":    { "heading": "libre-franklin", "body": "inter" },
-  "buttons": { "shape": "pill", "style": "filled", "arrangement": "list", "icons": true },
+  "buttons": { "shape": "pill", "style": "filled", "arrangement": "list", "icons": true,
+               "primary": "accent" },
                                        // shape: pill|rounded|square
-                                       // style: filled|outline|soft|glass
-                                       // arrangement: list | icon-grid
+                                       // style: filled|outline|soft|glass|hairline
+                                       // arrangement: list | icon-grid | rows | compact | grouped
+                                       // primary: accent | ink (Add to Contacts' fill)
   "avatar":  { "shape": "circle", "ring": true },  // circle | rounded | square | hidden
-  "density": "comfortable"             // compact | comfortable
+  "density": "comfortable"             // compact | comfortable | spacious
 }
 ```
+
+> **The professional collection** (`20260916000001_card_design_collection.sql`) added six
+> presets, each with a layout of its own, and the options above they are built from. The
+> migration only lengthens the lists in `card_theme_is_valid()`: every stored theme stays
+> valid and renders as before, because missing fields come from the preset.
+> `cardThemeSql.test.ts` fails if those lists and `model.ts` ever disagree.
 
 **What members can customize:**
 
 | Area | Options |
 | --- | --- |
-| Presets | SHPE Classic (navy and orange), Sunrise (orange to gold gradient), Midnight (dark), Paper (minimal white), WashU (red and green), Engineer (monospace, blueprint grid), Glass (photo background with frosted card). One click applies a preset; every setting can then be adjusted |
-| Layout | Classic (centered photo), Banner (cover image with overlapping photo), Split (left-aligned, desktop two-column), Minimal (no photo, typographic), Badge (conference lanyard look) |
+| Presets | Two collections in the gallery, each preset drawn as a miniature of its own layout with the member's name in it. **Professional:** Executive (navy, ivory and bronze; portrait beside the name, contact rows, a navy main button), Editorial (serif name under a running head, spacious, numbered rows; a two-page spread on desktop), Studio (white and graphite with one accent; compact header, links grouped into work, professional and social), Slate (charcoal with muted blue; every block on a raised panel), Heritage (ivory, crimson and navy; the school or employer at the top like a letterhead, two columns of hairline buttons), Signature (the name or initials set large, fine rules, one accent; photo optional). **Originals:** SHPE Classic (navy and orange), Sunrise (orange to gold gradient), Midnight (dark), Paper (minimal white), WashU (red and green), Engineer (monospace, blueprint grid), Glass (photo background with frosted card). One click applies a preset and the preview updates at once; every setting can then be adjusted, and "Reset to …" puts the preset's own settings back. Content and photos are never touched |
+| Layout | Classic (centered photo), Banner (cover image with overlapping photo), Split (left-aligned, desktop two-column), Minimal (no photo, typographic), Badge (conference lanyard look), Profile (portrait beside the name), Editorial (running head, large serif name, desktop two-column), Studio (compact header with tags, desktop two-column), Layered (blocks on raised panels), Letterhead (affiliation above the name), Monogram (name or initials as the centerpiece). Long names step down in size in the professional layouts, and anything missing collapses with no stray rules or gaps. The composition rules live in one table, `LAYOUT_SPECS` in `src/features/cards/layouts.ts` |
 | Colors | Six theme colors with native color pickers. **The editor blocks saving below WCAG AA contrast** (4.5:1 for text, 3:1 for large text and buttons) and suggests the nearest passing shade |
 | Background | Solid, two-stop gradient with angle, uploaded photo with a dim slider, or a pattern from the brand set |
-| Type | About 8 curated Google Fonts, loaded only on card pages. `fonts.googleapis.com` and `fonts.gstatic.com` are already in the CSP |
-| Buttons | Shape, style, list vs icon grid, icons on or off, one **featured** link rendered as a large primary button (e.g. résumé or "Book a coffee chat") |
+| Type | 16 curated Google Fonts, loaded only on card pages; each professional preset pairs a name face with a text face (Source Serif 4 / Source Sans 3, Instrument Serif / Instrument Sans, Plus Jakarta Sans / Inter, Manrope / Inter, EB Garamond / Libre Franklin, Cormorant Garamond / Inter). `fonts.googleapis.com` and `fonts.gstatic.com` are already in the CSP |
+| Buttons | Add to Contacts' color (the accent, or the text color for a quieter, more formal button), shape, style (including Hairline: a fine edge and the text color), arrangement (list, icon grid, rows with each link's address underneath, two columns of compact buttons, or cards grouped into work, professional and social), icons on or off, one **featured** link rendered as a large primary button (e.g. résumé or "Book a coffee chat") |
 | Photo | Upload with a square crop, shape, accent ring. Optional banner (3:1 crop) |
 | Content blocks | Reorderable and hideable: **Currently** (status line), **About**, **Links**, **Education** (major and class year, live from profile), **SHPE** (verified position, member since, verified National member badge), **Skills** (tags), **Languages** ("Hablo español" matters at a SHPE event), **Featured** |
 | Links | 16 kinds with icons and smart inputs. Typing `diego-gonzalezz` in the LinkedIn field becomes `https://www.linkedin.com/in/diego-gonzalezz`. Custom label per link, reorder, hide without deleting |
@@ -440,7 +450,11 @@ Reordering uses up/down buttons (keyboard and screen-reader friendly, no new dep
 Drag-and-drop can come later.
 
 The theme becomes CSS custom properties on the card root (`--card-accent`, ...), set only from
-validated values. One `BusinessCard` component renders the public page **and** the editor's
+validated values. Beyond the six colors there are derived tokens: `--card-primary` and
+`--card-primary-text` (the main button), `--card-raised` (a panel, the card a shade toward the
+text color) and `--card-border` / `--card-rule-strong`. The contrast checks cover each one: an ink
+main button is the text pairing reversed, and in a panel layout text is also checked against the
+raised panels. One `BusinessCard` component renders the public page **and** the editor's
 live preview, so the preview always matches what the public sees.
 
 ---

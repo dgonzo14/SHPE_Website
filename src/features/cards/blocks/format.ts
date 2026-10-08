@@ -15,6 +15,16 @@ export function initials(name: string): string {
   return (first + last).toLocaleUpperCase();
 }
 
+/**
+ * How far a large display name steps down in size: 0 up to 18 characters, 1
+ * up to 28, 2 beyond. Counts characters, not UTF-16 units, so accents and
+ * other scripts count the way they read.
+ */
+export function nameLengthStep(name: string): 0 | 1 | 2 {
+  const length = [...(name ?? "").trim()].length;
+  return length <= 18 ? 0 : length <= 28 ? 1 : 2;
+}
+
 /** 2027 → "’27", the way class years are written on a name tag. */
 export function shortClassYear(year: number): string {
   return `’${String(year).slice(-2).padStart(2, "0")}`;

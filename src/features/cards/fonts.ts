@@ -2,8 +2,11 @@ import { useEffect } from "react";
 import { CARD_FONT_IDS, type CardFontId } from "./model";
 
 /**
- * The card's type catalog: eight families, each with a full fallback stack so
- * the card is readable before (or without) the web font arriving.
+ * The card's type catalog: sixteen families, each with a full fallback stack
+ * so the card is readable before (or without) the web font arriving. The last
+ * eight came with the professional presets, which each pair a name face with a
+ * text face (Source Serif 4 with Source Sans 3, Instrument Serif with
+ * Instrument Sans, and so on).
  *
  * Fonts load from Google only when a card actually uses them, and only on the
  * pages that render a card. fonts.googleapis.com and fonts.gstatic.com are
@@ -81,6 +84,56 @@ export const CARD_FONTS: Record<CardFontId, CardFontInfo> = {
     stack: `"JetBrains Mono", ${MONO_FALLBACK}`,
     googleFamily: "JetBrains Mono:wght@400;500;700",
     headingWeight: 700,
+  },
+  "source-serif-4": {
+    label: "Source Serif 4",
+    stack: `"Source Serif 4", ${SERIF_FALLBACK}`,
+    // The optical-size axis tightens the letterforms at name sizes.
+    googleFamily: "Source Serif 4:opsz,wght@8..60,400..700",
+    headingWeight: 600,
+  },
+  "source-sans-3": {
+    label: "Source Sans 3",
+    stack: `"Source Sans 3", ${SANS_FALLBACK}`,
+    googleFamily: "Source Sans 3:wght@400;600;700",
+    headingWeight: 700,
+  },
+  "instrument-serif": {
+    label: "Instrument Serif",
+    stack: `"Instrument Serif", ${SERIF_FALLBACK}`,
+    // A display face in one weight, like DM Serif Display.
+    googleFamily: "Instrument Serif",
+    headingWeight: 400,
+  },
+  "instrument-sans": {
+    label: "Instrument Sans",
+    stack: `"Instrument Sans", ${SANS_FALLBACK}`,
+    googleFamily: "Instrument Sans:wght@400;500;600;700",
+    headingWeight: 600,
+  },
+  "plus-jakarta-sans": {
+    label: "Plus Jakarta Sans",
+    stack: `"Plus Jakarta Sans", ${SANS_FALLBACK}`,
+    googleFamily: "Plus Jakarta Sans:wght@400;500;600;700",
+    headingWeight: 700,
+  },
+  manrope: {
+    label: "Manrope",
+    stack: `"Manrope", ${SANS_FALLBACK}`,
+    googleFamily: "Manrope:wght@400;500;600;700",
+    headingWeight: 600,
+  },
+  "eb-garamond": {
+    label: "EB Garamond",
+    stack: `"EB Garamond", ${SERIF_FALLBACK}`,
+    googleFamily: "EB Garamond:wght@400;500;600",
+    headingWeight: 500,
+  },
+  "cormorant-garamond": {
+    label: "Cormorant Garamond",
+    stack: `"Cormorant Garamond", ${SERIF_FALLBACK}`,
+    googleFamily: "Cormorant Garamond:wght@400;500;600",
+    headingWeight: 600,
   },
 };
 

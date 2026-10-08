@@ -2,6 +2,7 @@ import { BadgeCheck } from "lucide-react";
 
 import type { PublicCardData } from "@/types/database";
 import { cn } from "@/lib/utils";
+import { useLayoutSpec } from "../layouts";
 import { Section } from "./Section";
 import { degreeLabel, formatMonthYear, shortClassYear } from "./format";
 import { WRAP_ANYWHERE } from "./styles";
@@ -13,16 +14,43 @@ import { WRAP_ANYWHERE } from "./styles";
  * bold.
  */
 
-/** "Currently": the member's status line, e.g. "Seeking Summer 2027 internships". */
+/**
+ * "Currently": the member's status line, e.g. "Seeking Summer 2027
+ * internships". Boxed in most layouts; plain where the block already sits on a
+ * panel or the design wants no edges; a pull quote in the name font in
+ * Editorial.
+ */
 export function StatusBlock({ text, centered }: { text: string | null; centered: boolean }) {
+  const { status } = useLayoutSpec();
   const value = text?.trim();
   if (!value) return null;
+  if (status === "quote") {
+    return (
+      <Section id="status" title="Currently">
+        <p
+          data-part="status-quote"
+          className={cn(
+            "border-l-2 border-(--card-text) pl-4 text-[1.375rem] leading-snug text-pretty text-(--card-text)",
+            WRAP_ANYWHERE,
+          )}
+        >
+          {/* On a span: BusinessCard sets every <p> in the text font, which a class on the <p> can't outrank. */}
+          <span className="[font-family:var(--card-font-heading)]">{value}</span>
+        </p>
+      </Section>
+    );
+  }
   return (
     <Section id="status" title="Currently">
       {/* The dot is inline so it stays with the first word however the line is aligned. */}
       <p
         className={cn(
-          "rounded-(--card-button-radius) border border-(--card-rule) px-4 py-3 text-base text-balance text-(--card-text)",
+          // Balanced lines suit the narrow box; unboxed text runs the full
+          // width, where balancing would leave short, ragged lines.
+          status === "box"
+            ? "rounded-(--card-button-radius) border border-(--card-rule) px-4 py-3 text-balance"
+            : "text-pretty",
+          "text-base text-(--card-text)",
           WRAP_ANYWHERE,
           centered && "text-center",
         )}

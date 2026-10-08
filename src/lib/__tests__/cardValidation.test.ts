@@ -14,6 +14,7 @@ import {
   CARD_LINK_KINDS,
   CARD_PATTERNS,
   CARD_PRESET_IDS,
+  CARD_PRIMARY_FILLS,
   CARD_SECTION_IDS,
   HANDLE_PATTERN,
   RESERVED_HANDLES,
@@ -114,6 +115,9 @@ describe("cardThemeSchema", () => {
     for (const arrangement of CARD_BUTTON_ARRANGEMENTS) {
       expect(ok(cardThemeSchema, { preset: "paper", buttons: { arrangement } })).toBe(true);
     }
+    for (const primary of CARD_PRIMARY_FILLS) {
+      expect(ok(cardThemeSchema, { preset: "paper", buttons: { primary } })).toBe(true);
+    }
     for (const shape of CARD_AVATAR_SHAPES) {
       expect(ok(cardThemeSchema, { preset: "paper", avatar: { shape, ring: true } })).toBe(true);
     }
@@ -180,7 +184,8 @@ describe("cardThemeSchema", () => {
     expect(ok(cardThemeSchema, { preset: "paper", font: { body: "comic-sans" } })).toBe(false);
     expect(ok(cardThemeSchema, { preset: "paper", buttons: { icons: "yes" } })).toBe(false);
     expect(ok(cardThemeSchema, { preset: "paper", avatar: { ring: 1 } })).toBe(false);
-    expect(ok(cardThemeSchema, { preset: "paper", density: "spacious" })).toBe(false);
+    expect(ok(cardThemeSchema, { preset: "paper", density: "airy" })).toBe(false);
+    expect(ok(cardThemeSchema, { preset: "paper", buttons: { primary: "accentText" } })).toBe(false);
   });
 
   it("can't build a theme past the database's 2000-character cap", () => {
@@ -206,6 +211,7 @@ describe("cardThemeSchema", () => {
         style: longest(CARD_BUTTON_STYLES),
         arrangement: longest(CARD_BUTTON_ARRANGEMENTS),
         icons: false,
+        primary: longest(CARD_PRIMARY_FILLS),
       },
       avatar: { shape: longest(CARD_AVATAR_SHAPES), ring: false },
       density: longest(CARD_DENSITIES),

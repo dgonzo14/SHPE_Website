@@ -31,6 +31,14 @@ export function BannerCover({ src }: { src: string | null }) {
 }
 
 /**
+ * The Profile layout's top edge: a fine bar in the accent colour, the one
+ * place Executive's bronze runs the full width of the card. Decorative.
+ */
+export function AccentEdge() {
+  return <span aria-hidden="true" data-part="accent-edge" className="block h-[3px] w-full bg-(--card-accent)" />;
+}
+
+/**
  * The badge layout's top: a band in the accent colour with the slot a lanyard
  * clip goes through, like a conference badge. The chapter name sits on the
  * band in the accent text colour, a pairing the contrast checks always cover.
