@@ -382,6 +382,7 @@ instead of failing the whole batch.
 | `admin_create_missing_cards(publish, dry_run)` | officer | The bulk version, for every eligible member without a card. `dry_run` returns the proposed handles and the skipped members without writing anything. The real run writes one audit entry with the count |
 | `admin_mark_chips_written(members[], handles[])` | officer | Records the handle each member's chip carries (the exported one, skipping members who renamed since) and when it was written; audited |
 | `admin_set_card_hidden(member, hidden, reason)` | officer | Moderation. A reason is required; audited |
+| `admin_set_cards_published(members[], published)` | officer | Publishes or unpublishes cards on their owners' behalf, one or many (`20260917000001`). Same flag as the owner's switch; `member_opened_at` is left alone, so a starter card stays one; hides, membership and the feature switch still decide what resolves. Each change audited |
 | `admin_release_card_handle(member, handle, reason)` | officer | Releases any handle the member holds, current or old, and blocks it for them for good; releasing the current one assigns their next suggested handle; audited |
 | `admin_reset_card_handle(member, reason)` | officer | Releases the current handle (the case above); audited |
 | `admin_set_chapter_position(member, title)` | officer | Sets or clears the verified position; audited |
@@ -526,6 +527,7 @@ netlify/functions/keep-supabase-awake.ts
 supabase/migrations/20260914000001_member_business_cards.sql
 supabase/migrations/20260914000002_card_media_storage.sql
 supabase/tests/cards.test.sql
+supabase/tests/card_publishing.test.sql
 ```
 
 **Public page `/card/:handle`.** It sits outside `PublicLayout` because a card shouldn't show
@@ -565,8 +567,12 @@ page (via `AuthProvider`), so the card adds only its own chunk.
   status (*No card*, *Set up by officer, not opened*, *Member set up*, *Published*, *Hidden*),
   chip (*written* with date, or *not yet*), 30-day views. Filters for "no card" and "no chip
   yet".
-- Row actions: **Create card** for members without one, hide/unhide (reason required), handle
-  reset.
+- Row actions: **Create card** for members without one, publish/unpublish, hide/unhide (reason
+  required), handle reset. **Publish selected** and **Unpublish selected** do the same for every
+  selected card they would change, and the member detail page has the same switch. The confirm
+  dialog says what a visitor will see first: a member's unfinished draft, a starter card's
+  limited fields, a hide or a blocked membership that still keeps it down. Filters for
+  "Published" and "Card, not published".
 - **Create cards for everyone missing one**, which shows a preview dialog (proposed handles,
   skipped members and why, and the "publish as starter cards" checkbox) before anything is
   written.

@@ -11,7 +11,9 @@ import {
   isFallbackHandle,
   isUnopenedOfficerCard,
   matchesSearch,
+  membershipShowsCard,
   programmingSheetCsv,
+  publishNotes,
   type RowWithCard,
 } from "../adminCardRows";
 import { checkChipOrigin, checkThisSiteChipOrigin } from "../chipOrigin";
@@ -189,6 +191,55 @@ describe("search and filters", () => {
     expect(ids("no_card")).toEqual(["2"]);
     expect(ids("no_chip")).toEqual(["1", "4"]);
     expect(ids("hidden")).toEqual(["4"]);
+  });
+
+  it("filters: published cards, and cards that aren't published (hidden or not)", () => {
+    const withPublished = [
+      ...rows,
+      row({ member_id: "5", handle: "live-one", status: "published", is_published: true }),
+      row({ member_id: "6", handle: "hidden-live", status: "hidden", is_published: true }),
+    ];
+    const ids = (filter: Parameters<typeof filterCardRows>[1]["filter"]) =>
+      filterCardRows(withPublished, { search: "", filter }).map((r) => r.member_id);
+    // A hidden card isn't "Published" (its badge says Hidden), even if its flag is set.
+    expect(ids("published")).toEqual(["5"]);
+    // Every card that could be published; a member without a card has nothing to publish.
+    expect(ids("unpublished")).toEqual(["1", "3", "4"]);
+  });
+});
+
+describe("publishNotes", () => {
+  const draft = row({ member_id: "d", handle: "draft" }) as RowWithCard;
+  const starter = row({
+    member_id: "s",
+    handle: "starter",
+    status: "officer_unopened",
+    created_by_officer: true,
+    member_opened_at: null,
+  }) as RowWithCard;
+  const hidden = row({ member_id: "h", handle: "hidden", status: "hidden" }) as RowWithCard;
+  const suspended = row({ member_id: "x", handle: "suspended", membership_status: "suspended" }) as RowWithCard;
+  const live = row({ member_id: "l", handle: "live", status: "published", is_published: true }) as RowWithCard;
+
+  it("sorts the cards about to be published into what the officer should know", () => {
+    const notes = publishNotes([draft, starter, hidden, suspended, live]);
+    const ids = (list: RowWithCard[]) => list.map((r) => r.member_id);
+    // Member-made and unpublished: possibly unfinished. The starter card is not a draft.
+    expect(ids(notes.drafts)).toEqual(["d", "h", "x"]);
+    expect(ids(notes.starters)).toEqual(["s"]);
+    expect(ids(notes.hidden)).toEqual(["h"]);
+    expect(ids(notes.blocked)).toEqual(["x"]);
+  });
+
+  it("leaves out cards that are already published: publishing them changes nothing", () => {
+    expect(publishNotes([live])).toEqual({ drafts: [], starters: [], hidden: [], blocked: [] });
+  });
+
+  it("agrees with get_public_card on whose membership keeps a card down", () => {
+    expect(membershipShowsCard(row({ membership_status: "alumni" }))).toBe(true);
+    expect(membershipShowsCard(row({ membership_status: "inactive" }))).toBe(true);
+    expect(membershipShowsCard(row({ membership_status: "pending" }))).toBe(false);
+    expect(membershipShowsCard(row({ membership_status: "suspended" }))).toBe(false);
   });
 });
 

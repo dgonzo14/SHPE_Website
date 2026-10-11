@@ -54,6 +54,11 @@ export function chipIsDead(row: AdminCardRow): boolean {
 /** Matches get_public_card()'s rule for whose cards resolve at all. */
 const VISIBLE_MEMBERSHIP: readonly MembershipStatus[] = ["active", "alumni", "inactive"];
 
+/** The member's own status lets their card resolve (not pending or suspended). */
+export function membershipShowsCard(row: AdminCardRow): boolean {
+  return VISIBLE_MEMBERSHIP.includes(row.membership_status);
+}
+
 /**
  * Whether opening the card's address right now shows the card. Published is not
  * enough: the feature switch and a suspended membership both turn a published
@@ -64,8 +69,42 @@ export function isCardLive(row: AdminCardRow, cardsEnabled: boolean): boolean {
     cardsEnabled &&
     hasCard(row) &&
     row.status === "published" &&
-    VISIBLE_MEMBERSHIP.includes(row.membership_status)
+    membershipShowsCard(row)
   );
+}
+
+/* ── Publishing for a member ─────────────────────────────────────────────── */
+
+/**
+ * What an officer should know before publishing these cards, sorted into the
+ * cases that change what the visitor sees, each card in at most one of the
+ * first two:
+ *
+ *   drafts    the member set the card up but hasn't published it, so it may
+ *             not be finished
+ *   starters  an officer made it and the member hasn't opened it, so it shows
+ *             only the starter fields (name, school, education, position)
+ *   hidden    published or not, it stays down until an officer unhides it
+ *   blocked   the member's status (pending, suspended) keeps any card down
+ *
+ * Cards that are already published are left out: publishing them changes
+ * nothing.
+ */
+export interface PublishNotes {
+  drafts: RowWithCard[];
+  starters: RowWithCard[];
+  hidden: RowWithCard[];
+  blocked: RowWithCard[];
+}
+
+export function publishNotes(rows: readonly RowWithCard[]): PublishNotes {
+  const changing = rows.filter((row) => !row.is_published);
+  return {
+    drafts: changing.filter((row) => !isUnopenedOfficerCard(row)),
+    starters: changing.filter(isUnopenedOfficerCard),
+    hidden: changing.filter((row) => row.status === "hidden"),
+    blocked: changing.filter((row) => !membershipShowsCard(row)),
+  };
 }
 
 /* ── Status ──────────────────────────────────────────────────────────────── */
@@ -105,11 +144,20 @@ export function cardStatusText(row: AdminCardRow): string {
 
 /* ── Search and filters ──────────────────────────────────────────────────── */
 
-export type CardFilter = "all" | "no_card" | "no_chip" | "chip_dead" | "hidden";
+export type CardFilter =
+  | "all"
+  | "no_card"
+  | "published"
+  | "unpublished"
+  | "no_chip"
+  | "chip_dead"
+  | "hidden";
 
 export const CARD_FILTERS: { value: CardFilter; label: string }[] = [
   { value: "all", label: "Everyone" },
   { value: "no_card", label: "No card" },
+  { value: "published", label: "Published" },
+  { value: "unpublished", label: "Card, not published" },
   { value: "no_chip", label: "Card, but no chip yet" },
   { value: "chip_dead", label: "Chip needs rewriting" },
   { value: "hidden", label: "Hidden" },
@@ -161,6 +209,12 @@ export function matchesFilter(row: AdminCardRow, filter: CardFilter): boolean {
   switch (filter) {
     case "no_card":
       return !hasCard(row);
+    case "published":
+      // Published and not hidden: the badge says "Published".
+      return row.status === "published";
+    case "unpublished":
+      // Hidden or not: every card its owner (or an officer) could publish.
+      return hasCard(row) && !row.is_published;
     case "no_chip":
       return hasCard(row) && row.chip_written_at === null;
     case "chip_dead":

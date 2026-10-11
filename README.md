@@ -289,6 +289,7 @@ to a hosted project. Every person in it is invented.
 | `admin_create_missing_cards(publish, dry_run)` | officer | The same for every active member without a card. `dry_run` (the default) returns the proposed handles and the skipped members and writes nothing; the real run is audited |
 | `admin_mark_chips_written(members, handles)` | officer | Records which handle each member's NFC chip carries, and when. Given the handles the officer exported, it records those, and skips anyone who no longer holds theirs; audited |
 | `admin_set_card_hidden(member, hidden, reason)` | officer | Moderation: a hidden card resolves as `not_found`. Reason required; audited |
+| `admin_set_cards_published(members, published)` | officer | Publishes or unpublishes one card or many, the same switch the owner has. Doesn't mark a starter card as opened, and doesn't override a hide, a blocked membership or the feature switch. Only cards that change are written; each is audited. Members without a card come back as `skipped` |
 | `admin_release_card_handle(member, handle, reason)` | officer | Takes one handle, current or old, away from a member: it stops redirecting to them, anyone else may claim it, and they can never take it back. Releasing the current handle moves the card to the member's next suggestion. Reason required; audited |
 | `admin_reset_card_handle(member, reason)` | officer | Releases the member's current handle (the same as above for that handle); audited |
 | `admin_set_chapter_position(member, title)` | officer | Sets or clears the verified title a card shows with a ✔; audited |
@@ -420,6 +421,9 @@ scoped to each suite's own fixture rows rather than assuming an empty schema:
   their ids (so click history survives), and owner views aren't counted. Handle suggestions fold
   accents and fall through collisions in order. Only officers can create cards, every officer
   action writes an audit row, and storage policies keep each member inside their own folder.
+- `card_publishing.test.sql` — officers publishing and unpublishing cards. Members can't; every
+  change is audited once, however often a card is listed; a starter card stays a starter card;
+  hiding still wins; and the owner can publish again after an officer unpublishes.
 
 ---
 
