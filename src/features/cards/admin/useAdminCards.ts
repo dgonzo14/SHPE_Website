@@ -8,6 +8,7 @@ import {
   adminResetCardHandle,
   adminSetCardHidden,
   adminSetCardsEnabled,
+  adminSetCardsPublished,
   adminSetChapterPosition,
   adminSuggestCardHandle,
   fetchAdminCards,
@@ -18,6 +19,7 @@ import type {
   BulkCreateCardsResult,
   MarkChipsWrittenResult,
   ReleaseCardHandleResult,
+  SetCardsPublishedResult,
 } from "@/types/database";
 
 /**
@@ -148,6 +150,16 @@ export function useSetCardHidden() {
     { memberId: string; hidden: boolean; reason: string | null }
   >({
     mutationFn: ({ memberId, hidden, reason }) => adminSetCardHidden(memberId, hidden, reason),
+    onSettled: () => void invalidateCards(),
+  });
+}
+
+/** Publishes or unpublishes the given members' cards; see adminSetCardsPublished. */
+export function useSetCardsPublished() {
+  const invalidateCards = useInvalidateCards();
+
+  return useMutation<SetCardsPublishedResult, unknown, { memberIds: string[]; published: boolean }>({
+    mutationFn: ({ memberIds, published }) => adminSetCardsPublished(memberIds, published),
     onSettled: () => void invalidateCards(),
   });
 }

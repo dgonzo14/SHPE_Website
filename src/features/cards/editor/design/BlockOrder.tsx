@@ -7,7 +7,7 @@ import { hiddenSections, hideSection, moveSection, showSection, shownSections } 
 
 const SECTION_DESCRIPTIONS: Record<CardSectionId, string> = {
   status: "Your status line, like “Seeking Summer 2027 internships”.",
-  featured: "The link you star on the Links tab, as one big button.",
+  featured: "The link you star on the Links tab, set apart as a button of its own.",
   links: "Your links and contact details.",
   about: "Your bio.",
   education: "Your major and class year, from your profile.",

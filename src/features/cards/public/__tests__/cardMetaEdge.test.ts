@@ -125,6 +125,37 @@ describe("card-meta edge function: the preview photo", () => {
   });
 });
 
+describe("card-meta edge function: the card's fonts", () => {
+  const fontLinks = (head: string) =>
+    [...head.matchAll(/<link rel="stylesheet" href="([^"]*)" data-card-font="([^"]*)" \/>/g)].map((m) => ({
+      href: m[1],
+      id: m[2],
+    }));
+
+  it("writes the stylesheets for the card's two fonts into <head>", async () => {
+    const head = await headFor(card({ preset: "editorial" }));
+    expect(fontLinks(head)).toEqual([
+      { href: "https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;display=swap", id: "instrument-serif" },
+      {
+        href: "https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap",
+        id: "instrument-sans",
+      },
+    ]);
+  });
+
+  it("follows the member's own font choices", async () => {
+    const head = await headFor(card({ preset: "paper", font: { heading: "manrope" } }));
+    expect(fontLinks(head).map((link) => link.id)).toEqual(["manrope", "inter"]);
+  });
+
+  it("adds nothing for the site's own face, or for a font outside the catalog", async () => {
+    expect(fontLinks(await headFor(card({ preset: "shpe-classic" })))).toEqual([]);
+    const junk = await headFor(card({ preset: "shpe-classic", font: { heading: "https://evil.test/x.css" } }));
+    expect(fontLinks(junk)).toEqual([]);
+    expect(junk).not.toContain("evil.test");
+  });
+});
+
 /*
  * Netlify bundles the edge function with Deno, which resolves imports more
  * strictly than Vite: relative paths need their ".ts", and there is no "@/"
@@ -183,6 +214,7 @@ describe("card-meta edge function: what it imports", () => {
     expect(problems).toEqual([]);
     // The test is only worth something if it really followed the imports.
     expect([...seen]).toContain("/src/features/cards/photoVisibility.ts");
+    expect([...seen]).toContain("/src/features/cards/fontLinks.ts");
     expect([...seen]).toContain("/src/features/cards/model.ts");
   });
 

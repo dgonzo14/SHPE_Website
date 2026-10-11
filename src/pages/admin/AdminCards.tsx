@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Download, IdCard, Nfc, Power, PowerOff, WandSparkles } from "lucide-react";
+import { Download, EyeOff, Globe, IdCard, Nfc, Power, PowerOff, WandSparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
@@ -28,6 +28,10 @@ import { ChipAddress } from "@/features/cards/admin/ChipAddress";
 import { CreateCardDialog } from "@/features/cards/admin/CreateCardDialog";
 import { HideCardDialog } from "@/features/cards/admin/HideCardDialog";
 import { PositionDialog } from "@/features/cards/admin/PositionDialog";
+import {
+  PublishCardsDialog,
+  type PublishRequest,
+} from "@/features/cards/admin/PublishCardsDialog";
 import {
   ReleaseHandleDialog,
   type ReleaseTarget,
@@ -72,7 +76,9 @@ function nameList(names: string[], shown = 3): string {
 /**
  * Admin → Business Cards: the feature switch, every approved member's card,
  * and the tools for card-writing night (create the missing cards, export the
- * NFC programming sheet, mark chips written).
+ * NFC programming sheet, mark chips written). Any card can be published or
+ * unpublished from here at any time, one from its row or every selected one
+ * at once.
  *
  * Officer-only because the RPCs say so, not because of this file: every
  * admin_* function starts with require_officer() and writes an audit row, and
@@ -102,6 +108,7 @@ export function AdminCards() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [createFor, setCreateFor] = useState<AdminCardRow | null>(null);
   const [hideFor, setHideFor] = useState<RowWithCard | null>(null);
+  const [publishRequest, setPublishRequest] = useState<PublishRequest | null>(null);
   const [resetFor, setResetFor] = useState<RowWithCard | null>(null);
   const [releaseFor, setReleaseFor] = useState<ReleaseTarget | null>(null);
   const [positionFor, setPositionFor] = useState<AdminCardRow | null>(null);
@@ -128,6 +135,7 @@ export function AdminCards() {
   const closeBulk = useCallback(() => setBulkOpen(false), []);
   const closeCreate = useCallback(() => setCreateFor(null), []);
   const closeHide = useCallback(() => setHideFor(null), []);
+  const closePublish = useCallback(() => setPublishRequest(null), []);
   const closeReset = useCallback(() => setResetFor(null), []);
   const closeRelease = useCallback(() => setReleaseFor(null), []);
   const closePosition = useCallback(() => setPositionFor(null), []);
@@ -145,6 +153,9 @@ export function AdminCards() {
   const selectedRows = allRows.filter((row) => selected.has(row.member_id));
   const hasSelection = selectedRows.length > 0;
   const selectedWithCard = selectedRows.filter(hasCard);
+  // Each bulk button acts only on the selected cards it would change.
+  const selectedToPublish = selectedWithCard.filter((row) => !row.is_published);
+  const selectedToUnpublish = selectedWithCard.filter((row) => row.is_published);
   const shownIds = new Set(shownRows.map((row) => row.member_id));
   const selectedNotShown = selectedRows.filter((row) => !shownIds.has(row.member_id)).length;
 
@@ -426,6 +437,24 @@ export function AdminCards() {
               Mark chips written
               {selectedWithCard.length > 0 && ` (${selectedWithCard.length})`}
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => setPublishRequest({ rows: selectedToPublish, publish: true })}
+              disabled={selectedToPublish.length === 0}
+            >
+              <Globe className="h-4 w-4" aria-hidden />
+              Publish selected
+              {selectedToPublish.length > 0 && ` (${selectedToPublish.length})`}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setPublishRequest({ rows: selectedToUnpublish, publish: false })}
+              disabled={selectedToUnpublish.length === 0}
+            >
+              <EyeOff className="h-4 w-4" aria-hidden />
+              Unpublish selected
+              {selectedToUnpublish.length > 0 && ` (${selectedToUnpublish.length})`}
+            </Button>
           </div>
         </div>
 
@@ -451,6 +480,7 @@ export function AdminCards() {
             onToggleAll={toggleAllShown}
             cardsEnabled={enabled}
             onCreate={setCreateFor}
+            onTogglePublished={(row) => setPublishRequest({ rows: [row], publish: !row.is_published })}
             onToggleHidden={setHideFor}
             onResetHandle={setResetFor}
             onReleaseHandle={(row, handle) => setReleaseFor({ row, handle })}
@@ -474,6 +504,7 @@ export function AdminCards() {
       {bulkOpen && <BulkCreateDialog onClose={closeBulk} />}
 
       <CreateCardDialog member={createFor} onClose={closeCreate} />
+      <PublishCardsDialog request={publishRequest} onClose={closePublish} />
       <HideCardDialog row={hideFor} onClose={closeHide} />
       <ResetHandleDialog row={resetFor} onClose={closeReset} />
       <ReleaseHandleDialog target={releaseFor} onClose={closeRelease} />

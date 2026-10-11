@@ -1,25 +1,30 @@
 import { useEffect } from "react";
 import { CARD_FONT_IDS, type CardFontId } from "./model";
+import { GOOGLE_FONT_FAMILIES, googleFontHref } from "./fontLinks";
+
+export { googleFontHref };
 
 /**
- * The card's type catalog: eight families, each with a full fallback stack so
- * the card is readable before (or without) the web font arriving.
+ * The card's type catalog: sixteen families, each with a full fallback stack
+ * so the card is readable before (or without) the web font arriving. The last
+ * eight came with the professional presets, which each pair a name face with a
+ * text face (Source Serif 4 with Source Sans 3, Instrument Serif with
+ * Instrument Sans, and so on).
  *
  * Fonts load from Google only when a card actually uses them, and only on the
  * pages that render a card. fonts.googleapis.com and fonts.gstatic.com are
  * already in the CSP, and index.html already preconnects to both. Libre
  * Franklin is the site's own face and index.html loads it for every page, so it
- * has no family to fetch.
+ * has no family to fetch. The Google family strings live in fontLinks.ts,
+ * which the link-preview edge function shares, so the stylesheets it writes
+ * into a card page are exactly the ones this file would add.
  */
 
 export interface CardFontInfo {
   label: string;
   /** A complete font-family value, web font first. */
   stack: string;
-  /**
-   * The `family=` value for the Google Fonts css2 API, spaces and all (they are
-   * encoded when the URL is built). null when the page already has the font.
-   */
+  /** The Google Fonts css2 `family=` value (see GOOGLE_FONT_FAMILIES), or null. */
   googleFamily: string | null;
   /**
    * Weight for the name. Display serifs that only ship a regular weight would
@@ -36,63 +41,103 @@ export const CARD_FONTS: Record<CardFontId, CardFontInfo> = {
   "libre-franklin": {
     label: "Libre Franklin",
     stack: `"Libre Franklin", ${SANS_FALLBACK}`,
-    googleFamily: null,
+    googleFamily: GOOGLE_FONT_FAMILIES["libre-franklin"],
     headingWeight: 700,
   },
   inter: {
     label: "Inter",
     stack: `"Inter", ${SANS_FALLBACK}`,
-    googleFamily: "Inter:wght@400;500;600;700",
+    googleFamily: GOOGLE_FONT_FAMILIES["inter"],
     headingWeight: 700,
   },
   "dm-sans": {
     label: "DM Sans",
     stack: `"DM Sans", ${SANS_FALLBACK}`,
-    googleFamily: "DM Sans:wght@400;500;700",
+    googleFamily: GOOGLE_FONT_FAMILIES["dm-sans"],
     headingWeight: 700,
   },
   "space-grotesk": {
     label: "Space Grotesk",
     stack: `"Space Grotesk", ${SANS_FALLBACK}`,
-    googleFamily: "Space Grotesk:wght@400;500;700",
+    googleFamily: GOOGLE_FONT_FAMILIES["space-grotesk"],
     headingWeight: 700,
   },
   nunito: {
     label: "Nunito",
     stack: `"Nunito", ${SANS_FALLBACK}`,
-    googleFamily: "Nunito:wght@400;600;700",
+    googleFamily: GOOGLE_FONT_FAMILIES["nunito"],
     headingWeight: 700,
   },
   "playfair-display": {
     label: "Playfair Display",
     stack: `"Playfair Display", ${SERIF_FALLBACK}`,
-    googleFamily: "Playfair Display:wght@400;600;700",
+    googleFamily: GOOGLE_FONT_FAMILIES["playfair-display"],
     headingWeight: 700,
   },
   "dm-serif-display": {
     label: "DM Serif Display",
     stack: `"DM Serif Display", ${SERIF_FALLBACK}`,
-    // Ships in one weight; see headingWeight.
-    googleFamily: "DM Serif Display",
+    googleFamily: GOOGLE_FONT_FAMILIES["dm-serif-display"],
     headingWeight: 400,
   },
   "jetbrains-mono": {
     label: "JetBrains Mono",
     stack: `"JetBrains Mono", ${MONO_FALLBACK}`,
-    googleFamily: "JetBrains Mono:wght@400;500;700",
+    googleFamily: GOOGLE_FONT_FAMILIES["jetbrains-mono"],
     headingWeight: 700,
+  },
+  "source-serif-4": {
+    label: "Source Serif 4",
+    stack: `"Source Serif 4", ${SERIF_FALLBACK}`,
+    googleFamily: GOOGLE_FONT_FAMILIES["source-serif-4"],
+    headingWeight: 600,
+  },
+  "source-sans-3": {
+    label: "Source Sans 3",
+    stack: `"Source Sans 3", ${SANS_FALLBACK}`,
+    googleFamily: GOOGLE_FONT_FAMILIES["source-sans-3"],
+    headingWeight: 700,
+  },
+  "instrument-serif": {
+    label: "Instrument Serif",
+    stack: `"Instrument Serif", ${SERIF_FALLBACK}`,
+    googleFamily: GOOGLE_FONT_FAMILIES["instrument-serif"],
+    headingWeight: 400,
+  },
+  "instrument-sans": {
+    label: "Instrument Sans",
+    stack: `"Instrument Sans", ${SANS_FALLBACK}`,
+    googleFamily: GOOGLE_FONT_FAMILIES["instrument-sans"],
+    headingWeight: 600,
+  },
+  "plus-jakarta-sans": {
+    label: "Plus Jakarta Sans",
+    stack: `"Plus Jakarta Sans", ${SANS_FALLBACK}`,
+    googleFamily: GOOGLE_FONT_FAMILIES["plus-jakarta-sans"],
+    headingWeight: 700,
+  },
+  manrope: {
+    label: "Manrope",
+    stack: `"Manrope", ${SANS_FALLBACK}`,
+    googleFamily: GOOGLE_FONT_FAMILIES["manrope"],
+    headingWeight: 600,
+  },
+  "eb-garamond": {
+    label: "EB Garamond",
+    stack: `"EB Garamond", ${SERIF_FALLBACK}`,
+    googleFamily: GOOGLE_FONT_FAMILIES["eb-garamond"],
+    headingWeight: 500,
+  },
+  "cormorant-garamond": {
+    label: "Cormorant Garamond",
+    stack: `"Cormorant Garamond", ${SERIF_FALLBACK}`,
+    googleFamily: GOOGLE_FONT_FAMILIES["cormorant-garamond"],
+    headingWeight: 600,
   },
 };
 
 export function isCardFontId(value: unknown): value is CardFontId {
   return typeof value === "string" && (CARD_FONT_IDS as readonly string[]).includes(value);
-}
-
-/** The stylesheet URL for one family, or null when nothing needs fetching. */
-export function googleFontHref(id: CardFontId): string | null {
-  const family = CARD_FONTS[id]?.googleFamily;
-  if (!family) return null;
-  return `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}&display=swap`;
 }
 
 /**

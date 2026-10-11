@@ -2,15 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   CARD_PRESETS,
+  CARD_PRESET_COLLECTIONS,
   contrastRatio,
   isFrostedTheme,
   resolveTheme,
   suggestPassingColor,
   themeContrastIssues,
   themeCssVars,
+  themeUsesPanels,
   type ResolvedTheme,
 } from "../themes";
-import { CARD_PRESET_IDS, type CardTheme } from "../model";
+import { CARD_LAYOUTS, CARD_PRESET_IDS, type CardTheme } from "../model";
 
 /** A resolved theme with some fields swapped, for exercising the checks. */
 function withColors(base: ResolvedTheme, colors: Partial<ResolvedTheme["colors"]>): ResolvedTheme {
@@ -46,7 +48,7 @@ describe("contrastRatio", () => {
 });
 
 describe("presets", () => {
-  it("has all seven, each labelled and described", () => {
+  it("has every preset, each labelled and described", () => {
     expect(Object.keys(CARD_PRESETS).sort()).toEqual([...CARD_PRESET_IDS].sort());
     for (const id of CARD_PRESET_IDS) {
       const preset = CARD_PRESETS[id];
@@ -80,7 +82,7 @@ describe("presets", () => {
 
   it("covers every layout across the gallery", () => {
     const layouts = new Set(CARD_PRESET_IDS.map((id) => CARD_PRESETS[id].theme.layout));
-    expect([...layouts].sort()).toEqual(["badge", "banner", "classic", "minimal", "split"]);
+    expect([...layouts].sort()).toEqual([...CARD_LAYOUTS].sort());
   });
 
   it("gives Engineer monospace type on a grid and Glass a frosted card", () => {
@@ -347,5 +349,138 @@ describe("themeCssVars", () => {
     const style = themeCssVars(CARD_PRESETS.glass.theme) as Record<string, string>;
     expect(style["--card-surface-fill"]).toBe("rgba(255, 255, 255, 0.8)");
     expect(style["--card-backdrop"]).toMatch(/blur\(/);
+  });
+});
+
+describe("the professional collection", () => {
+  const professional = CARD_PRESET_IDS.filter((id) => CARD_PRESETS[id].collection === "professional");
+
+  it("adds six presets and keeps all seven originals", () => {
+    expect(professional).toEqual(["executive", "editorial", "studio", "slate", "heritage", "signature"]);
+    expect(CARD_PRESET_IDS.filter((id) => CARD_PRESETS[id].collection === "original")).toEqual([
+      "shpe-classic",
+      "sunrise",
+      "midnight",
+      "paper",
+      "washu",
+      "engineer",
+      "glass",
+    ]);
+  });
+
+  it("lists every preset exactly once, the professional collection first", () => {
+    expect(CARD_PRESET_COLLECTIONS.map((c) => c.id)).toEqual(["professional", "original"]);
+    const listed = CARD_PRESET_COLLECTIONS.flatMap((c) => [...c.presets]);
+    expect([...listed].sort()).toEqual([...CARD_PRESET_IDS].sort());
+    expect(new Set(listed).size).toBe(listed.length);
+  });
+
+  it("gives each one its own layout, not just a new palette", () => {
+    const layouts = professional.map((id) => CARD_PRESETS[id].theme.layout);
+    expect(new Set(layouts).size).toBe(professional.length);
+    const originalLayouts = new Set(
+      CARD_PRESET_IDS.filter((id) => CARD_PRESETS[id].collection === "original").map((id) => CARD_PRESETS[id].theme.layout),
+    );
+    for (const layout of layouts) expect(originalLayouts.has(layout), layout).toBe(false);
+  });
+
+  it("gives each one its own pairing of two type families", () => {
+    const pairings = professional.map((id) => {
+      const { heading, body } = CARD_PRESETS[id].theme.font;
+      expect(heading, id).not.toBe(body);
+      return `${heading}+${body}`;
+    });
+    expect(new Set(pairings).size).toBe(professional.length);
+  });
+
+  it("varies spacing and the link and button treatment across the set", () => {
+    const treatments = professional.map((id) => {
+      const { buttons, density } = CARD_PRESETS[id].theme;
+      return `${buttons.arrangement}/${buttons.style}/${buttons.shape}/${buttons.primary}/${density}`;
+    });
+    expect(new Set(treatments).size).toBe(professional.length);
+    expect(new Set(professional.map((id) => CARD_PRESETS[id].theme.density))).toEqual(
+      new Set(["compact", "comfortable", "spacious"]),
+    );
+  });
+
+  it("keeps the brief's palettes: Executive's navy button, Slate's dark card, Heritage's ink main button", () => {
+    const executive = themeCssVars(CARD_PRESETS.executive.theme) as Record<string, string>;
+    expect(executive["--card-primary"]).toBe(CARD_PRESETS.executive.theme.colors.text);
+    expect(contrastRatio(CARD_PRESETS.slate.theme.colors.surface, "#000000")).toBeLessThan(2);
+    expect(CARD_PRESETS.heritage.theme.buttons.primary).toBe("ink");
+  });
+});
+
+describe("design tokens", () => {
+  it("fills the main button with the accent, or with the text colour for ink", () => {
+    const accent = themeCssVars(classic) as Record<string, string>;
+    expect(accent["--card-primary"]).toBe(classic.colors.accent);
+    expect(accent["--card-primary-text"]).toBe(classic.colors.accentText);
+
+    const ink = themeCssVars({ ...classic, buttons: { ...classic.buttons, primary: "ink" } }) as Record<string, string>;
+    expect(ink["--card-primary"]).toBe(classic.colors.text);
+    expect(ink["--card-primary-text"]).toBe(classic.colors.surface);
+  });
+
+  it("defaults the main button to the accent for themes saved before it existed", () => {
+    for (const id of ["shpe-classic", "sunrise", "midnight", "paper", "washu", "engineer", "glass"] as const) {
+      expect(resolveTheme({ preset: id }).buttons.primary).toBe("accent");
+    }
+    expect(resolveTheme({ preset: "executive", buttons: { primary: "neon" } } as unknown as CardTheme).buttons.primary)
+      .toBe("ink");
+  });
+
+  it("raises panels a shade toward the text colour, lighter on a dark card and darker on a light one", () => {
+    const dark = themeCssVars(CARD_PRESETS.slate.theme) as Record<string, string>;
+    const light = themeCssVars(classic) as Record<string, string>;
+    expect(contrastRatio(dark["--card-raised"], "#000000")).toBeGreaterThan(
+      contrastRatio(CARD_PRESETS.slate.theme.colors.surface, "#000000"),
+    );
+    expect(contrastRatio(light["--card-raised"], "#ffffff")).toBeGreaterThan(1);
+    expect(dark["--card-raised"]).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it("gives Spacious more room between blocks than Comfortable, with padding that follows the screen", () => {
+    const spacious = themeCssVars({ ...classic, density: "spacious" }) as Record<string, string>;
+    const comfortable = themeCssVars(classic) as Record<string, string>;
+    expect(parseFloat(spacious["--card-gap"])).toBeGreaterThan(parseFloat(comfortable["--card-gap"]));
+    expect(spacious["--card-pad"]).toMatch(/^clamp\(/);
+    // Never below the 44px touch target.
+    expect(parseFloat(spacious["--card-button-h"]) * 16).toBeGreaterThanOrEqual(44);
+  });
+});
+
+describe("themeContrastIssues: panels and hairline buttons", () => {
+  it("holds text on a layered card to the raised panels as well as the card", () => {
+    // Passes on the white card by a hair; the panels, a shade darker, are below 4.5:1.
+    const muted = "#757575";
+    expect(contrastRatio(muted, "#ffffff")).toBeGreaterThanOrEqual(4.5);
+    const flat = withColors(classic, { muted });
+    expect(themeContrastIssues(flat)).toEqual([]);
+    const layered = { ...flat, layout: "layered" as const };
+    expect(themeUsesPanels(layered)).toBe(true);
+    const issues = themeContrastIssues(layered);
+    expect(issues.map((i) => i.id)).toEqual(["muted-on-surface"]);
+    // The suggestion passes against the panel too.
+    const fixed = withColors(layered, { muted: issues[0].suggestion });
+    expect(themeContrastIssues(fixed)).toEqual([]);
+  });
+
+  it("doesn't ask hairline buttons' accent to pass as text, only as icons", () => {
+    // 3.3:1 on white: enough for icons, not for a label.
+    const accent = "#e2711d";
+    expect(contrastRatio(accent, "#ffffff")).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(accent, "#ffffff")).toBeLessThan(4.5);
+    const base = withColors(classic, { accent, accentText: "#000000" });
+    const hairline = { ...base, buttons: { ...base.buttons, style: "hairline" as const } };
+    const outline = { ...base, buttons: { ...base.buttons, style: "outline" as const } };
+    expect(themeContrastIssues(hairline)).toEqual([]);
+    expect(themeContrastIssues(outline).map((i) => i.id)).toEqual(["button-text-on-surface"]);
+  });
+
+  it("needs no separate rule for an ink main button: it's the text pairing, reversed", () => {
+    const unreadable = withColors({ ...classic, buttons: { ...classic.buttons, primary: "ink" } }, { text: "#d1d5db" });
+    expect(themeContrastIssues(unreadable).map((i) => i.id)).toContain("text-on-surface");
   });
 });

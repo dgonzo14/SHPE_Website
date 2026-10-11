@@ -173,6 +173,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "card.chips_written": "NFC chips marked written",
   "card.hidden": "Business card hidden",
   "card.unhidden": "Business card unhidden",
+  "card.published": "Business card published by an officer",
+  "card.unpublished": "Business card unpublished by an officer",
   "card.handle_reset": "Card handle reset",
   "card.handle_released": "Card handle released",
   "card.position_set": "Chapter position set",

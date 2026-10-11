@@ -10,6 +10,7 @@ import type {
   AdminCreateCardResult,
   AppConfig,
   ReleaseCardHandleResult,
+  SetCardsPublishedResult,
 } from "@/types/database";
 
 /*
@@ -27,6 +28,8 @@ const adminCreateCard =
 const fetchAppConfig = vi.fn<() => Promise<AppConfig>>();
 const adminReleaseCardHandle =
   vi.fn<(memberId: string, handle: string, reason: string) => Promise<ReleaseCardHandleResult>>();
+const adminSetCardsPublished =
+  vi.fn<(memberIds: string[], published: boolean) => Promise<SetCardsPublishedResult>>();
 
 vi.mock("@/services/cards", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/cards")>()),
@@ -36,6 +39,7 @@ vi.mock("@/services/cards", async (importOriginal) => ({
     adminCreateCard(id, opts),
   adminReleaseCardHandle: (id: string, handle: string, reason: string) =>
     adminReleaseCardHandle(id, handle, reason),
+  adminSetCardsPublished: (ids: string[], published: boolean) => adminSetCardsPublished(ids, published),
   cardUrl: (handle: string, source?: string) =>
     `https://washushpe.org/card/${handle}${source && source !== "link" ? `?src=${source}` : ""}`,
 }));
@@ -198,6 +202,38 @@ describe("MemberCardSummary", () => {
       ),
     );
     expect(await screen.findByText("Released ana-rivera")).toBeInTheDocument();
+  });
+
+  it("publishes and unpublishes the member's card from their page", async () => {
+    const draft = row({
+      handle: "luis-mendez",
+      status: "member",
+      member_opened_at: "2026-09-01T00:00:00.000Z",
+    });
+    const live = { ...draft, status: "published" as const, is_published: true };
+    fetchAdminCards.mockResolvedValue({ enabled: true, rows: [draft] });
+    adminSetCardsPublished.mockImplementation(async (ids, published) => {
+      fetchAdminCards.mockResolvedValue({ enabled: true, rows: [published ? live : draft] });
+      return { published, changed: ids, unchanged: [], skipped: [] };
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<MemberCardSummary member={MEMBER} />, {
+      route: `/admin/members/${MEMBER.id}`,
+      auth: OFFICER,
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Publish card" }));
+    const dialog = await screen.findByRole("dialog", { name: "Publish Luis Mendez's card?" });
+    expect(dialog).toHaveTextContent(/may not be finished/i);
+    await user.click(within(dialog).getByRole("button", { name: "Publish card" }));
+    expect(adminSetCardsPublished).toHaveBeenCalledWith([MEMBER.id], true);
+
+    // The list is asked for again, and the button follows the card.
+    await user.click(await screen.findByRole("button", { name: "Unpublish card" }));
+    const unpublish = await screen.findByRole("dialog", { name: "Unpublish Luis Mendez's card?" });
+    await user.click(within(unpublish).getByRole("button", { name: "Unpublish card" }));
+    expect(adminSetCardsPublished).toHaveBeenLastCalledWith([MEMBER.id], false);
+    expect(await screen.findByRole("button", { name: "Publish card" })).toBeInTheDocument();
   });
 
   it("explains that a pending member has to be approved first", async () => {

@@ -19,6 +19,7 @@ import type {
   MyCardState,
   PublicCardResponse,
   ReleaseCardHandleResult,
+  SetCardsPublishedResult,
 } from "@/types/database";
 
 /**
@@ -337,6 +338,23 @@ export async function adminSetCardHidden(
     p_reason: reason ?? null,
   });
   if (error) throw error;
+}
+
+/**
+ * Publishes or unpublishes one card or many, the same flag as the owner's own
+ * switch. Only cards that change are written and audited; members without a
+ * card come back in `skipped`. Doesn't mark a starter card as opened.
+ */
+export async function adminSetCardsPublished(
+  memberIds: string[],
+  published: boolean,
+): Promise<SetCardsPublishedResult> {
+  const { data, error } = await getSupabase().rpc("admin_set_cards_published", {
+    p_member_ids: memberIds,
+    p_published: published,
+  });
+  if (error) throw error;
+  return data as SetCardsPublishedResult;
 }
 
 export async function adminResetCardHandle(

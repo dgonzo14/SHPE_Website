@@ -12,6 +12,8 @@ import { OldHandles } from "./OldHandles";
 
 export interface AdminCardRowActions {
   onCreate: (row: AdminCardRow) => void;
+  /** Publish the card for its owner, or unpublish it. */
+  onTogglePublished: (row: RowWithCard) => void;
   onToggleHidden: (row: RowWithCard) => void;
   onResetHandle: (row: RowWithCard) => void;
   /** Release one of the member's old handles. */
@@ -109,7 +111,7 @@ export function AdminCardsTable({
                     {hasCard(row) ? row.views_30d : "—"}
                   </Td>
                   <Td>
-                    <RowActions row={row} {...actions} />
+                    <RowActions row={row} {...actions} grid />
                   </Td>
                 </tr>
               );
@@ -229,22 +231,43 @@ function HandleCell({
 function RowActions({
   row,
   onCreate,
+  onTogglePublished,
   onToggleHidden,
   onResetHandle,
   onPosition,
   className,
-}: Omit<AdminCardRowActions, "onReleaseHandle"> & { row: AdminCardRow; className?: string }) {
+  grid = false,
+}: Omit<AdminCardRowActions, "onReleaseHandle"> & {
+  row: AdminCardRow;
+  className?: string;
+  /** In the table: two even columns, so four actions make a tidy two rows. */
+  grid?: boolean;
+}) {
   // Each button names its member: a column of identical "Hide" buttons is
   // useless to a screen reader moving through the page by control. The visible
   // text starts every label, so voice control still finds it by what it says.
   const name = memberName(row);
   // sm buttons are 36px; these are pressed on phones at card-writing night too.
-  const touch = "min-h-[44px] whitespace-nowrap";
+  const touch = cn("min-h-[44px] whitespace-nowrap", grid && "w-full");
 
   return (
-    <div className={cn("flex flex-wrap justify-end gap-2", className)}>
+    <div
+      className={cn(
+        grid ? "ml-auto grid w-max grid-cols-2 gap-2" : "flex flex-wrap justify-end gap-2",
+        className,
+      )}
+    >
       {hasCard(row) ? (
         <>
+          <Button
+            size="sm"
+            variant="outline"
+            className={touch}
+            aria-label={`${row.is_published ? "Unpublish" : "Publish"} ${name}'s card`}
+            onClick={() => onTogglePublished(row)}
+          >
+            {row.is_published ? "Unpublish" : "Publish"}
+          </Button>
           <Button
             size="sm"
             variant="outline"

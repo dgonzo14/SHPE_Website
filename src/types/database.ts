@@ -706,6 +706,18 @@ export interface MarkChipsWrittenResult {
   skipped: string[];
 }
 
+/**
+ * admin_set_cards_published(). Member ids, each list sorted: cards whose state
+ * changed (and were audited), cards already in that state, and members in the
+ * selection who have no card.
+ */
+export interface SetCardsPublishedResult {
+  published: boolean;
+  changed: string[];
+  unchanged: string[];
+  skipped: string[];
+}
+
 /** admin_release_card_handle(). */
 export interface ReleaseCardHandleResult {
   ok: true;

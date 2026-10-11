@@ -47,6 +47,12 @@ export const PRESET_PHOTO_DEFAULTS: Record<CardPresetId, { layout: CardLayout; a
   washu: { layout: "badge", avatarShape: "circle" },
   engineer: { layout: "split", avatarShape: "square" },
   glass: { layout: "classic", avatarShape: "circle" },
+  executive: { layout: "profile", avatarShape: "rounded" },
+  editorial: { layout: "editorial", avatarShape: "square" },
+  studio: { layout: "studio", avatarShape: "rounded" },
+  slate: { layout: "layered", avatarShape: "circle" },
+  heritage: { layout: "letterhead", avatarShape: "circle" },
+  signature: { layout: "monogram", avatarShape: "circle" },
 };
 
 /** The two fields of a resolved theme (themes.ts ResolvedTheme) that matter here. */

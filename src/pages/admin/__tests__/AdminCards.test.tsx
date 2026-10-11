@@ -13,6 +13,7 @@ import type {
   BulkCreateCardsResult,
   MarkChipsWrittenResult,
   ReleaseCardHandleResult,
+  SetCardsPublishedResult,
 } from "@/types/database";
 
 /*
@@ -37,6 +38,8 @@ const adminReleaseCardHandle =
   vi.fn<(memberId: string, handle: string, reason: string) => Promise<ReleaseCardHandleResult>>();
 const adminSetCardHidden =
   vi.fn<(memberId: string, hidden: boolean, reason?: string | null) => Promise<void>>();
+const adminSetCardsPublished =
+  vi.fn<(memberIds: string[], published: boolean) => Promise<SetCardsPublishedResult>>();
 const adminResetCardHandle =
   vi.fn<(memberId: string, reason: string) => Promise<{ old_handle: string; handle: string }>>();
 const adminSetChapterPosition = vi.fn<(memberId: string, title: string | null) => Promise<void>>();
@@ -60,6 +63,7 @@ vi.mock("@/services/cards", async (importOriginal) => ({
     adminReleaseCardHandle(id, handle, reason),
   adminSetCardHidden: (id: string, hidden: boolean, reason?: string | null) =>
     adminSetCardHidden(id, hidden, reason),
+  adminSetCardsPublished: (ids: string[], published: boolean) => adminSetCardsPublished(ids, published),
   adminResetCardHandle: (id: string, reason: string) => adminResetCardHandle(id, reason),
   adminSetChapterPosition: (id: string, title: string | null) => adminSetChapterPosition(id, title),
   adminSetCardsEnabled: (enabled: boolean) => adminSetCardsEnabled(enabled),
@@ -969,6 +973,175 @@ describe("Row actions", () => {
     await waitFor(() =>
       expect(adminSetChapterPosition).toHaveBeenCalledWith(DIEGO.member_id, null),
     );
+  });
+});
+
+describe("Publishing for members", () => {
+  /** What the database answers when every card asked for changed. */
+  function changedAll(ids: string[], published: boolean): SetCardsPublishedResult {
+    return { published, changed: [...ids].sort(), unchanged: [], skipped: [] };
+  }
+
+  it("publishes a member's draft from its row, warning that it may not be finished", async () => {
+    adminSetCardsPublished.mockImplementation(async (ids, published) => changedAll(ids, published));
+    const user = userEvent.setup();
+    renderPage();
+    const table = await findTable();
+    await screen.findByRole("button", { name: /turn business cards off/i });
+
+    await user.click(within(table).getByRole("button", { name: "Publish Fer Soto's card" }));
+    const dialog = await screen.findByRole("dialog", { name: "Publish Fer Soto's card?" });
+    expect(dialog).toHaveTextContent("/card/fer-soto opens for anyone with the link");
+    expect(dialog).toHaveTextContent(/set this card up but hasn't published it, so it may not be finished/i);
+    expect(dialog).toHaveTextContent(/recorded in the audit log/i);
+    expect(adminSetCardsPublished).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole("button", { name: "Publish card" }));
+    expect(adminSetCardsPublished).toHaveBeenCalledWith([FER.member_id], true);
+    expect(await screen.findByText("Fer Soto's card is published")).toBeInTheDocument();
+    expect(screen.getByText("It's live at /card/fer-soto.")).toBeInTheDocument();
+  });
+
+  it("says a starter card stays a starter card when an officer publishes it", async () => {
+    adminSetCardsPublished.mockImplementation(async (ids, published) => changedAll(ids, published));
+    const user = userEvent.setup();
+    renderPage();
+    const table = await findTable();
+
+    await user.click(within(table).getByRole("button", { name: "Publish Bruno Díaz's card" }));
+    const dialog = await screen.findByRole("dialog", { name: "Publish Bruno Díaz's card?" });
+    expect(dialog).toHaveTextContent(
+      "Until Bruno Díaz opens My Card, it shows only their name, school, education and chapter position.",
+    );
+    expect(dialog).not.toHaveTextContent(/may not be finished/i);
+  });
+
+  it("unpublishes a live card from its row, and points to Hide for keeping one down", async () => {
+    adminSetCardsPublished.mockImplementation(async (ids, published) => changedAll(ids, published));
+    const user = userEvent.setup();
+    renderPage();
+    const table = await findTable();
+
+    await user.click(within(table).getByRole("button", { name: "Unpublish Diego Gonzalez's card" }));
+    const dialog = await screen.findByRole("dialog", { name: "Unpublish Diego Gonzalez's card?" });
+    expect(dialog).toHaveTextContent("/card/diego-gonzalez shows “card not available”");
+    expect(dialog).toHaveTextContent(/can publish again from My Card/i);
+    expect(dialog).toHaveTextContent(/to keep a card down, hide it instead/i);
+
+    await user.click(within(dialog).getByRole("button", { name: "Unpublish card" }));
+    expect(adminSetCardsPublished).toHaveBeenCalledWith([DIEGO.member_id], false);
+    expect(await screen.findByText("Diego Gonzalez's card is unpublished")).toBeInTheDocument();
+  });
+
+  it("offers Unpublish for a hidden card that is published, and Publish keeps it hidden", async () => {
+    adminSetCardsPublished.mockImplementation(async (ids, published) => changedAll(ids, published));
+    fetchAdminCards.mockResolvedValue({
+      enabled: true,
+      rows: ROWS.map((r) => (r === ELENA ? { ...ELENA, is_published: false } : r)),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    const table = await findTable();
+    await screen.findByRole("button", { name: /turn business cards off/i });
+
+    await user.click(within(table).getByRole("button", { name: "Publish Elena Ruiz's card" }));
+    const dialog = await screen.findByRole("dialog", { name: "Publish Elena Ruiz's card?" });
+    expect(dialog).toHaveTextContent("It's hidden, and stays hidden until you unhide it.");
+    await user.click(within(dialog).getByRole("button", { name: "Publish card" }));
+    expect(await screen.findByText("It stays hidden until you unhide it.")).toBeInTheDocument();
+    expect(screen.queryByText(/It's live at/)).not.toBeInTheDocument();
+  });
+
+  it("says a published card goes live only once business cards are switched on", async () => {
+    fetchAppConfig.mockResolvedValue({ cards_enabled: false });
+    adminSetCardsPublished.mockImplementation(async (ids, published) => changedAll(ids, published));
+    const user = userEvent.setup();
+    renderPage();
+    const table = await findTable();
+    await screen.findByRole("button", { name: /turn business cards on/i });
+
+    await user.click(within(table).getByRole("button", { name: "Publish Fer Soto's card" }));
+    const dialog = await screen.findByRole("dialog", { name: "Publish Fer Soto's card?" });
+    expect(dialog).toHaveTextContent(/once business cards are turned on/i);
+    await user.click(within(dialog).getByRole("button", { name: "Publish card" }));
+    expect(
+      await screen.findByText("It goes live at /card/fer-soto when business cards are turned on."),
+    ).toBeInTheDocument();
+  });
+
+  it("publishes and unpublishes the selected cards in bulk, each button only the cards it would change", async () => {
+    adminSetCardsPublished.mockImplementation(async (ids, published) => changedAll(ids, published));
+    const user = userEvent.setup();
+    renderPage();
+    const table = await findTable();
+
+    // Ana has no card; Bruno and Fer are unpublished; Carla is live.
+    for (const name of ["Ana Rivera", "Bruno Díaz", "Carla Gómez", "Fer Soto"]) {
+      await user.click(within(table).getByRole("checkbox", { name: `Select ${name}` }));
+    }
+    expect(screen.getByRole("button", { name: /unpublish selected \(1\)/i })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: /^publish selected \(2\)/i }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Publish 2 cards?" });
+    const list = within(dialog).getByRole("list", { name: "Cards to publish" });
+    expect(within(list).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "Bruno Díaz · bruno-diaz",
+      "Fer Soto · fer-soto",
+    ]);
+    expect(dialog).toHaveTextContent(/1 card is a draft its owner hasn't published/i);
+    expect(dialog).toHaveTextContent(/1 is a starter card/i);
+
+    await user.click(within(dialog).getByRole("button", { name: "Publish 2 cards" }));
+    expect(adminSetCardsPublished).toHaveBeenCalledWith([BRUNO.member_id, FER.member_id], true);
+    expect(await screen.findByText("Published 2 cards")).toBeInTheDocument();
+    // Publishing isn't the end of card-writing night, so the selection stays.
+    expect(within(table).getByRole("checkbox", { name: "Select Bruno Díaz" })).toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: /unpublish selected \(1\)/i }));
+    const unpublish = await screen.findByRole("dialog", { name: "Unpublish Carla Gómez's card?" });
+    await user.click(within(unpublish).getByRole("button", { name: "Unpublish card" }));
+    expect(adminSetCardsPublished).toHaveBeenLastCalledWith([CARLA.member_id], false);
+  });
+
+  it("can't publish or unpublish when nobody selected has a card that would change", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const table = await findTable();
+
+    expect(screen.getByRole("button", { name: /^publish selected/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /unpublish selected/i })).toBeDisabled();
+    await user.click(within(table).getByRole("checkbox", { name: "Select Ana Rivera" }));
+    expect(screen.getByRole("button", { name: /^publish selected/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /unpublish selected/i })).toBeDisabled();
+  });
+
+  it("says so when the cards had already changed by the time the request landed", async () => {
+    adminSetCardsPublished.mockResolvedValue({
+      published: true,
+      changed: [],
+      unchanged: [FER.member_id],
+      skipped: [],
+    });
+    const user = userEvent.setup();
+    renderPage();
+    const table = await findTable();
+
+    await user.click(within(table).getByRole("button", { name: "Publish Fer Soto's card" }));
+    const dialog = await screen.findByRole("dialog", { name: "Publish Fer Soto's card?" });
+    await user.click(within(dialog).getByRole("button", { name: "Publish card" }));
+    expect(await screen.findByText("Nothing changed")).toBeInTheDocument();
+    expect(screen.getByText("Those cards were already published.")).toBeInTheDocument();
+  });
+
+  it("finds published cards, and cards that aren't, with the filter", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const table = await findTable();
+
+    await user.selectOptions(screen.getByLabelText("Show"), "published");
+    expect(shownNames(table)).toEqual(["Carla Gómez", "Diego Gonzalez"]);
+    await user.selectOptions(screen.getByLabelText("Show"), "unpublished");
+    expect(shownNames(table)).toEqual(["Bruno Díaz", "Fer Soto"]);
   });
 });
 

@@ -2,11 +2,12 @@
  * The business card's vocabulary: every enum, limit and pattern that the
  * database, the Zod schemas, the renderer and the editor have to agree on.
  *
- * The database is the authority. `private.card_theme_is_valid()`,
- * `private.card_sections_are_valid()` and the CHECK constraints in
- * 20260914000001_member_business_cards.sql enforce the same lists as this file;
- * a value accepted here but not there fails on save with a 22023, never
- * silently. Change one, change the other in the same commit.
+ * The database is the authority. `private.card_sections_are_valid()` and the
+ * CHECK constraints in 20260914000001_member_business_cards.sql, and
+ * `private.card_theme_is_valid()` as last redefined (20260916000001_card_design_collection.sql),
+ * enforce the same lists as this file; a value accepted here but not there
+ * fails on save with a 22023, never silently. Change one, change the other in
+ * the same commit: cardThemeSql.test.ts compares the theme lists.
  */
 
 /* ── Handles ─────────────────────────────────────────────────────────────── */
@@ -122,6 +123,10 @@ export function isLinkValueValid(kind: CardLinkKind, value: string): boolean {
 
 /* ── Theme ───────────────────────────────────────────────────────────────── */
 
+/**
+ * The seven original presets, then the professional collection. New ids go at
+ * the end of their group; the order is the gallery's order within a group.
+ */
 export const CARD_PRESET_IDS = [
   "shpe-classic",
   "sunrise",
@@ -130,10 +135,33 @@ export const CARD_PRESET_IDS = [
   "washu",
   "engineer",
   "glass",
+  "executive",
+  "editorial",
+  "studio",
+  "slate",
+  "heritage",
+  "signature",
 ] as const;
 export type CardPresetId = (typeof CARD_PRESET_IDS)[number];
 
-export const CARD_LAYOUTS = ["classic", "banner", "split", "minimal", "badge"] as const;
+/**
+ * How the card is composed. The first five came with the original presets;
+ * the last six with the professional collection, one per preset, but any
+ * preset can use any layout.
+ */
+export const CARD_LAYOUTS = [
+  "classic",
+  "banner",
+  "split",
+  "minimal",
+  "badge",
+  "profile",
+  "editorial",
+  "studio",
+  "layered",
+  "letterhead",
+  "monogram",
+] as const;
 export type CardLayout = (typeof CARD_LAYOUTS)[number];
 
 export const CARD_FONT_IDS = [
@@ -145,6 +173,14 @@ export const CARD_FONT_IDS = [
   "playfair-display",
   "dm-serif-display",
   "jetbrains-mono",
+  "source-serif-4",
+  "source-sans-3",
+  "instrument-serif",
+  "instrument-sans",
+  "plus-jakarta-sans",
+  "manrope",
+  "eb-garamond",
+  "cormorant-garamond",
 ] as const;
 export type CardFontId = (typeof CARD_FONT_IDS)[number];
 
@@ -167,16 +203,32 @@ export type CardPattern = (typeof CARD_PATTERNS)[number];
 export const CARD_BUTTON_SHAPES = ["pill", "rounded", "square"] as const;
 export type CardButtonShape = (typeof CARD_BUTTON_SHAPES)[number];
 
-export const CARD_BUTTON_STYLES = ["filled", "outline", "soft", "glass"] as const;
+/**
+ * How link buttons are drawn. "hairline" is a fine border with the label in
+ * the text colour, where the others put the accent on the label or fill.
+ */
+export const CARD_BUTTON_STYLES = ["filled", "outline", "soft", "glass", "hairline"] as const;
 export type CardButtonStyle = (typeof CARD_BUTTON_STYLES)[number];
 
-export const CARD_BUTTON_ARRANGEMENTS = ["list", "icon-grid"] as const;
+/**
+ * How the links are laid out: full-width buttons, icon tiles, divided rows
+ * with each link's address, two columns of compact buttons, or rows of cards
+ * grouped into work, professional and social.
+ */
+export const CARD_BUTTON_ARRANGEMENTS = ["list", "icon-grid", "rows", "compact", "grouped"] as const;
 export type CardButtonArrangement = (typeof CARD_BUTTON_ARRANGEMENTS)[number];
+
+/**
+ * The fill of Add to Contacts and the featured link: the accent with the
+ * button-text colour on it, or the text colour with the card colour on it.
+ */
+export const CARD_PRIMARY_FILLS = ["accent", "ink"] as const;
+export type CardPrimaryFill = (typeof CARD_PRIMARY_FILLS)[number];
 
 export const CARD_AVATAR_SHAPES = ["circle", "rounded", "square", "hidden"] as const;
 export type CardAvatarShape = (typeof CARD_AVATAR_SHAPES)[number];
 
-export const CARD_DENSITIES = ["compact", "comfortable"] as const;
+export const CARD_DENSITIES = ["compact", "comfortable", "spacious"] as const;
 export type CardDensity = (typeof CARD_DENSITIES)[number];
 
 /** `#rrggbb`, case-insensitive. Stored lowercase by convention, not by rule. */
@@ -216,6 +268,8 @@ export interface CardTheme {
     style?: CardButtonStyle;
     arrangement?: CardButtonArrangement;
     icons?: boolean;
+    /** Add to Contacts and the featured link. */
+    primary?: CardPrimaryFill;
   };
   avatar?: { shape?: CardAvatarShape; ring?: boolean };
   density?: CardDensity;

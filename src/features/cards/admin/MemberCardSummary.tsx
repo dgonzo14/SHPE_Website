@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, IdCard } from "lucide-react";
+import { ExternalLink, EyeOff, Globe, IdCard } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Alert, Card, CardBody, CardHeader, CardTitle } from "@/components/ui/primitives";
@@ -11,12 +11,14 @@ import { hasCard, isCardLive } from "./adminCardRows";
 import { CardStatusBadges, ChipStatus } from "./CardStatus";
 import { CreateCardDialog } from "./CreateCardDialog";
 import { OldHandles } from "./OldHandles";
+import { PublishCardsDialog, type PublishRequest } from "./PublishCardsDialog";
 import { ReleaseHandleDialog, type ReleaseTarget } from "./ReleaseHandleDialog";
 import { useAdminCards } from "./useAdminCards";
 
 /**
- * The business card part of a member's detail page: status, handle, chip, and
- * Create card when they have none.
+ * The business card part of a member's detail page: status, handle, chip,
+ * Publish or Unpublish when they have a card, and Create card when they have
+ * none.
  *
  * Read from the same admin list as Admin → Business Cards rather than a
  * per-member RPC. It's one small row per member, the two screens share the
@@ -32,9 +34,11 @@ export function MemberCardSummary({
   const config = useAppConfig();
   const [createOpen, setCreateOpen] = useState(false);
   const [releaseFor, setReleaseFor] = useState<ReleaseTarget | null>(null);
+  const [publishRequest, setPublishRequest] = useState<PublishRequest | null>(null);
   // Stable: Dialog re-runs its focus handling whenever onClose changes identity.
   const closeCreate = useCallback(() => setCreateOpen(false), []);
   const closeRelease = useCallback(() => setReleaseFor(null), []);
+  const closePublish = useCallback(() => setPublishRequest(null), []);
 
   const row = cards.data?.rows.find((r) => r.member_id === member.id) ?? null;
   const enabled = config.data?.cards_enabled === true;
@@ -74,48 +78,67 @@ export function MemberCardSummary({
             </Button>
           </div>
         ) : (
-          <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
-            <dt className="text-gray-500">Status</dt>
-            <dd>
-              <CardStatusBadges row={row} />
-            </dd>
+          <div className="space-y-4">
+            <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
+              <dt className="text-gray-500">Status</dt>
+              <dd>
+                <CardStatusBadges row={row} />
+              </dd>
 
-            <dt className="text-gray-500">Handle</dt>
-            <dd className="min-w-0">
-              {isCardLive(row, enabled) ? (
-                // A router Link, not an external anchor, so a sub-path deploy's
-                // base path is kept; target opens it beside this page.
-                <Link
-                  to={`/card/${encodeURIComponent(row.handle)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-[24px] items-center gap-1 break-all font-mono"
-                >
-                  {row.handle}
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span className="sr-only">(opens the live card in a new tab)</span>
-                </Link>
+              <dt className="text-gray-500">Handle</dt>
+              <dd className="min-w-0">
+                {isCardLive(row, enabled) ? (
+                  // A router Link, not an external anchor, so a sub-path deploy's
+                  // base path is kept; target opens it beside this page.
+                  <Link
+                    to={`/card/${encodeURIComponent(row.handle)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[24px] items-center gap-1 break-all font-mono"
+                  >
+                    {row.handle}
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <span className="sr-only">(opens the live card in a new tab)</span>
+                  </Link>
+                ) : (
+                  <span className="break-all font-mono text-gray-800">{row.handle}</span>
+                )}
+                <OldHandles
+                  row={row}
+                  onRelease={(handle) => setReleaseFor({ row, handle })}
+                  className="mt-1"
+                />
+              </dd>
+
+              <dt className="text-gray-500">Chip</dt>
+              <dd>
+                <ChipStatus row={row} />
+              </dd>
+
+              <dt className="text-gray-500">Position</dt>
+              <dd className="text-gray-800">{row.position ?? "None"}</dd>
+
+              <dt className="text-gray-500">Views (30 days)</dt>
+              <dd className="tabular-nums text-gray-800">{row.views_30d}</dd>
+            </dl>
+
+            <Button
+              variant="outline"
+              onClick={() => setPublishRequest({ rows: [row], publish: !row.is_published })}
+            >
+              {row.is_published ? (
+                <>
+                  <EyeOff className="h-4 w-4" aria-hidden />
+                  Unpublish card
+                </>
               ) : (
-                <span className="break-all font-mono text-gray-800">{row.handle}</span>
+                <>
+                  <Globe className="h-4 w-4" aria-hidden />
+                  Publish card
+                </>
               )}
-              <OldHandles
-                row={row}
-                onRelease={(handle) => setReleaseFor({ row, handle })}
-                className="mt-1"
-              />
-            </dd>
-
-            <dt className="text-gray-500">Chip</dt>
-            <dd>
-              <ChipStatus row={row} />
-            </dd>
-
-            <dt className="text-gray-500">Position</dt>
-            <dd className="text-gray-800">{row.position ?? "None"}</dd>
-
-            <dt className="text-gray-500">Views (30 days)</dt>
-            <dd className="tabular-nums text-gray-800">{row.views_30d}</dd>
-          </dl>
+            </Button>
+          </div>
         )}
       </CardBody>
 
@@ -124,6 +147,7 @@ export function MemberCardSummary({
         onClose={closeCreate}
       />
       <ReleaseHandleDialog target={releaseFor} onClose={closeRelease} />
+      <PublishCardsDialog request={publishRequest} onClose={closePublish} />
     </Card>
   );
 }

@@ -6,10 +6,11 @@ import { cn } from "@/lib/utils";
 import { CARD_SECTION_IDS, DEFAULT_CARD_SECTIONS, type CardSectionId } from "./model";
 import { resolveTheme, themeCssVars } from "./themes";
 import { themeShowsPhoto } from "./photoVisibility";
+import { CardLayoutContext, layoutSpec } from "./layouts";
 import { useCardFonts } from "./fonts";
 import { linkHref } from "./linkKinds";
 import { HeaderBlock } from "./blocks/HeaderBlock";
-import { BadgeBand, BannerCover } from "./blocks/Cover";
+import { AccentEdge, BadgeBand, BannerCover } from "./blocks/Cover";
 import { ActionsBlock } from "./blocks/ActionsBlock";
 import { FeaturedLinkBlock, LinksBlock } from "./blocks/LinksBlock";
 import { AboutBlock, EducationBlock, ShpeBlock, StatusBlock, TagsBlock } from "./blocks/ContentBlocks";
@@ -64,9 +65,12 @@ const FONT_SCOPE =
  * through CSS custom properties built from validated values.
  *
  * Layout: the root fills its container with the theme's background and
- * centres a card up to 28rem wide (the split layout grows to two columns once
- * its container is 48rem wide). Container queries rather than media queries,
- * so a narrow preview frame on a wide screen still gets the phone layout.
+ * centres a card up to 28rem wide (the split, editorial and studio layouts
+ * grow to two columns once their container is 48rem wide). Container queries
+ * rather than media queries, so a narrow preview frame on a wide screen still
+ * gets the phone layout. Everything a layout changes beyond its header lives
+ * in LAYOUT_SPECS (layouts.ts), which the blocks read through context, so
+ * there is one set of composition rules for the page and the preview alike.
  *
  * Always present, whatever the sections: the header, Add to Contacts, Share
  * and the "Member of WashU SHPE" footer. Starter cards (officer-made, not yet
@@ -88,7 +92,8 @@ export function BusinessCard({
 
   const starter = Boolean(card.is_starter);
   const layout = theme.layout;
-  const centered = layout === "classic" || layout === "banner" || layout === "badge";
+  const spec = layoutSpec(layout);
+  const centered = spec.centered;
 
   const backgroundUrl =
     !starter && theme.background.type === "image" ? resolveMedia(card.background_path) : null;
@@ -149,51 +154,55 @@ export function BusinessCard({
         className,
       )}
     >
-      <article
-        aria-labelledby={nameId}
-        className={cn(
-          "relative w-full max-w-[28rem] overflow-hidden rounded-(--card-radius) bg-(--card-surface-fill)",
-          "shadow-[0_24px_60px_-24px_rgba(0,0,0,0.55)]",
-          "[backdrop-filter:var(--card-backdrop)] [-webkit-backdrop-filter:var(--card-backdrop)]",
-          layout === "split" && "@3xl:max-w-[52rem]",
-        )}
-      >
-        {layout === "banner" && <BannerCover src={bannerUrl} />}
-        {layout === "badge" && <BadgeBand />}
-
-        <div
+      <CardLayoutContext value={spec}>
+        <article
+          aria-labelledby={nameId}
           className={cn(
-            "flex flex-col gap-(--card-gap) p-(--card-pad)",
-            centered ? "text-center" : "text-left",
-            layout === "split" &&
-              "@3xl:grid @3xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] @3xl:items-start @3xl:gap-x-10",
+            "relative w-full max-w-[28rem] overflow-hidden rounded-(--card-radius) bg-(--card-surface-fill)",
+            "[backdrop-filter:var(--card-backdrop)] [-webkit-backdrop-filter:var(--card-backdrop)]",
+            spec.card,
           )}
         >
-          <div className="flex min-w-0 flex-col gap-(--card-gap)">
-            <HeaderBlock
-              card={card}
-              theme={theme}
-              avatarUrl={avatarUrl}
-              nameId={nameId}
-              showAvatar={showAvatar}
-            />
-            <ActionsBlock
-              onAddToContacts={onAddToContacts}
-              onShare={onShare}
-              showShare={!starter}
-              icons={theme.buttons.icons}
-            />
-          </div>
+          {layout === "banner" && <BannerCover src={bannerUrl} />}
+          {layout === "badge" && <BadgeBand />}
+          {layout === "profile" && <AccentEdge />}
 
-          <div data-part="sections" className="flex min-w-0 flex-col gap-(--card-gap) empty:hidden">
-            {sections.map((id) => (
-              <Fragment key={id}>{renderSection(id)}</Fragment>
-            ))}
-          </div>
+          <div
+            className={cn(
+              "flex flex-col gap-(--card-gap) p-(--card-pad)",
+              centered ? "text-center" : "text-left",
+              spec.columns,
+            )}
+          >
+            <div className={cn("flex min-w-0 flex-col gap-(--card-gap)", spec.lead)}>
+              <HeaderBlock
+                card={card}
+                theme={theme}
+                avatarUrl={avatarUrl}
+                nameId={nameId}
+                showAvatar={showAvatar}
+              />
+              <ActionsBlock
+                onAddToContacts={onAddToContacts}
+                onShare={onShare}
+                showShare={!starter}
+                icons={theme.buttons.icons}
+              />
+            </div>
 
-          <FooterBlock mode={mode} />
-        </div>
-      </article>
+            <div
+              data-part="sections"
+              className={cn("flex min-w-0 flex-col gap-(--card-gap) empty:hidden", spec.sections)}
+            >
+              {sections.map((id) => (
+                <Fragment key={id}>{renderSection(id)}</Fragment>
+              ))}
+            </div>
+
+            <FooterBlock mode={mode} />
+          </div>
+        </article>
+      </CardLayoutContext>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   CARD_LAYOUTS,
   CARD_PATTERNS,
   CARD_PRESET_IDS,
+  CARD_PRIMARY_FILLS,
   GRADIENT_ANGLE_MAX,
   HEX_COLOR_PATTERN,
   type CardAvatarShape,
@@ -24,14 +25,15 @@ import {
   type CardLayout,
   type CardPattern,
   type CardPresetId,
+  type CardPrimaryFill,
   type CardTheme,
 } from "./model";
 import { CARD_FONTS, isCardFontId } from "./fonts";
 
 /**
- * Card themes: the seven presets, how a stored theme resolves against them,
- * how a resolved theme becomes CSS, and the contrast rules that keep every
- * card readable.
+ * Card themes: the thirteen presets in two collections, how a stored theme
+ * resolves against them, how a resolved theme becomes CSS, and the contrast
+ * rules that keep every card readable.
  *
  * A stored theme is `{ preset, ...overrides }` (see CardTheme in model.ts).
  * The renderer never trusts it: resolveTheme() takes each field from the
@@ -65,15 +67,19 @@ export interface ResolvedTheme {
     style: CardButtonStyle;
     arrangement: CardButtonArrangement;
     icons: boolean;
+    primary: CardPrimaryFill;
   };
   avatar: { shape: CardAvatarShape; ring: boolean };
   density: CardDensity;
 }
 
+export type CardPresetCollectionId = "professional" | "original";
+
 export interface CardPresetInfo {
   label: string;
   /** One line for the preset gallery. */
   description: string;
+  collection: CardPresetCollectionId;
   theme: ResolvedTheme;
 }
 
@@ -84,11 +90,27 @@ export interface CardPresetInfo {
  * buttons use the site's own AA orange (#c43e12, 5.2:1) and the bright orange
  * appears in the banner band and the Sunrise gradient, where nothing has to be
  * read against it.
+ *
+ * The professional collection gives each preset its own layout, type pairing,
+ * spacing and link treatment rather than a new palette on a shared layout:
+ *
+ *   Executive  profile layout, Source Serif 4 / Source Sans 3, contact rows,
+ *              a navy (text-colour) main button with bronze kept for details
+ *   Editorial  editorial layout, Instrument Serif / Instrument Sans, spacious,
+ *              an indexed list of links between fine rules
+ *   Studio     studio layout, Plus Jakarta Sans / Inter, compact, link cards
+ *              grouped into work, professional and social
+ *   Slate      layered layout, Manrope / Inter, raised panels on charcoal
+ *   Heritage   letterhead layout, EB Garamond / Libre Franklin, the
+ *              affiliation above the name, two columns of hairline buttons
+ *   Signature  monogram layout, Cormorant Garamond / Inter, spacious, the
+ *              name or initials as the centrepiece over plain rows
  */
 export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
   "shpe-classic": {
     label: "SHPE Classic",
     description: "Navy and orange on white, in the chapter's own colors.",
+    collection: "original",
     theme: {
       preset: "shpe-classic",
       layout: "classic",
@@ -102,7 +124,7 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
       },
       background: { type: "solid", from: "#1b365d", to: "#e84e1b", angle: 135, dim: 40, pattern: "dots" },
       font: { heading: "libre-franklin", body: "libre-franklin" },
-      buttons: { shape: "rounded", style: "filled", arrangement: "list", icons: true },
+      buttons: { shape: "rounded", style: "filled", arrangement: "list", icons: true, primary: "accent" },
       avatar: { shape: "circle", ring: true },
       density: "comfortable",
     },
@@ -110,6 +132,7 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
   sunrise: {
     label: "Sunrise",
     description: "A warm orange-to-gold gradient behind a bright card.",
+    collection: "original",
     theme: {
       preset: "sunrise",
       layout: "banner",
@@ -123,7 +146,7 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
       },
       background: { type: "gradient", from: "#e84e1b", to: "#f5a623", angle: 160, dim: 40, pattern: "dots" },
       font: { heading: "dm-sans", body: "dm-sans" },
-      buttons: { shape: "pill", style: "filled", arrangement: "list", icons: true },
+      buttons: { shape: "pill", style: "filled", arrangement: "list", icons: true, primary: "accent" },
       avatar: { shape: "circle", ring: true },
       density: "comfortable",
     },
@@ -131,6 +154,7 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
   midnight: {
     label: "Midnight",
     description: "Dark and quiet, with an accent that glows.",
+    collection: "original",
     theme: {
       preset: "midnight",
       layout: "classic",
@@ -144,7 +168,7 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
       },
       background: { type: "solid", from: "#0f172a", to: "#1e293b", angle: 180, dim: 40, pattern: "dots" },
       font: { heading: "space-grotesk", body: "inter" },
-      buttons: { shape: "rounded", style: "outline", arrangement: "list", icons: true },
+      buttons: { shape: "rounded", style: "outline", arrangement: "list", icons: true, primary: "accent" },
       avatar: { shape: "circle", ring: true },
       density: "comfortable",
     },
@@ -152,6 +176,7 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
   paper: {
     label: "Paper",
     description: "Off-white and typographic. Lets your words do the work.",
+    collection: "original",
     theme: {
       preset: "paper",
       layout: "minimal",
@@ -165,7 +190,7 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
       },
       background: { type: "solid", from: "#f4f1ea", to: "#e7e1d4", angle: 180, dim: 40, pattern: "dots" },
       font: { heading: "playfair-display", body: "inter" },
-      buttons: { shape: "square", style: "outline", arrangement: "list", icons: false },
+      buttons: { shape: "square", style: "outline", arrangement: "list", icons: false, primary: "accent" },
       avatar: { shape: "square", ring: false },
       density: "comfortable",
     },
@@ -173,6 +198,7 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
   washu: {
     label: "WashU",
     description: "University crimson and green, with a conference-badge look.",
+    collection: "original",
     theme: {
       preset: "washu",
       layout: "badge",
@@ -186,7 +212,7 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
       },
       background: { type: "solid", from: "#a51417", to: "#007360", angle: 135, dim: 40, pattern: "diagonal" },
       font: { heading: "libre-franklin", body: "libre-franklin" },
-      buttons: { shape: "rounded", style: "filled", arrangement: "list", icons: true },
+      buttons: { shape: "rounded", style: "filled", arrangement: "list", icons: true, primary: "accent" },
       avatar: { shape: "circle", ring: false },
       density: "comfortable",
     },
@@ -194,6 +220,7 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
   engineer: {
     label: "Engineer",
     description: "Monospace type on a blueprint grid.",
+    collection: "original",
     theme: {
       preset: "engineer",
       layout: "split",
@@ -207,7 +234,7 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
       },
       background: { type: "pattern", from: "#0b3a6e", to: "#0b2545", angle: 180, dim: 40, pattern: "grid" },
       font: { heading: "jetbrains-mono", body: "jetbrains-mono" },
-      buttons: { shape: "square", style: "outline", arrangement: "list", icons: true },
+      buttons: { shape: "square", style: "outline", arrangement: "list", icons: true, primary: "accent" },
       avatar: { shape: "square", ring: false },
       density: "compact",
     },
@@ -215,6 +242,7 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
   glass: {
     label: "Glass",
     description: "A frosted card over your photo or a bold gradient.",
+    collection: "original",
     theme: {
       preset: "glass",
       layout: "classic",
@@ -228,12 +256,170 @@ export const CARD_PRESETS: Record<CardPresetId, CardPresetInfo> = {
       },
       background: { type: "gradient", from: "#4338ca", to: "#e84e1b", angle: 135, dim: 35, pattern: "topo" },
       font: { heading: "dm-sans", body: "dm-sans" },
-      buttons: { shape: "pill", style: "glass", arrangement: "list", icons: true },
+      buttons: { shape: "pill", style: "glass", arrangement: "list", icons: true, primary: "accent" },
       avatar: { shape: "circle", ring: true },
       density: "comfortable",
     },
   },
+
+  /* ── The professional collection ── */
+
+  executive: {
+    label: "Executive",
+    description: "Navy and ivory with a touch of bronze. Your portrait beside your name, and quiet contact rows.",
+    collection: "professional",
+    theme: {
+      preset: "executive",
+      layout: "profile",
+      colors: {
+        background: "#13213a",
+        surface: "#fbf8f1",
+        text: "#15223b",
+        muted: "#545e6f",
+        accent: "#7a5c33",
+        accentText: "#fffcf5",
+      },
+      background: { type: "solid", from: "#13213a", to: "#7a5c33", angle: 160, dim: 45, pattern: "diagonal" },
+      font: { heading: "source-serif-4", body: "source-sans-3" },
+      buttons: { shape: "rounded", style: "hairline", arrangement: "rows", icons: true, primary: "ink" },
+      avatar: { shape: "rounded", ring: false },
+      density: "comfortable",
+    },
+  },
+  editorial: {
+    label: "Editorial",
+    description: "A serif name, generous margins and fine rules, set like a magazine profile.",
+    collection: "professional",
+    theme: {
+      preset: "editorial",
+      layout: "editorial",
+      colors: {
+        background: "#efece6",
+        surface: "#fdfcf9",
+        text: "#1f1e1c",
+        muted: "#66625c",
+        accent: "#3a3734",
+        accentText: "#fdfcf9",
+      },
+      background: { type: "solid", from: "#efece6", to: "#d9d3c7", angle: 180, dim: 40, pattern: "grid" },
+      font: { heading: "instrument-serif", body: "instrument-sans" },
+      buttons: { shape: "square", style: "hairline", arrangement: "rows", icons: false, primary: "ink" },
+      avatar: { shape: "square", ring: false },
+      density: "spacious",
+    },
+  },
+  studio: {
+    label: "Studio",
+    description: "Crisp white and graphite with one accent. Links sorted into work, professional and social.",
+    collection: "professional",
+    theme: {
+      preset: "studio",
+      layout: "studio",
+      colors: {
+        background: "#f3f4f6",
+        surface: "#ffffff",
+        text: "#16181d",
+        muted: "#5b616b",
+        accent: "#2949d6",
+        accentText: "#ffffff",
+      },
+      background: { type: "solid", from: "#f3f4f6", to: "#dde3fb", angle: 180, dim: 40, pattern: "dots" },
+      font: { heading: "plus-jakarta-sans", body: "inter" },
+      buttons: { shape: "rounded", style: "soft", arrangement: "grouped", icons: true, primary: "accent" },
+      avatar: { shape: "rounded", ring: false },
+      density: "compact",
+    },
+  },
+  slate: {
+    label: "Slate",
+    description: "Layered charcoal with soft blue accents. Depth from surfaces, not color.",
+    collection: "professional",
+    theme: {
+      preset: "slate",
+      layout: "layered",
+      colors: {
+        background: "#0f1114",
+        surface: "#1a1d22",
+        text: "#eceef1",
+        muted: "#a7aeb8",
+        accent: "#8fb1e6",
+        accentText: "#0d1420",
+      },
+      background: { type: "gradient", from: "#1c2129", to: "#0b0c0f", angle: 180, dim: 40, pattern: "grid" },
+      font: { heading: "manrope", body: "inter" },
+      buttons: { shape: "rounded", style: "soft", arrangement: "rows", icons: true, primary: "accent" },
+      avatar: { shape: "circle", ring: false },
+      density: "comfortable",
+    },
+  },
+  heritage: {
+    label: "Heritage",
+    description: "Ivory with crimson and navy. Your university or employer leads, like a letterhead.",
+    collection: "professional",
+    theme: {
+      preset: "heritage",
+      layout: "letterhead",
+      colors: {
+        background: "#ece5d6",
+        surface: "#fdfaf2",
+        text: "#1c2a48",
+        muted: "#5a5e68",
+        accent: "#9b1c31",
+        accentText: "#fdfaf2",
+      },
+      background: { type: "solid", from: "#ece5d6", to: "#d6cbb3", angle: 180, dim: 40, pattern: "diagonal" },
+      font: { heading: "eb-garamond", body: "libre-franklin" },
+      buttons: { shape: "square", style: "hairline", arrangement: "compact", icons: true, primary: "ink" },
+      avatar: { shape: "circle", ring: true },
+      density: "comfortable",
+    },
+  },
+  signature: {
+    label: "Signature",
+    description: "Your name or initials, set large. Fine rules, a single accent, and a photo only if you want one.",
+    collection: "professional",
+    theme: {
+      preset: "signature",
+      layout: "monogram",
+      colors: {
+        background: "#f4f2ee",
+        surface: "#ffffff",
+        text: "#141414",
+        muted: "#5d5d5d",
+        accent: "#23408e",
+        accentText: "#ffffff",
+      },
+      background: { type: "solid", from: "#f4f2ee", to: "#dcd7cd", angle: 180, dim: 40, pattern: "dots" },
+      font: { heading: "cormorant-garamond", body: "inter" },
+      buttons: { shape: "pill", style: "hairline", arrangement: "rows", icons: false, primary: "accent" },
+      avatar: { shape: "circle", ring: true },
+      density: "spacious",
+    },
+  },
 };
+
+export interface CardPresetCollection {
+  id: CardPresetCollectionId;
+  label: string;
+  description: string;
+  presets: readonly CardPresetId[];
+}
+
+/** How the Design tab groups the gallery, in display order. */
+export const CARD_PRESET_COLLECTIONS: readonly CardPresetCollection[] = [
+  {
+    id: "professional",
+    label: "Professional",
+    description: "Refined, quieter profiles to share with recruiters at a career fair or conference.",
+    presets: CARD_PRESET_IDS.filter((id) => CARD_PRESETS[id].collection === "professional"),
+  },
+  {
+    id: "original",
+    label: "Originals",
+    description: "The first seven designs: bolder color, patterns and the chapter's own look.",
+    presets: CARD_PRESET_IDS.filter((id) => CARD_PRESETS[id].collection === "original"),
+  },
+];
 
 /* ── Resolving a stored theme ────────────────────────────────────────────── */
 
@@ -301,6 +487,7 @@ export function resolveTheme(theme: CardTheme | null | undefined): ResolvedTheme
       style: oneOf(CARD_BUTTON_STYLES, buttons.style, base.buttons.style),
       arrangement: oneOf(CARD_BUTTON_ARRANGEMENTS, buttons.arrangement, base.buttons.arrangement),
       icons: boolOr(buttons.icons, base.buttons.icons),
+      primary: oneOf(CARD_PRIMARY_FILLS, buttons.primary, base.buttons.primary),
     },
     avatar: {
       shape: oneOf(CARD_AVATAR_SHAPES, avatar.shape, base.avatar.shape),
@@ -468,8 +655,37 @@ const FROSTED_SURFACE_ALPHA = 0.8;
 const SOFT_FILL_ALPHA = 0.14;
 const GLASS_FILL_ALPHA = 0.12;
 
+/*
+ * Raised panels (the Layered layout's blocks) are the card colour moved 6% of
+ * the way to the text colour: a shade lighter on a dark card, a shade darker on
+ * a light one. Opaque, even on a frosted card, so the checks know exactly what
+ * sits behind panel text.
+ */
+const RAISED_MIX = 0.06;
+
+/** Layouts that put their blocks on raised panels. */
+const PANEL_LAYOUTS: ReadonlySet<CardLayout> = new Set<CardLayout>(["layered"]);
+
 export function isFrostedTheme(theme: Pick<ResolvedTheme, "preset">): boolean {
   return theme.preset === "glass";
+}
+
+/** True when the theme's layout draws text on raised panels as well as the card. */
+export function themeUsesPanels(theme: Pick<ResolvedTheme, "layout">): boolean {
+  return PANEL_LAYOUTS.has(theme.layout);
+}
+
+function raisedColor(surface: Rgb, text: Rgb): Rgb {
+  return mix(surface, text, RAISED_MIX);
+}
+
+/**
+ * Button styles whose label is drawn in the accent colour. Filled buttons put
+ * the button-text colour on the accent, and hairline buttons use the text
+ * colour, so neither needs the accent to pass as text.
+ */
+function accentLabels(style: CardButtonStyle): boolean {
+  return style === "outline" || style === "soft" || style === "glass";
 }
 
 /** What a button's fill composites to over a given (opaque) surface colour. */
@@ -481,37 +697,37 @@ function buttonFill(style: CardButtonStyle, accent: Rgb, surface: Rgb): Rgb {
 }
 
 /**
- * The darkest and lightest the card surface can look. For an opaque surface
- * both ends are the surface itself; for a frosted one they are the surface over
- * a black and over a white backdrop. `over` lets a check put a button fill on
- * top first.
+ * Every colour text can sit on: the card surface (for a frosted card, the
+ * surface over a black and over a white backdrop, its two extremes) and, in a
+ * panel layout, the raised panel too. `over` lets a check put a button fill on
+ * top of each first.
  */
-function surfaceRange(
-  frosted: boolean,
-  surface: Rgb,
+function backdrops(
+  { frosted, panels }: { frosted: boolean; panels: boolean },
+  colors: { surface: Rgb; text: Rgb },
   over: (s: Rgb) => Rgb = (s) => s,
-): [Rgb, Rgb] {
-  if (!frosted) {
-    const solid = over(surface);
-    return [solid, solid];
-  }
-  return [
-    over(mix(surface, BLACK, 1 - FROSTED_SURFACE_ALPHA)),
-    over(mix(surface, WHITE, 1 - FROSTED_SURFACE_ALPHA)),
-  ];
+): Rgb[] {
+  const { surface, text } = colors;
+  const list = frosted
+    ? [mix(surface, BLACK, 1 - FROSTED_SURFACE_ALPHA), mix(surface, WHITE, 1 - FROSTED_SURFACE_ALPHA)]
+    : [surface];
+  if (panels) list.push(raisedColor(surface, text));
+  return list.map(over);
 }
 
 /**
- * The worst contrast `fg` can have against any colour between the two ends.
- * Luminance moves continuously between them, so if `fg`'s own luminance falls
- * inside that span some backdrop makes it vanish entirely (ratio 1).
+ * The worst contrast `fg` can have against any colour in the span the
+ * backdrops cover. Luminance moves continuously across a frosted card, so if
+ * `fg`'s own luminance falls inside that span some backdrop makes it vanish
+ * entirely (ratio 1).
  */
-function worstContrast(fg: Rgb, [a, b]: [Rgb, Rgb]): number {
+function worstContrast(fg: Rgb, colors: Rgb[]): number {
   const lf = luminance(fg);
-  const la = luminance(a);
-  const lb = luminance(b);
-  if (lf > Math.min(la, lb) && lf < Math.max(la, lb)) return 1;
-  return Math.min(ratioOfLuminances(lf, la), ratioOfLuminances(lf, lb));
+  const ls = colors.map(luminance);
+  const low = Math.min(...ls);
+  const high = Math.max(...ls);
+  if (lf > low && lf < high) return 1;
+  return Math.min(ratioOfLuminances(lf, low), ratioOfLuminances(lf, high));
 }
 
 /* ── Theme → CSS ─────────────────────────────────────────────────────────── */
@@ -539,10 +755,16 @@ const AVATAR_RADII: Record<CardAvatarShape, string> = {
 /*
  * Button height never drops below 44px, the touch-target minimum: these are
  * pressed one-handed by someone standing at a career fair.
+ *
+ * Spacious grows the gaps between blocks everywhere, but its side padding
+ * follows the screen (cqi is the card root's width, as BusinessCard's root is
+ * the query container): about the same as Comfortable on a phone, where width
+ * is scarce, and wider margins on a desktop.
  */
 const DENSITY: Record<CardDensity, { pad: string; gap: string; buttonH: string; avatar: string }> = {
   compact: { pad: "1.25rem", gap: "1rem", buttonH: "2.75rem", avatar: "5.5rem" },
   comfortable: { pad: "1.75rem", gap: "1.5rem", buttonH: "3.25rem", avatar: "7rem" },
+  spacious: { pad: "clamp(1.5rem, 8cqi, 2.5rem)", gap: "2.25rem", buttonH: "3.25rem", avatar: "7.5rem" },
 };
 
 /**
@@ -632,10 +854,15 @@ function backgroundStyle(theme: ResolvedTheme, imageUrl: string | null): CSSProp
  *
  *   --card-bg, --card-surface, --card-text, --card-muted, --card-accent,
  *   --card-accent-text    the six theme colours
+ *   --card-primary, --card-primary-text   Add to Contacts and the featured link:
+ *                         accent and button text, or text and card ("ink")
  *   --card-surface-fill   the card's fill (translucent for Glass)
+ *   --card-raised         a raised panel: the card a shade toward the text
  *   --card-backdrop       backdrop-filter for the card ("none" unless frosted)
  *   --card-soft, --card-glass, --card-glass-border   button fills
  *   --card-rule           hairlines and chip borders
+ *   --card-rule-strong    hairline button edges and emphasised rules
+ *   --card-border         panel and card edges
  *   --card-band           banner fallback / badge band
  *   --card-focus          focus outline colour
  *   --card-font-heading, --card-font-body, --card-heading-weight
@@ -648,6 +875,7 @@ export function themeCssVars(theme: ResolvedTheme, backgroundImageUrl?: string |
   const accent = parseHex(c.accent) ?? BLACK;
   const text = parseHex(c.text) ?? BLACK;
   const frosted = isFrostedTheme(theme);
+  const ink = theme.buttons.primary === "ink";
   const density = DENSITY[theme.density] ?? DENSITY.comfortable;
   const band =
     theme.background.type === "gradient"
@@ -661,12 +889,18 @@ export function themeCssVars(theme: ResolvedTheme, backgroundImageUrl?: string |
     "--card-muted": c.muted,
     "--card-accent": c.accent,
     "--card-accent-text": c.accentText,
+    // Ink reverses the text pairing, which the text check already covers.
+    "--card-primary": ink ? c.text : c.accent,
+    "--card-primary-text": ink ? c.surface : c.accentText,
     "--card-surface-fill": frosted ? rgba(surface, FROSTED_SURFACE_ALPHA) : c.surface,
+    "--card-raised": toHex(raisedColor(surface, text)),
     "--card-backdrop": frosted ? "blur(18px) saturate(140%)" : "none",
     "--card-soft": rgba(accent, SOFT_FILL_ALPHA),
     "--card-glass": rgba(accent, GLASS_FILL_ALPHA),
     "--card-glass-border": rgba(accent, 0.4),
     "--card-rule": rgba(text, 0.16),
+    "--card-rule-strong": rgba(text, 0.32),
+    "--card-border": rgba(text, 0.12),
     "--card-band": band,
     "--card-focus": c.text,
     "--card-font-heading": CARD_FONTS[theme.font.heading]?.stack ?? CARD_FONTS["libre-franklin"].stack,
@@ -723,16 +957,26 @@ interface Check {
  * The rules, matching what BusinessCard actually draws:
  *
  *   text and muted text sit on the card surface                    4.5:1
- *   Add to Contacts and the featured link are always filled, so
- *     button text on the accent fill must always pass             4.5:1
+ *   button text on the accent fill must always pass: it labels
+ *     Add to Contacts under an accent main button, filled links,
+ *     and the initials when there's no photo                      4.5:1
  *   with outline / soft / glass buttons, the label is the accent
  *     colour on (a tint of) the surface                           4.5:1
  *   the accent as icons, the verified check, and filled button
  *     edges against the surface                                   3:1
+ *
+ * "The surface" means every colour text sits on: the card (both extremes of
+ * a frosted one) and, in a panel layout, the raised panels too, which are
+ * mixed from the card and text colours. An ink main button puts the card
+ * colour on the text colour, the same pair as the first rule, so it needs no
+ * rule of its own. Hairline buttons label in the text colour, likewise.
  */
 function buildChecks(theme: ResolvedTheme): Check[] {
-  const frosted = isFrostedTheme(theme);
+  const on = { frosted: isFrostedTheme(theme), panels: themeUsesPanels(theme) };
   const style = theme.buttons.style;
+  // Panels are mixed from the card and the text, so with panels every check
+  // against "the surface" also depends on the text colour.
+  const surfaceKeys: CardColorKey[] = on.panels ? ["surface", "text"] : ["surface"];
   const checks: Check[] = [
     {
       id: "text-on-surface",
@@ -741,7 +985,7 @@ function buildChecks(theme: ResolvedTheme): Check[] {
       required: 4.5,
       message: "Your main text color is too close to the card color to read easily.",
       reads: ["text", "surface"],
-      measure: (c) => worstContrast(c.text, surfaceRange(frosted, c.surface)),
+      measure: (c) => worstContrast(c.text, backdrops(on, c)),
     },
     {
       id: "muted-on-surface",
@@ -750,8 +994,8 @@ function buildChecks(theme: ResolvedTheme): Check[] {
       required: 4.5,
       message:
         "Your secondary text color (school, pronouns and section titles) is too close to the card color to read easily.",
-      reads: ["muted", "surface"],
-      measure: (c) => worstContrast(c.muted, surfaceRange(frosted, c.surface)),
+      reads: ["muted", ...surfaceKeys],
+      measure: (c) => worstContrast(c.muted, backdrops(on, c)),
     },
     {
       id: "button-text-on-accent",
@@ -759,12 +1003,12 @@ function buildChecks(theme: ResolvedTheme): Check[] {
       bg: "accent",
       alsoFixableBy: ["accent"],
       required: 4.5,
-      message: "The text on your main buttons is too close to the button color to read easily.",
+      message: "The text on your accent-colored buttons is too close to the button color to read easily.",
       reads: ["accentText", "accent"],
       measure: (c) => rgbContrast(c.accentText, c.accent),
     },
   ];
-  if (style !== "filled") {
+  if (accentLabels(style)) {
     checks.push({
       id: "button-text-on-surface",
       fg: "accent",
@@ -772,9 +1016,8 @@ function buildChecks(theme: ResolvedTheme): Check[] {
       required: 4.5,
       message:
         "Your link buttons use the accent color for their text, and it's too close to the card color to read easily.",
-      reads: ["accent", "surface"],
-      measure: (c) =>
-        worstContrast(c.accent, surfaceRange(frosted, c.surface, (s) => buttonFill(style, c.accent, s))),
+      reads: ["accent", ...surfaceKeys],
+      measure: (c) => worstContrast(c.accent, backdrops(on, c, (s) => buttonFill(style, c.accent, s))),
     });
   }
   checks.push({
@@ -783,8 +1026,8 @@ function buildChecks(theme: ResolvedTheme): Check[] {
     bg: "surface",
     required: 3,
     message: "Your accent color is too close to the card color for icons and button edges to stand out.",
-    reads: ["accent", "surface"],
-    measure: (c) => worstContrast(c.accent, surfaceRange(frosted, c.surface)),
+    reads: ["accent", ...surfaceKeys],
+    measure: (c) => worstContrast(c.accent, backdrops(on, c)),
   });
   return checks;
 }

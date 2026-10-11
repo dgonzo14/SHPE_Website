@@ -4,60 +4,18 @@ import { Check, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { CARD_PRESET_IDS, type CardPresetId } from "../../model";
-import { CARD_PRESETS, themeCssVars, type CardPresetInfo } from "../../themes";
-import { CARD_FONTS } from "../../fonts";
-
-/** A thumbnail of the preset: its real page background, card colour and buttons. */
-function PresetThumbnail({ preset }: { preset: CardPresetInfo }) {
-  const { theme } = preset;
-  const centered = theme.layout !== "split" && theme.layout !== "minimal";
-  return (
-    <span
-      aria-hidden="true"
-      style={themeCssVars(theme)}
-      className="flex h-28 w-full items-center justify-center px-4"
-    >
-      <span
-        className={cn(
-          "flex w-full max-w-28 flex-col gap-1.5 bg-(--card-surface-fill) p-2.5",
-          centered ? "items-center" : "items-start",
-          theme.buttons.shape === "square" ? "rounded-none" : "rounded-lg",
-        )}
-      >
-        {theme.layout !== "minimal" && (
-          <span
-            className={cn(
-              "block size-5 bg-(--card-muted)",
-              theme.avatar.shape === "circle" ? "rounded-full" : theme.avatar.shape === "rounded" ? "rounded-md" : "",
-            )}
-          />
-        )}
-        <span
-          className="text-[0.7rem] leading-none text-(--card-text)"
-          style={{ fontFamily: CARD_FONTS[theme.font.heading].stack, fontWeight: CARD_FONTS[theme.font.heading].headingWeight }}
-        >
-          Aa
-        </span>
-        <span className="block h-1 w-10 bg-(--card-muted) opacity-70" />
-        <span
-          className={cn(
-            "mt-0.5 block h-2.5 w-full",
-            theme.buttons.style === "filled"
-              ? "bg-(--card-accent)"
-              : "border border-(--card-accent) bg-(--card-soft)",
-            theme.buttons.shape === "pill" ? "rounded-full" : theme.buttons.shape === "rounded" ? "rounded-sm" : "",
-          )}
-        />
-      </span>
-    </span>
-  );
-}
+import type { CardPresetId } from "../../model";
+import { CARD_PRESETS, CARD_PRESET_COLLECTIONS } from "../../themes";
+import { CardMiniature } from "./CardMiniature";
 
 /**
- * The seven presets. Choosing one replaces the whole theme with `{ preset }`,
- * which drops every override; when the member has customised anything, that
- * is confirmed first, since there is no undo.
+ * The presets, in two collections: the professional set first, then the
+ * seven originals. Each is a miniature of the card it draws (its own layout,
+ * colours, name font and link treatment, with the member's name in it), a
+ * name and a line on what it's for. Choosing one replaces the whole theme
+ * with `{ preset }`, which drops every override; when the member has
+ * customised anything, that is confirmed first, since there is no undo. The
+ * live preview beside the form shows the result at once.
  *
  * Buttons with aria-pressed rather than a radio group: with radios, arrowing
  * through the list would apply each preset in turn, and with overrides each
@@ -67,10 +25,13 @@ export function PresetGallery({
   current,
   hasOverrides,
   onChoose,
+  sampleName,
 }: {
   current: CardPresetId;
   hasOverrides: boolean;
   onChoose: (preset: CardPresetId) => void;
+  /** The member's name, drawn into each miniature. */
+  sampleName?: string;
 }) {
   const idPrefix = useId();
   const [pending, setPending] = useState<CardPresetId | null>(null);
@@ -79,7 +40,7 @@ export function PresetGallery({
   // identity, which would pull focus back to its first button each time the
   // Design tab re-renders while it is open.
   const closeDialog = useCallback(() => setPending(null), []);
-  const listRef = useRef<HTMLUListElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const confirmDialog = () => {
     if (pending) onChoose(pending);
     setPending(null);
@@ -103,40 +64,67 @@ export function PresetGallery({
   const resetting = pending === current;
 
   return (
-    <div className="space-y-4">
-      <ul ref={listRef} role="list" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-        {CARD_PRESET_IDS.map((id) => {
-          const preset = CARD_PRESETS[id];
-          const selected = id === current;
+    <div className="space-y-6">
+      <div ref={listRef} className="space-y-6">
+        {CARD_PRESET_COLLECTIONS.map((collection) => {
+          const headingId = `${idPrefix}-${collection.id}`;
           return (
-            <li key={id} className="min-w-0">
-              <button
-                type="button"
-                data-preset={id}
-                aria-pressed={selected}
-                aria-labelledby={`${idPrefix}-${id}-label`}
-                aria-describedby={`${idPrefix}-${id}`}
-                onClick={() => choose(id)}
-                className={cn(
-                  "flex h-full w-full flex-col border-2 bg-white text-left transition-colors",
-                  selected ? "border-shpe-navy" : "border-shpe-rule hover:border-shpe-rule-strong",
-                )}
-              >
-                <PresetThumbnail preset={preset} />
-                <span className="flex flex-1 flex-col gap-0.5 border-t border-shpe-rule p-2.5">
-                  <span className="flex items-start justify-between gap-1 text-sm font-semibold text-shpe-navy">
-                    <span id={`${idPrefix}-${id}-label`}>{preset.label}</span>
-                    {selected && <Check className="mt-0.5 size-4 shrink-0" aria-hidden="true" />}
-                  </span>
-                  <span id={`${idPrefix}-${id}`} className="text-xs leading-snug text-gray-600">
-                    {preset.description}
-                  </span>
-                </span>
-              </button>
-            </li>
+            <div key={collection.id} role="group" aria-labelledby={headingId} className="space-y-3">
+              <div>
+                <h4 id={headingId} className="text-sm font-semibold text-shpe-navy">
+                  {collection.label}
+                </h4>
+                <p className="mt-0.5 text-xs text-gray-600">{collection.description}</p>
+              </div>
+              <ul role="list" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {collection.presets.map((id) => {
+                  const preset = CARD_PRESETS[id];
+                  const selected = id === current;
+                  return (
+                    <li key={id} className="min-w-0">
+                      <button
+                        type="button"
+                        data-preset={id}
+                        aria-pressed={selected}
+                        aria-labelledby={`${idPrefix}-${id}-label`}
+                        aria-describedby={`${idPrefix}-${id}`}
+                        onClick={() => choose(id)}
+                        className={cn(
+                          "relative flex h-full w-full flex-col border-2 bg-white text-left transition-colors",
+                          selected
+                            ? "border-shpe-navy shadow-[0_0_0_2px_var(--color-shpe-navy-soft)]"
+                            : "border-shpe-rule hover:border-shpe-rule-strong",
+                        )}
+                      >
+                        <CardMiniature theme={preset.theme} name={sampleName} />
+                        {selected && (
+                          <span className="absolute top-2 right-2 inline-flex items-center gap-1 bg-shpe-navy px-1.5 py-0.5 text-[0.6875rem] font-semibold text-white">
+                            <Check className="size-3 shrink-0" aria-hidden="true" />
+                            {hasOverrides ? "Customized" : "Selected"}
+                          </span>
+                        )}
+                        <span
+                          className={cn(
+                            "flex flex-1 flex-col gap-0.5 border-t p-2.5",
+                            selected ? "border-shpe-navy bg-shpe-navy-soft" : "border-shpe-rule",
+                          )}
+                        >
+                          <span id={`${idPrefix}-${id}-label`} className="text-sm font-semibold text-shpe-navy">
+                            {preset.label}
+                          </span>
+                          <span id={`${idPrefix}-${id}`} className="text-xs leading-snug text-gray-600">
+                            {preset.description}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           );
         })}
-      </ul>
+      </div>
 
       {hasOverrides && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

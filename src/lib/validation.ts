@@ -24,6 +24,7 @@ import {
   CARD_MEDIA_PATH_PATTERN,
   CARD_PATTERNS,
   CARD_PRESET_IDS,
+  CARD_PRIMARY_FILLS,
   CARD_SECTION_IDS,
   GRADIENT_ANGLE_MAX,
   HANDLE_PATTERN,
@@ -467,6 +468,7 @@ export const cardThemeSchema = z.strictObject({
       style: z.enum(CARD_BUTTON_STYLES).optional(),
       arrangement: z.enum(CARD_BUTTON_ARRANGEMENTS).optional(),
       icons: z.boolean().optional(),
+      primary: z.enum(CARD_PRIMARY_FILLS).optional(),
     })
     .optional(),
   avatar: z

@@ -9,6 +9,7 @@ import type {
   CardDensity,
   CardLayout,
   CardPattern,
+  CardPrimaryFill,
 } from "../../model";
 import { themeCssVars, type ResolvedTheme } from "../../themes";
 import { cardColorVars } from "./themeEdit";
@@ -90,6 +91,98 @@ export function LayoutPicture({ layout }: { layout: CardLayout }) {
           <rect x="19" y="40.5" width="26" height="4" className={faint} />
         </svg>
       );
+    case "profile":
+      return (
+        <svg viewBox="0 0 64 48" className={SVG_CLASS}>
+          <rect x="14.5" y="1.5" width="35" height="45" className={card} />
+          <rect x="15" y="2" width="34" height="1.5" className={button} />
+          <rect x="18" y="6.5" width="9" height="9" rx="2" className={photo} />
+          <rect x="29" y="7.5" width="16" height="3" className={ink} />
+          <rect x="29" y="12" width="11" height="2" className={faint} />
+          <rect x="18" y="18.5" width="28" height="0.75" className={faint} />
+          <rect x="18" y="22" width="28" height="4.5" className={ink} />
+          <rect x="18" y="30" width="28" height="0.75" className={faint} />
+          <rect x="18" y="33" width="20" height="2" className={faint} />
+          <rect x="18" y="38" width="28" height="0.75" className={faint} />
+          <rect x="18" y="41" width="17" height="2" className={faint} />
+        </svg>
+      );
+    case "editorial":
+      return (
+        <svg viewBox="0 0 64 48" className={SVG_CLASS}>
+          <rect x="14.5" y="1.5" width="35" height="45" className={card} />
+          <rect x="18" y="5" width="28" height="0.75" className={ink} />
+          <rect x="18" y="8.5" width="17" height="4" className={ink} />
+          <rect x="18" y="14" width="13" height="4" className={ink} />
+          <rect x="38" y="8.5" width="8" height="8" className={photo} />
+          <rect x="18" y="21" width="22" height="2" className={faint} />
+          <rect x="18" y="26.5" width="28" height="4.5" className={ink} />
+          <rect x="18" y="35" width="28" height="0.75" className={faint} />
+          <rect x="18" y="38" width="3" height="2" className={faint} />
+          <rect x="23" y="38" width="15" height="2" className={ink} />
+          <rect x="18" y="42.5" width="3" height="2" className={faint} />
+          <rect x="23" y="42.5" width="12" height="2" className={ink} />
+        </svg>
+      );
+    case "studio":
+      return (
+        <svg viewBox="0 0 64 48" className={SVG_CLASS}>
+          <rect x="14.5" y="1.5" width="35" height="45" rx="2" className={card} />
+          <rect x="18" y="5" width="6" height="6" rx="1.5" className={photo} />
+          <rect x="26" y="5.5" width="14" height="2.5" className={ink} />
+          <rect x="26" y="9.5" width="10" height="1.5" className={faint} />
+          <rect x="18" y="14" width="9" height="3" rx="1.5" className="fill-none stroke-shpe-navy/40" strokeWidth="0.75" />
+          <rect x="29" y="14" width="7" height="3" rx="1.5" className="fill-none stroke-shpe-navy/40" strokeWidth="0.75" />
+          <rect x="18" y="20" width="28" height="4.5" rx="1" className={button} />
+          <rect x="18" y="28" width="8" height="1.5" className={faint} />
+          <rect x="18.25" y="31.25" width="13.5" height="6.5" rx="1" className="fill-none stroke-shpe-navy/40" strokeWidth="0.75" />
+          <rect x="33.25" y="31.25" width="13.5" height="6.5" rx="1" className="fill-none stroke-shpe-navy/40" strokeWidth="0.75" />
+          <rect x="18.25" y="39.25" width="13.5" height="5.5" rx="1" className="fill-none stroke-shpe-navy/40" strokeWidth="0.75" />
+        </svg>
+      );
+    case "layered":
+      return (
+        <svg viewBox="0 0 64 48" className={SVG_CLASS}>
+          <rect x="14.5" y="1.5" width="35" height="45" rx="2" className="fill-shpe-navy stroke-shpe-navy" />
+          <circle cx="32" cy="9" r="4.5" className="fill-white/50" />
+          <rect x="23" y="15.5" width="18" height="3" className="fill-white" />
+          <rect x="26" y="20.5" width="12" height="2" className="fill-white/50" />
+          <rect x="18" y="25" width="28" height="4.5" rx="1" className="fill-shpe-blue" />
+          <rect x="18" y="32" width="28" height="12" rx="1.5" className="fill-white/15 stroke-white/30" strokeWidth="0.75" />
+          <rect x="21" y="35" width="15" height="2" className="fill-white/70" />
+          <rect x="21" y="39.5" width="12" height="2" className="fill-white/70" />
+        </svg>
+      );
+    case "letterhead":
+      return (
+        <svg viewBox="0 0 64 48" className={SVG_CLASS}>
+          <rect x="14.5" y="1.5" width="35" height="45" className={card} />
+          <rect x="18" y="4.5" width="28" height="0.75" className={ink} />
+          <rect x="18" y="6.25" width="28" height="0.75" className={ink} />
+          <rect x="24" y="9.5" width="16" height="1.5" className={ink} />
+          <circle cx="32" cy="16.5" r="4" className={cn(photo, "stroke-shpe-orange")} strokeWidth="0.75" />
+          <rect x="23" y="23" width="18" height="3" className={ink} />
+          <rect x="29" y="28.5" width="2" height="2" transform="rotate(45 30 29.5)" className="fill-shpe-orange" />
+          <rect x="18" y="33" width="28" height="4.5" className={ink} />
+          <rect x="18.25" y="39.75" width="13.25" height="4" className="fill-none stroke-shpe-navy/50" strokeWidth="0.5" />
+          <rect x="32.5" y="39.75" width="13.25" height="4" className="fill-none stroke-shpe-navy/50" strokeWidth="0.5" />
+        </svg>
+      );
+    case "monogram":
+      return (
+        <svg viewBox="0 0 64 48" className={SVG_CLASS}>
+          <rect x="14.5" y="1.5" width="35" height="45" className={card} />
+          <circle cx="32" cy="9.5" r="5" className="fill-none stroke-shpe-navy" strokeWidth="0.75" />
+          <rect x="22" y="18" width="20" height="4" className={ink} />
+          <rect x="24" y="25" width="6" height="0.5" className={faint} />
+          <circle cx="32" cy="25.25" r="0.75" className="fill-shpe-orange" />
+          <rect x="34" y="25" width="6" height="0.5" className={faint} />
+          <rect x="18" y="29.5" width="28" height="4.5" rx="2.25" className={button} />
+          <rect x="18" y="37" width="28" height="0.5" className={faint} />
+          <rect x="18" y="39.5" width="16" height="2" className={ink} />
+          <rect x="18" y="44" width="28" height="0.5" className={faint} />
+        </svg>
+      );
   }
 }
 
@@ -112,10 +205,11 @@ export function ButtonStylePicture({
   theme: ResolvedTheme;
 }) {
   const look: Record<CardButtonStyle, string> = {
-    filled: "bg-(--card-accent) text-(--card-accent-text) border-(--card-accent)",
-    outline: "bg-transparent text-(--card-accent) border-(--card-accent)",
-    soft: "bg-(--card-soft) text-(--card-accent) border-transparent",
-    glass: "bg-(--card-glass) text-(--card-accent) border-(--card-glass-border)",
+    filled: "border-2 bg-(--card-accent) text-(--card-accent-text) border-(--card-accent)",
+    outline: "border-2 bg-transparent text-(--card-accent) border-(--card-accent)",
+    soft: "border-2 bg-(--card-soft) text-(--card-accent) border-transparent",
+    glass: "border-2 bg-(--card-glass) text-(--card-accent) border-(--card-glass-border)",
+    hairline: "border bg-transparent text-(--card-text) border-(--card-rule-strong)",
   };
   return (
     <span
@@ -124,7 +218,7 @@ export function ButtonStylePicture({
     >
       <span
         className={cn(
-          "flex h-7 w-full max-w-24 items-center justify-center border-2 text-xs font-semibold",
+          "flex h-7 w-full max-w-24 items-center justify-center text-xs font-semibold",
           SHAPE_RADIUS[theme.buttons.shape],
           look[style],
         )}
@@ -136,20 +230,75 @@ export function ButtonStylePicture({
 }
 
 export function ArrangementPicture({ arrangement }: { arrangement: CardButtonArrangement }) {
-  if (arrangement === "list") {
-    return (
-      <span className="flex w-16 flex-col gap-1">
-        <span className="block h-2.5 bg-shpe-navy" />
-        <span className="block h-2.5 bg-shpe-navy/50" />
-        <span className="block h-2.5 bg-shpe-navy/50" />
-      </span>
-    );
+  switch (arrangement) {
+    case "list":
+      return (
+        <span className="flex w-16 flex-col gap-1">
+          <span className="block h-2.5 bg-shpe-navy" />
+          <span className="block h-2.5 bg-shpe-navy/50" />
+          <span className="block h-2.5 bg-shpe-navy/50" />
+        </span>
+      );
+    case "icon-grid":
+      return (
+        <span className="grid w-16 grid-cols-3 gap-1">
+          {Array.from({ length: 6 }, (_, i) => (
+            <span key={i} className={cn("block h-4", i === 0 ? "bg-shpe-navy" : "bg-shpe-navy/50")} />
+          ))}
+        </span>
+      );
+    case "rows":
+      return (
+        <span className="flex w-16 flex-col divide-y divide-shpe-navy/30 border-y border-shpe-navy/30">
+          {[70, 55, 62].map((width) => (
+            <span key={width} className="flex items-center gap-1 py-1">
+              <span className="block size-1.5 shrink-0 rounded-full bg-shpe-orange" />
+              <span className="block h-1 bg-shpe-navy" style={{ width: `${width}%` }} />
+            </span>
+          ))}
+        </span>
+      );
+    case "compact":
+      return (
+        <span className="grid w-16 grid-cols-2 gap-1">
+          {Array.from({ length: 4 }, (_, i) => (
+            <span key={i} className="block h-3 border border-shpe-navy/60" />
+          ))}
+        </span>
+      );
+    case "grouped":
+      return (
+        <span className="flex w-16 flex-col gap-1">
+          <span className="block h-1 w-5 bg-shpe-navy/50" />
+          <span className="grid grid-cols-2 gap-1">
+            <span className="block h-3.5 rounded-sm border border-shpe-navy/50" />
+            <span className="block h-3.5 rounded-sm border border-shpe-navy/50" />
+          </span>
+          <span className="block h-1 w-7 bg-shpe-navy/50" />
+          <span className="grid grid-cols-2 gap-1">
+            <span className="block h-3.5 rounded-sm border border-shpe-navy/50" />
+          </span>
+        </span>
+      );
   }
+}
+
+/** Add to Contacts in the member's own accent, or in their text colour. */
+export function PrimaryFillPicture({ fill, theme }: { fill: CardPrimaryFill; theme: ResolvedTheme }) {
   return (
-    <span className="grid w-16 grid-cols-3 gap-1">
-      {Array.from({ length: 6 }, (_, i) => (
-        <span key={i} className={cn("block h-4", i === 0 ? "bg-shpe-navy" : "bg-shpe-navy/50")} />
-      ))}
+    <span
+      style={cardColorVars({ ...theme, buttons: { ...theme.buttons, primary: fill } })}
+      className="flex h-12 w-full items-center justify-center bg-(--card-surface) px-2"
+    >
+      <span
+        className={cn(
+          "flex h-7 w-full max-w-28 items-center justify-center text-xs font-semibold",
+          "bg-(--card-primary) text-(--card-primary-text)",
+          SHAPE_RADIUS[theme.buttons.shape],
+        )}
+      >
+        Add to Contacts
+      </span>
     </span>
   );
 }
@@ -172,7 +321,7 @@ export function AvatarShapePicture({ shape }: { shape: CardAvatarShape }) {
 }
 
 export function DensityPicture({ density }: { density: CardDensity }) {
-  const gap = density === "compact" ? "gap-0.5" : "gap-2";
+  const gap = density === "compact" ? "gap-0.5" : density === "spacious" ? "gap-3" : "gap-2";
   return (
     <span className={cn("flex w-16 flex-col", gap)}>
       <span className="block h-2 bg-shpe-navy" />
