@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useLocation } from "react-router-dom";
 
 import { AttendanceForm } from "../AttendanceForm";
 import { renderWithProviders, testProfile } from "@/test/renderWithProviders";
@@ -97,11 +97,26 @@ function renderPage(
   return renderWithProviders(
     <Routes>
       <Route path="/attend/:token" element={<AttendanceForm />} />
-      <Route path="/register" element={<p>Registration</p>} />
+      <Route path="/register" element={<RouteProbe name="Registration" />} />
+      <Route path="/login" element={<RouteProbe name="Sign-in page" />} />
+      <Route path="/portal" element={<RouteProbe name="My SHPE" />} />
     </Routes>,
     { route: path, auth },
   );
 }
+
+/** Stands in for a page a link leads to, showing the router state it was given. */
+function RouteProbe({ name }: { name: string }) {
+  const location = useLocation();
+  return (
+    <>
+      <p>{name}</p>
+      <pre data-testid="route-state">{JSON.stringify(location.state ?? null)}</pre>
+    </>
+  );
+}
+
+const routeState = () => JSON.parse(screen.getByTestId("route-state").textContent ?? "null");
 
 const firstName = () => screen.getByLabelText(/first name/i);
 const lastName = () => screen.getByLabelText(/last name/i);
@@ -434,10 +449,25 @@ describe("AttendanceForm: submitting", () => {
       "If ana@gmail.com is on a SHPE account, this counts toward its points.",
     );
     expect(status).toHaveTextContent(
-      "SHPE accounts are made with a @wustl.edu address, so if you're a WashU student, check in again with your school email for this event to count toward yours.",
+      "SHPE accounts are made with an @wustl.edu address, so if you're a WashU student, check in again with your WashU email for this event to count toward your points.",
     );
-    expect(status).not.toHaveTextContent(/create an account/i);
-    expect(screen.queryByRole("link", { name: "Create an account" })).not.toBeInTheDocument();
+    expect(status).not.toHaveTextContent(/create an account with this email/i);
+  });
+
+  it("still offers an account to a personal address, without carrying the address over", async () => {
+    api.submitAttendance.mockResolvedValue({ ok: true, event_title: "General Body Meeting #3" });
+    const user = userEvent.setup();
+    renderPage();
+
+    await fillIn(user, { first: "Ana", last: "Rivera", email: "ana@gmail.com" });
+    await user.click(checkInButton());
+    await user.click(await screen.findByRole("link", { name: "Create an account" }));
+
+    expect(await screen.findByText("Registration")).toBeInTheDocument();
+    // Registration would refuse it, so only the names come along.
+    expect(routeState()).toEqual({
+      prefill: { first_name: "Ana", last_name: "Rivera", email: "" },
+    });
   });
 
   it("brings the form back with the names kept when they check in again with a school address", async () => {
@@ -448,7 +478,7 @@ describe("AttendanceForm: submitting", () => {
     await fillIn(user, { first: "Ana", last: "Rivera", email: "ana@gmail.com" });
     await user.click(checkInButton());
     await user.click(
-      await screen.findByRole("button", { name: "Check in with my @wustl.edu address" }),
+      await screen.findByRole("button", { name: "Check in with my @wustl.edu email" }),
     );
 
     // Same person, so only the address needs typing again, and that's where
@@ -513,19 +543,17 @@ describe("AttendanceForm: submitting", () => {
     expect(await screen.findByLabelText(/first name/i)).toHaveValue("");
   });
 
-  it("hands the phone on with an empty form, not the owner's details again", async () => {
+  // Everyone checks in on their own phone; there's no handing it on.
+  it("doesn't offer to check in someone else", async () => {
     api.submitAttendance.mockResolvedValue({ ok: true, event_title: "General Body Meeting #3" });
     const user = userEvent.setup();
-    renderPage({ auth: {} });
+    renderPage();
 
-    await screen.findByLabelText(/first name/i);
+    await fillIn(user, { first: "Ana", last: "Rivera", email: "ana.rivera@wustl.edu" });
     await user.click(checkInButton());
-    await user.click(await screen.findByRole("button", { name: "Check in someone else" }));
 
-    expect(await screen.findByLabelText(/first name/i)).toHaveValue("");
-    expect(lastName()).toHaveValue("");
-    expect(email()).toHaveValue("");
-    expect(firstName()).toHaveFocus();
+    await screen.findByRole("heading", { level: 1, name: "You're checked in" });
+    expect(screen.queryByRole("button", { name: /someone else/i })).not.toBeInTheDocument();
   });
 
   it("shows why a response was turned away, and reloads the form's state", async () => {
@@ -737,5 +765,119 @@ describe("AttendanceForm: submitting", () => {
       await screen.findByRole("heading", { level: 1, name: "You're checked in" }),
     ).toBeInTheDocument();
     expect(api.submitAttendance).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* ── Accounts ────────────────────────────────────────────────────────────── */
+
+/*
+ * Checking in never needs an account, but once someone has checked in the
+ * page leads them to one: sign in if they have it, make one if they don't.
+ * The form itself links nowhere, so nothing draws anyone away before they've
+ * sent it. And the page only ever suggests a WashU address, the kind accounts
+ * are made with.
+ */
+describe("AttendanceForm: accounts", () => {
+  beforeEach(() => {
+    api.fetchAttendanceForm.mockResolvedValue(formIs("open"));
+  });
+
+  it("asks only for a WashU address, and doesn't advertise skipping an account", async () => {
+    renderPage();
+
+    await screen.findByLabelText(/first name/i);
+    expect(screen.getByText("Add your name to show you were here.")).toBeInTheDocument();
+    expect(screen.queryByText(/don't need an account/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Use your @wustl.edu email so this counts toward your SHPE points."),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the form itself free of sign-in and dashboard links", async () => {
+    renderPage();
+
+    await screen.findByLabelText(/first name/i);
+    expect(screen.queryByRole("link", { name: "Sign in" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "My SHPE dashboard" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/have a shpe account/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps it free of them for a signed-in member too", async () => {
+    renderPage({ auth: {} });
+
+    await screen.findByLabelText(/first name/i);
+    expect(screen.queryByRole("link", { name: "Sign in" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "My SHPE dashboard" })).not.toBeInTheDocument();
+  });
+
+  it("after checking in, offers sign-in to see points, landing on the dashboard", async () => {
+    api.submitAttendance.mockResolvedValue({ ok: true, event_title: "General Body Meeting #3" });
+    const user = userEvent.setup();
+    renderPage();
+
+    await fillIn(user, { first: "Ana", last: "Rivera", email: "ana.rivera@wustl.edu" });
+    await user.click(checkInButton());
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Already have one? Sign in to see your My SHPE dashboard and SHPE points.",
+    );
+    await user.click(screen.getByRole("link", { name: "Sign in" }));
+
+    // No `from` this time: Login's default is the dashboard, which is the point.
+    expect(await screen.findByText("Sign-in page")).toBeInTheDocument();
+    expect(routeState()).toBeNull();
+  });
+
+  it("carries the name and address into account creation", async () => {
+    api.submitAttendance.mockResolvedValue({ ok: true, event_title: "General Body Meeting #3" });
+    const user = userEvent.setup();
+    renderPage();
+
+    await fillIn(user, { first: "Ana", last: "Rivera", email: "Ana.Rivera@WUSTL.edu" });
+    await user.click(checkInButton());
+    await user.click(await screen.findByRole("link", { name: "Create an account" }));
+
+    expect(await screen.findByText("Registration")).toBeInTheDocument();
+    // As recorded, so the account is made with the address the check-in waits on.
+    expect(routeState()).toEqual({
+      prefill: { first_name: "Ana", last_name: "Rivera", email: "ana.rivera@wustl.edu" },
+    });
+  });
+
+  it("sends a signed-in member to My SHPE after checking in", async () => {
+    api.submitAttendance.mockResolvedValue({ ok: true, event_title: "General Body Meeting #3" });
+    const user = userEvent.setup();
+    renderPage({ auth: {} });
+
+    await screen.findByLabelText(/first name/i);
+    await user.click(checkInButton());
+
+    await screen.findByRole("heading", { level: 1, name: "You're checked in" });
+    expect(screen.queryByRole("link", { name: "Sign in" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "My SHPE dashboard" })).toHaveAttribute(
+      "href",
+      "/portal",
+    );
+  });
+
+  /*
+   * Side by side and the same size, so someone with an account doesn't take
+   * the more prominent button and make a second one. The grid gives each half
+   * the row (stacked on a phone) and `block` fills it.
+   */
+  it("gives a signed-out visitor Create an account and Sign in as equal buttons", async () => {
+    api.submitAttendance.mockResolvedValue({ ok: true, event_title: "General Body Meeting #3" });
+    const user = userEvent.setup();
+    renderPage();
+
+    await fillIn(user, { first: "Ana", last: "Rivera", email: "ana.rivera@wustl.edu" });
+    await user.click(checkInButton());
+
+    const create = await screen.findByRole("link", { name: "Create an account" });
+    const signIn = screen.getByRole("link", { name: "Sign in" });
+    expect(create.parentElement).toBe(signIn.parentElement);
+    expect(create.parentElement).toHaveClass("grid", "sm:grid-cols-2");
+    expect(create).toHaveClass("w-full");
+    expect(signIn).toHaveClass("w-full");
   });
 });

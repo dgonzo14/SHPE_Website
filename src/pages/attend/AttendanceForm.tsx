@@ -6,7 +6,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ import { Button, LinkButton } from "@/components/ui/button";
 import { Alert, Card, CardBody, Field, Input } from "@/components/ui/primitives";
 import { ErrorState, FullPageLoader } from "@/components/shared/states";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { ALLOWED_EMAIL_DOMAINS, isAllowedEmailDomain, isSupabaseConfigured } from "@/lib/config";
+import { isSupabaseConfigured } from "@/lib/config";
 import {
   chapterDateKey,
   formatDate,
@@ -35,6 +35,7 @@ import {
   submitAttendance,
 } from "@/services/attendanceForm";
 import { queryKeys } from "@/services/queryKeys";
+import type { RegisterLocationState } from "@/pages/auth/Register";
 import type {
   AttendanceFormEvent,
   AttendanceFormResponse,
@@ -60,8 +61,23 @@ const BLANK: AttendanceFormValues = { first_name: "", last_name: "", email: "" }
 
 const SUBMIT_FALLBACK = "We couldn't record your attendance";
 
-/** "@wustl.edu", as visitors would write it, or "" when any address is allowed. */
-const SCHOOL_ADDRESS = ALLOWED_EMAIL_DOMAINS.map((d) => `@${d}`).join(" or ");
+/*
+ * The one address the page suggests. SHPE accounts are made with a WashU
+ * address, so it's the one that lets a check-in count toward points. The form
+ * still takes any address (see attendanceFormSchema); it just never suggests
+ * another. Deliberately not read from ALLOWED_EMAIL_DOMAINS, which can list
+ * other domains (a local build adds the seed accounts' one) that a newcomer
+ * shouldn't be steered towards.
+ */
+const SCHOOL_DOMAIN = "wustl.edu";
+
+function isSchoolAddress(email: string): boolean {
+  return email.trim().toLowerCase().split("@")[1] === SCHOOL_DOMAIN;
+}
+
+/** The auth pages' footer line, so the dashboard link looks the same here. */
+const FOOTER = "mt-5 border-t border-gray-100 pt-4 text-sm text-gray-600";
+const FOOTER_LINK = "font-semibold text-shpe-orange-dark";
 
 /*
  * Refusals that mean the page is out of date: the window opened, closed or
@@ -117,12 +133,10 @@ export function AttendanceForm() {
 
   const [checkedIn, setCheckedIn] = useState<CheckedInAs | null>(null);
   /*
-   * What the form starts from after a check-in. Until then (null) it starts
-   * from the signed-in member's own details; after one it never does again.
-   * "Check in someone else" means the phone is being passed along, and the
-   * next person shouldn't have to delete the owner's name before typing their
-   * own. Checking in again with a school address keeps the names just typed,
-   * since it's the same person and only the address was wrong.
+   * What the form starts from when it comes back after a check-in, which only
+   * happens to check in again with a WashU address. It keeps the names just
+   * typed, since it's the same person and only the address was wrong. Until
+   * then (null) the form starts from the signed-in member's own details.
    */
   const [nextForm, setNextForm] = useState<NextForm | null>(null);
 
@@ -183,12 +197,8 @@ export function AttendanceForm() {
     return page(
       <CheckedInView
         eventTitle={checkedIn.eventTitle}
-        email={checkedIn.values.email}
+        values={checkedIn.values}
         signedIn={signedIn}
-        onCheckInAnother={() => {
-          setNextForm({ values: BLANK, focus: "first_name" });
-          setCheckedIn(null);
-        }}
         onCheckInWithSchoolAddress={() => {
           setNextForm({ values: { ...checkedIn.values, email: "" }, focus: "email" });
           setCheckedIn(null);
@@ -363,20 +373,16 @@ function AttendanceFormCard({
    * Advice, never a rule. Guests and people from other schools come to events
    * too, and the schema accepts any address on purpose (see
    * attendanceFormSchema). But a response only counts toward points once it
-   * matches an account, and accounts are made with a school address, so that
-   * is the one worth nudging towards.
+   * matches an account, and accounts are made with a WashU address, so that
+   * is the only one the page asks for.
    */
-  const emailHint = SCHOOL_ADDRESS
-    ? `If you have a ${SCHOOL_ADDRESS} address, use it: that's what SHPE accounts use, so this counts toward your points.`
-    : undefined;
+  const emailHint = `Use your @${SCHOOL_DOMAIN} email so this counts toward your SHPE points.`;
 
   return (
     <Card>
       <CardBody className="p-6 sm:p-8">
         <EventHeading event={event} />
-        <p className="mt-4 text-sm text-gray-700">
-          Add your name to show you were here. You don't need an account.
-        </p>
+        <p className="mt-4 text-sm text-gray-700">Add your name to show you were here.</p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -462,22 +468,31 @@ function AttendanceFormCard({
  * form that refuses it. For those addresses the page says which kind an
  * account needs instead, and offers to check in again with one, keeping the
  * names just typed.
+ *
+ * Anyone not signed in gets Create an account and Sign in side by side, the
+ * same size, so someone who already has an account doesn't take the bigger
+ * button and make a second one.
  */
 function CheckedInView({
   eventTitle,
-  email,
+  values,
   signedIn,
-  onCheckInAnother,
   onCheckInWithSchoolAddress,
 }: {
   eventTitle: string;
-  email: string;
+  values: AttendanceFormValues;
   signedIn: boolean;
-  onCheckInAnother: () => void;
   onCheckInWithSchoolAddress: () => void;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const accountAddress = isAllowedEmailDomain(email);
+  const { email } = values;
+  const schoolAddress = isSchoolAddress(email);
+  // Registration starts from what was just typed, so making the account is
+  // one password away and it's made with the address this check-in waits on.
+  // A personal address isn't carried over: registration would refuse it.
+  const registerState: RegisterLocationState = {
+    prefill: schoolAddress ? values : { ...values, email: "" },
+  };
 
   // The button that was pressed has just gone, taking focus with it. Starting
   // from the heading means a screen reader reads the answer, and the next Tab
@@ -504,25 +519,47 @@ function CheckedInView({
           <p className="mt-4 break-words text-sm text-gray-600">
             If <strong className="text-gray-800">{email}</strong> is on a SHPE account, this counts
             toward its points.{" "}
-            {accountAddress
-              ? "New to SHPE? Create an account with this email and this event will already be on it."
-              : `SHPE accounts are made with a ${SCHOOL_ADDRESS} address, so if you're a WashU student, check in again with your school email for this event to count toward yours.`}
+            {schoolAddress
+              ? signedIn
+                ? null
+                : "New to SHPE? Create an account with this email and this event will already be on it. Already have one? Sign in to see your My SHPE dashboard and SHPE points."
+              : `SHPE accounts are made with an @${SCHOOL_DOMAIN} address, so if you're a WashU student, check in again with your WashU email for this event to count toward your points.`}
           </p>
         </div>
 
-        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-          {accountAddress ? (
-            // Not when signed in: /register sends a signed-in member to the portal.
-            !signedIn && <LinkButton to="/register">Create an account</LinkButton>
-          ) : (
-            <Button onClick={onCheckInWithSchoolAddress}>
-              Check in with my {SCHOOL_ADDRESS} address
+        {!schoolAddress && (
+          <div className="mt-6 flex flex-col sm:items-center">
+            <Button variant={signedIn ? "primary" : "outline"} onClick={onCheckInWithSchoolAddress}>
+              Check in with my @{SCHOOL_DOMAIN} email
             </Button>
-          )}
-          <Button variant="outline" onClick={onCheckInAnother}>
-            Check in someone else
-          </Button>
-        </div>
+          </div>
+        )}
+
+        {/*
+          Only here, once they're checked in: the form itself stays three
+          fields and a button, with nothing to lead anyone away before they've
+          sent it. Without `from`, Login lands on the dashboard, which is the
+          point of signing in now. Not for a signed-in member: /register and
+          /login both send them straight to the portal.
+        */}
+        {signedIn ? (
+          <p className={FOOTER}>
+            See your SHPE points on your{" "}
+            <Link to="/portal" className={FOOTER_LINK}>
+              My SHPE dashboard
+            </Link>
+            .
+          </p>
+        ) : (
+          <div className={`${schoolAddress ? "mt-6" : "mt-3"} grid gap-2 sm:grid-cols-2`}>
+            <LinkButton to="/register" state={registerState} block>
+              Create an account
+            </LinkButton>
+            <LinkButton to="/login" variant="secondary" block>
+              Sign in
+            </LinkButton>
+          </div>
+        )}
       </CardBody>
     </Card>
   );
