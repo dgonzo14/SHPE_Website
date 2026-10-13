@@ -41,6 +41,14 @@ export interface AuthContextValue {
   ) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
+  /**
+   * Signs in with a single-use recovery token from an admin-made reset link
+   * (/reset-password?token_hash=...). Uses the token up, so call it only when
+   * the person is ready to set the new password. Resolves to the id of the
+   * account the link belongs to, so the page can make sure that is still the
+   * session before it changes a password.
+   */
+  verifyRecoveryToken: (tokenHash: string) => Promise<string>;
   updatePassword: (password: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }

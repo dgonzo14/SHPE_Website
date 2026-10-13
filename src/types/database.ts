@@ -25,7 +25,8 @@ export type EventStatus = "draft" | "published" | "cancelled" | "completed";
 
 export type TermType = "fall" | "spring" | "summer" | "academic_year";
 
-export type CheckinMethod = "code" | "qr" | "manual" | "import";
+/** "form" is the public attendance form (20260918000001_checkin_method_form.sql). */
+export type CheckinMethod = "code" | "qr" | "manual" | "import" | "form";
 
 export type PointTransactionType =
   | "event_attendance"
@@ -238,6 +239,98 @@ export interface CheckInFailure {
 }
 
 export type CheckInResult = CheckInSuccess | CheckInFailure;
+
+/* ── Attendance form (20260918000002_attendance_form.sql) ────────────────── */
+
+/**
+ * One row per response to an event's public attendance form. member_id is null
+ * while the response waits for an account with that email.
+ */
+export interface EventAttendanceSubmissionRow {
+  id: string;
+  event_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  email_normalized: string;
+  member_id: string | null;
+  attendance_id: string | null;
+  /** The officer who typed it in, or null when it came through the form. */
+  added_by: string | null;
+  submitted_at: string;
+  claimed_at: string | null;
+}
+
+/**
+ * admin_attendance_link(), admin_create_attendance_link() and
+ * admin_rotate_attendance_link().
+ */
+export interface AttendanceLinkStatus {
+  has_link: boolean;
+  /** 32 lowercase hex characters, the last segment of /attend/<token>. */
+  token: string | null;
+  /** When the link was made or last replaced. */
+  updated_at: string | null;
+  /**
+   * From create and rotate only: whether this call made the event's first
+   * link. false from create means another officer had already made one, and
+   * that is the link returned.
+   */
+  created?: boolean;
+}
+
+/**
+ * admin_add_attendance_submission(). checked_in: the address has an account
+ * and they're on the roster now. waiting: no account yet, so they wait like a
+ * form response. already_recorded: that address was already on this event's
+ * list, so nothing changed.
+ */
+export interface AddAttendanceSubmissionResult {
+  ok: true;
+  status: "checked_in" | "waiting" | "already_recorded";
+  points_awarded: number;
+}
+
+/** What the form page shows, from get_attendance_form(). */
+export type AttendanceFormStatus = "open" | "not_open" | "closed" | "cancelled";
+
+export interface AttendanceFormEvent {
+  title: string;
+  start_at: string;
+  end_at: string;
+  location: string | null;
+}
+
+export type AttendanceFormResponse =
+  | { status: "not_found" }
+  | {
+      status: AttendanceFormStatus;
+      opens_at: string;
+      closes_at: string;
+      event: AttendanceFormEvent;
+    };
+
+/** Every expected way submit_event_attendance() can turn a response away. */
+export type AttendanceSubmitErrorCode =
+  | "FORM_NOT_FOUND"
+  | "FORM_NOT_OPEN"
+  | "FORM_CLOSED"
+  | "EVENT_CANCELLED"
+  | "FORM_FULL";
+
+/**
+ * Deliberately the same success for every accepted response, matched to an
+ * account or not, first time or repeat. See the migration header.
+ */
+export type AttendanceSubmitResult =
+  | { ok: true; event_title: string }
+  | {
+      ok: false;
+      code: AttendanceSubmitErrorCode;
+      event_title?: string;
+      opens_at?: string;
+      closed_at?: string;
+    };
 
 export interface PointsByCategory {
   category: string;

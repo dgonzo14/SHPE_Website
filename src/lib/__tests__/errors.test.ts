@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkInErrorMessage, describeError, errorText } from "../errors";
+import { UserFacingError, checkInErrorMessage, describeError, errorText } from "../errors";
 import type { CheckInFailure } from "@/types/database";
 
 describe("check-in failure messages", () => {
@@ -88,7 +88,45 @@ describe("describeError", () => {
     expect(message.detail).not.toContain("point_transactions");
   });
 
+  // Retrying can't fix either refusal, so neither may fall through to "try
+  // again in a moment".
+  it("says what to change when Supabase refuses a new password", () => {
+    expect(describeError({ code: "same_password", message: "x" }).title).toBe(
+      "Choose a different password",
+    );
+    expect(describeError({ code: "weak_password", message: "x" }).title).toBe(
+      "That password is too easy to guess",
+    );
+  });
+
   it("uses the caller's fallback when nothing matches", () => {
     expect(describeError({}, "We couldn't save that").title).toBe("We couldn't save that");
+  });
+
+  it("shows a UserFacingError exactly as written", () => {
+    const error = new UserFacingError(
+      "Password reset links aren't available here",
+      "They need the site's Netlify function, which only runs on the deployed site.",
+    );
+    expect(describeError(error, "We couldn't create a reset link")).toEqual({
+      title: "Password reset links aren't available here",
+      detail: "They need the site's Netlify function, which only runs on the deployed site.",
+    });
+  });
+
+  it("adds no detail to a UserFacingError that has none", () => {
+    const error = new UserFacingError("Supabase didn't create the link. Try again in a moment.");
+    // Strict, because toEqual would also accept `detail: undefined`.
+    expect(describeError(error)).toStrictEqual({
+      title: "Supabase didn't create the link. Try again in a moment.",
+    });
+    expect(errorText(error)).toBe("Supabase didn't create the link. Try again in a moment.");
+  });
+
+  it("still keeps an ordinary Error's message to itself", () => {
+    // The class is the signal: the same words in a plain Error could just as
+    // well be a stack-trace message, so they don't reach the screen.
+    const message = describeError(new Error("Password reset links aren't available here"));
+    expect(message.title).toBe("Something went wrong");
   });
 });

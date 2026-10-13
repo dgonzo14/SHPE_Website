@@ -13,7 +13,9 @@ OFFICER PORTAL (/admin) →  event & attendance management, points, analytics, a
 ```
 
 Plus one public page per member: a **business card** at `/card/<handle>`, the address written
-to their NFC card (see [Business cards](#business-cards)).
+to their NFC card (see [Business cards](#business-cards)). And one public form per event: the
+**attendance form** at `/attend/<token>`, which officers share at a meeting so a newcomer without
+an account still gets counted (see [Attendance form](#attendance-form)).
 
 The product loop the whole system exists to make reliable:
 
@@ -34,6 +36,8 @@ The product loop the whole system exists to make reliable:
 - [Deployment](#deployment)
 - [Security model](#security-model)
 - [Chapter configuration](#chapter-configuration)
+- [Attendance form](#attendance-form)
+- [Admin password reset links](#admin-password-reset-links)
 - [Business cards](#business-cards)
 - [Project layout](#project-layout)
 - [Deferred and future work](#deferred-and-future-work)
@@ -63,10 +67,13 @@ The product loop the whole system exists to make reliable:
 PostgreSQL functions, guarded by Row Level Security. There is no application server to run,
 host or pay for — Netlify serves files, Supabase does the rest.
 
-Two small Netlify functions sit beside the bundle, and neither holds any privilege: a daily
-ping that stops the free Supabase project from pausing, and an edge function that adds
-link-preview tags to card pages. Both use only the public anon key, and the site works without
-either (see [Netlify functions](#netlify-functions)).
+Four small Netlify functions sit beside the bundle. Three hold no privilege: a daily ping that
+stops the free Supabase project from pausing and an edge function that adds link-preview tags to
+card pages, both using only the public anon key, and a `health` check that touches nothing at
+all. The fourth, `admin-password-reset-link`, is the one place the service role key is used: it
+creates a password reset link for an admin to hand to a member, after the database has checked,
+with the admin's own session, that they may. The site works without any of them; without that
+one, admins just can't create reset links (see [Netlify functions](#netlify-functions)).
 
 Three consequences worth knowing before you change anything:
 
@@ -99,7 +106,10 @@ auth.users ──1:1── profiles ──1:N── member_roles          (membe
 
 Supporting tables: `announcements`, `resources`, `app_settings`, `notification_preferences`,
 `checkin_attempts` (durable brute-force throttle), `admin_audit_log`, `points_leaderboard`
-(the daily leaderboard snapshot, reachable only through `get_points_leaderboard()`).
+(the daily leaderboard snapshot, reachable only through `get_points_leaderboard()`),
+`event_attendance_links` and `event_attendance_submissions` (the
+[attendance form](#attendance-form): one secret link per event, and every response it accepted
+or an officer entered).
 
 [Business cards](#business-cards) add seven tables. Like the leaderboard snapshot, every one has
 RLS on, zero policies and no grants to any client role, so the card functions are the only way
@@ -210,21 +220,22 @@ bundle and is public.**
 | `VITE_BASE_PATH` | no | Defaults to `/` (Netlify). Set to `/SHPE_Website/` only for a sub-path host |
 | `VITE_SITE_URL` | recommended; **required in production** | Canonical origin used to build auth redirect URLs and every business-card URL: chip addresses, QR codes, the NFC programming sheet. On Netlify it must be the production origin in every deploy context (see [Netlify functions](#netlify-functions)) |
 | `VITE_ALLOWED_EMAIL_DOMAINS` | no | Client-side registration hint; defaults to `wustl.edu` |
-| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | no | Fallbacks the Netlify functions read when the `VITE_` names aren't available to them. The same public values |
-| `SUPABASE_SERVICE_ROLE_KEY` | never in the app | Bypasses RLS entirely. Server/CLI use only |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SITE_URL` | no | Fallbacks the Netlify functions read when the `VITE_` names aren't available to them (`SITE_URL` only by the reset-link function). The same public values |
+| `SUPABASE_SERVICE_ROLE_KEY` | for [admin reset links](#admin-password-reset-links); never in the app | Bypasses RLS entirely. Read by `netlify/functions/admin-password-reset-link.ts` and nothing else. Not needed locally: the function doesn't run under `npm run dev`, and its tests stub Supabase |
 
 **The anon key is meant to be public.** It identifies the project; it authorises nothing.
 Security comes from Supabase Auth plus Row Level Security. The *service role* key is the
 opposite: it bypasses RLS completely and must never appear in a `VITE_` variable, in the
-repo, or in a browser.
+repo, or in a browser. Exactly one piece of shipped code reads it, server-side: the reset-link
+function, which uses it only after the database has confirmed the caller is an admin.
 
 Where secrets live:
 
 | Secret | Where it goes |
 | --- | --- |
-| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SITE_URL` | Netlify → Site configuration → Environment variables, with the **Functions** scope included, because the Netlify functions read them at runtime |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SITE_URL` | Netlify → Site configuration → Environment variables, where the Netlify functions can read them at runtime: on a plan with scopes, include the **Functions** scope ("All scopes", the default, does) |
 | `VITE_ALLOWED_EMAIL_DOMAINS` | Netlify environment variables |
-| `SUPABASE_SERVICE_ROLE_KEY` | Nowhere in this repo. Supabase dashboard, or your own shell |
+| `SUPABASE_SERVICE_ROLE_KEY` | Netlify → Site configuration → Environment variables, marked as containing secret values, with a value for the **Production** deploy context only. If the plan offers scopes, the **Functions** scope only; without them, builds can see it too (see [Netlify functions](#netlify-functions)). Redeploy after adding or changing it. Never under a `VITE_` name, never in this repo or in `netlify.toml` |
 
 CI does not need any of them: the build must succeed without Supabase configured, and does.
 
@@ -267,6 +278,17 @@ to a hosted project. Every person in it is invented.
 | `admin_rotate_event_code(event)` | officer | Issues a code, returns the plaintext **once** |
 | `admin_add_attendance(event, member)` | officer | Manual check-in through the same transactional path |
 | `admin_remove_attendance(id, reason)` | officer | Removes attendance **and** posts a compensating correction |
+| `get_attendance_form(token)` | anyone, signed in or not | The event's title, time and place and whether its form is `open`, `not_open`, `closed` or `cancelled`. An unknown, malformed or draft-event link gets the same `not_found` |
+| `submit_event_attendance(token, first, last, email)` | anyone | Accepts a response during the check-in window, up to 1,000 new ones per link. If an account has that email, checks that member in through the same transactional path as every check-in; otherwise the response waits for one. Same answer either way |
+| `admin_create_attendance_link(event)` | officer | Makes the event's attendance link if it has none. Never replaces one: if a link exists, another officer's included, it returns that one with `created: false`. Audited when it makes one, without the token |
+| `admin_rotate_attendance_link(event)` | officer | Replaces the link (or makes the first one): the old one stops working at once, and the new one starts a fresh count towards the 1,000. Audited, without the token |
+| `admin_attendance_link(event)` | officer | Reads the current link back. Unlike a check-in code, it isn't show-once |
+| `admin_add_attendance_submission(event, first, last, email)` | officer | Records someone by name and email, with no window check. Checks them in now if an account has that email (method `manual`, verified by the officer), otherwise it waits like a form response. Returns `checked_in`, `waiting` or `already_recorded`; audited when it records or checks in anyone |
+| `admin_link_attendance_submission(submission, member)` | officer | Puts a waiting response on a member's record, points included, as if the addresses had matched; audited |
+| `admin_delete_attendance_submission(submission)` | officer | Deletes a response that is still waiting (spam); audited. One already on a record is attendance, removed with `admin_remove_attendance` |
+| `admin_delete_waiting_submissions(event, before)` | officer | Deletes, in one step, the waiting responses that came through the form before a moment (in practice, when a leaked link was replaced). Keeps responses on someone's record and ones officers entered. Audited with the count |
+| `admin_password_reset_target(member)` | admin only | Called by the reset-link function with the admin's own session. Refuses anyone else and the admin's own id; returns the member's sign-in address |
+| `admin_log_password_reset_link(member)` | admin only | The audit row the reset-link function must write before it returns a link. Never sees the link |
 | `admin_adjust_points(member, amount, reason)` | officer | New ledger entry; reason required and audited |
 | `admin_set_role(member, role, granted)` | admin only | The only path to officer/admin |
 | `get_chapter_officers()` | approved members | Meet your officers: each `chapter_positions` holder's title, name, major, class year, email and LinkedIn, in Leadership-page order |
@@ -376,6 +398,21 @@ Plus 25 further fictional members with attendance and point history.
 The seed also creates an event that is **live right now** — *General Body Meeting #3* — with
 the check-in code **`SHPEDEV1`**, so the whole loop is testable the moment you finish setup.
 
+The same event has an [attendance form](#attendance-form) with a fixed, obviously fake token, at
+<http://localhost:5173/attend/deadbeefdeadbeefdeadbeefdeadbeef>. Replacing it from the roster
+works as usual; the fixed token is only what you start with. Its roster starts with two responses
+waiting for an account, and neither address belongs to one:
+
+- **Valentina Cruz** answered as `valentina.cruz+gbm@example.test` and hasn't registered.
+  Register locally as `valentina.cruz@example.test` (the `+tag` doesn't matter) to watch the
+  signup claim check her in.
+- **Lucia Marin** answered with a personal address, `lucia.m.personal@example.com`, instead of
+  her account's `lucia.marin@example.test`. That's what linking a response by hand is for: link
+  it to Lucia Marin.
+
+Check-in, by code or by form, stays open until 30 minutes after the event ends, about an hour
+and three quarters after you seed. `npm run db:reset` seeds it again with a fresh window.
+
 ---
 
 ## Testing
@@ -393,7 +430,9 @@ form schema, error-message mapping, CSV escaping (including spreadsheet formula 
 `.ics` generation, and the check-in page — including that repeated taps issue exactly one
 request. For business cards: vCard escaping, line folding and CRLF endings; theme contrast
 checks; link normalization; handle rules matching the SQL; and the public card page in each of
-its states.
+its states. The reset-link Netlify function runs for real against a stubbed Supabase: the admin
+check comes first, the service key goes only to Supabase Auth and the admin's token never does,
+and a link that couldn't be audited is never returned.
 
 **Database (`supabase/tests/*.test.sql`)** is where the security claims are actually proven.
 These run against the live local database — which is already seeded — so count assertions are
@@ -424,6 +463,25 @@ scoped to each suite's own fixture rows rather than assuming an empty schema:
 - `card_publishing.test.sql` — officers publishing and unpublishing cards. Members can't; every
   change is audited once, however often a card is listed; a starter card stays a starter card;
   hiding still wins; and the owner can publish again after an officer unpublishes.
+- `attendance_form.test.sql` — the attendance form. `anon` can't touch either table directly and
+  members can't read responses. An unknown, malformed or draft-event link gets the same
+  `not_found`, and responses are refused outside the check-in window. A response whose email
+  matches an account (ignoring case and `+tags`) is checked in with method `form` and the
+  event's points, a repeat awards nothing, and the answer is identical whether or not the address
+  matched. A waiting response is claimed, points included, when an account is created with that
+  address. A second officer pressing Create gets the first one's link back, untouched and not
+  audited again; replacing the link kills the old one; only officers can create, read, link or
+  delete, and every officer action is audited. Past its cap a link takes no new address, while
+  one it already has still gets the usual answer, and an officer can still enter someone by
+  hand; a replacement takes new addresses again. Someone whose attendance an officer removed is
+  checked in again, on a new attendance row, by sending the form again. A response an officer
+  entered becomes `manual` attendance verified by them, now or at signup. Clearing out a
+  replaced link deletes only its waiting form responses, keeping officer entries, anyone on the
+  roster and what came through the new link, and is audited once with the count.
+- `password_reset_links.test.sql` — the database's half of admin reset links. `anon`, members
+  and officers are refused, an admin can't target themselves, an unknown member is `P0002`, the
+  address returned is the one the member signs in with, and logging writes one audit row that
+  holds no link.
 
 ---
 
@@ -432,7 +490,9 @@ scoped to each suite's own fixture rows rather than assuming an empty schema:
 **Production is Netlify.** Connect the repository once in the Netlify UI; `netlify.toml`
 carries the build command, the SPA rewrite and every security header. Pushes to `main` deploy
 automatically, and `.github/workflows/ci.yml` runs lint, typecheck, build and tests on every
-pull request and on `main`.
+pull request and on `main`. The [environment variables](#environment-variables) are set in the
+Netlify UI too. `SUPABASE_SERVICE_ROLE_KEY` is the only secret among them, and only admin reset
+links need it.
 
 ### Why not GitHub Pages
 
@@ -453,14 +513,15 @@ VITE_BASE_PATH=/SHPE_Website/ npm run build   # then publish dist/ anywhere
 There is **no deep-link fallback any more.** The generated `404.html` and the inline decoder
 that went with it were removed (see the comment in `vite.config.ts`), because the decoder forced
 `'unsafe-inline'` into `script-src`. On a host without an SPA rewrite rule, every deep link
-gets that host's own 404 page, and that includes every `/card/<handle>`: chip taps, QR scans
-and shared links are always cold deep links. Restore both halves of the shim, with a
-`sha256-…` hash of the decoder in the CSP, before using such a host.
+gets that host's own 404 page, and that includes every `/card/<handle>` and `/attend/<token>`:
+chip taps, QR scans and shared links are always cold deep links. Restore both halves of the
+shim, with a `sha256-…` hash of the decoder in the CSP, before using such a host.
 
-On a host that does rewrite unknown paths to `index.html`, business cards work, because the
-card page needs only the bundle and Supabase. Either way, what's lost is everything in
-[Netlify functions](#netlify-functions): link previews, server-side redirects for old handles
-(the page redirects in the browser instead), and the keep-alive ping.
+On a host that does rewrite unknown paths to `index.html`, business cards and the attendance
+form work, because both pages need only the bundle and Supabase. Either way, what's lost is
+everything in [Netlify functions](#netlify-functions): link previews, server-side redirects for
+old handles (the page redirects in the browser instead), the keep-alive ping, the health check,
+and admin password reset links.
 
 ### Running costs
 
@@ -480,28 +541,59 @@ after day, open the Supabase dashboard and restore the project by hand. Supabase
 (~$25/month) removes the question entirely and also buys daily backups — worth considering once
 there are a couple of years of member records in there.
 
-The `card-meta` edge function is the only metered compute in the design: one invocation per card
-page load. At chapter scale that is a rounding error against Netlify's free allowance, but check
-the plan's current limits if cards ever see real traffic.
+The `card-meta` edge function is the only metered compute that grows with traffic: one
+invocation per card page load. At chapter scale that is a rounding error against Netlify's free
+allowance, but check the plan's current limits if cards ever see real traffic. The reset-link
+function runs only when an admin creates a link, and `health` only when something calls it.
 
 ### Netlify functions
 
-Two functions, both optional extras on top of the static site. Neither holds a secret or decides
-anything about access; the database still does that.
+Four functions, all optional extras on top of the static site. Only `admin-password-reset-link`
+holds a secret, and none of them decides anything about access; the database still does that.
 
 | Function | Runs | What it does |
 | --- | --- | --- |
 | `netlify/functions/keep-supabase-awake.ts` | Daily at 00:00 UTC, published deploys only (not previews) | Calls `get_app_config` so the free project never sits idle long enough to pause. Logs success or failure, never the key |
+| `netlify/functions/health.ts` | Any request to `/.netlify/functions/health` | A liveness check: answers `{ "status": "ok", "timestamp": … }` with `Cache-Control: no-store` and `Access-Control-Allow-Origin: *` (204 to a preflight). It never calls Supabase and reads no variables, so it only says that Netlify is running this site's functions. Past 100 requests a minute from one IP it answers 429, but that count lives in one warm instance's memory, so it's best effort, not a real limit. Nothing in the app calls it |
+| `netlify/functions/admin-password-reset-link.ts` | `POST /.netlify/functions/admin-password-reset-link`, when an admin creates a [reset link](#admin-password-reset-links) | Asks the database, with the admin's own session, whether they may (`admin_password_reset_target`); asks Supabase Auth for a single-use recovery token with the service role key; records it with `admin_log_password_reset_link`; only then returns the link. Same-origin only (no CORS headers), `Cache-Control: no-store`, and never logs the token, the link, the admin's session or any key |
 | `netlify/edge-functions/card-meta.ts` | Every `GET /card/<handle>` | Writes the card's title, description, photo and robots rule into `<head>` for link previews, plus the stylesheets for the card's fonts so the name appears in its own face from the first paint; 301s an old handle to the current one; 404 plus `noindex` for a card that isn't live. **Fails open**: on any error, a missing variable, or Supabase taking over 1.5 s, the page is served untouched |
 
-Both read `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (the edge function also reads
-`VITE_SITE_URL`) **at runtime**, so in Netlify → Site configuration → Environment variables
-those three must include the **Functions** scope. "All scopes", the default, does. Values in
-`netlify.toml` reach the build only, never a function. With the variables missing, the
-keep-alive logs an error naming them and the edge function quietly does nothing.
+All but `health` read `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (the edge function and
+the reset-link function also read `VITE_SITE_URL`) **at runtime**, so those three must be set in
+Netlify → Site configuration → Environment variables where functions can see them. Values in
+`netlify.toml` reach the build only, never a function. On a plan with scopes, that means
+including the **Functions** scope ("All scopes", the default, does); on a plan without them,
+every variable already reaches functions. With the variables missing, the keep-alive logs an
+error naming them, the edge function quietly does nothing, and the reset-link function tells the
+admin links aren't set up.
+
+**`SUPABASE_SERVICE_ROLE_KEY` is read by `admin-password-reset-link` and nothing else.** Set it
+in the same place, tick "Contains secret values", and give it a value for the **Production**
+deploy context only: a deploy preview or branch deploy runs a branch's code, functions included,
+before anyone has reviewed it, and that code shouldn't hold the key. Never give it a `VITE_`
+name: that would compile it into the public bundle.
+
+Scopes, where the plan has them, narrow it further: give it the **Functions** scope only and the
+build never sees it. Not every Netlify plan offers scopes, and on one without them (the free
+plan this site runs on, at the time of writing) the key is visible to builds as well, so anything
+that runs during a build, a build plugin included, could read it. Don't add build plugins you
+don't trust. Scopes never keep it from functions, though: any function code deployed to a
+context that has the key can read it, which is why only the Production context gets a value.
+
+**Functions read environment variables as of their deploy.** After adding or changing the key,
+trigger a new deploy (**Deploys → Trigger deploy**) before expecting a reset link to work; the
+deploy already live keeps the values it started with. Without the key, everything but reset links
+works as before, and a deploy preview just says reset links aren't set up there. The reset-link
+function builds its links on `VITE_SITE_URL`, falling back to the origin the admin is using, and
+refuses a plain-http address anywhere but localhost.
 
 To check the ping, open the function under **Logs & metrics → Functions** in the Netlify UI and
 use **Run now**; its log line says whether Supabase answered.
+
+If production still says reset links aren't set up after a new deploy, or that Supabase didn't
+create the link, open `admin-password-reset-link` in the same place. Its log names each variable
+it couldn't read (never a value), so it shows whether the key is reaching the function at all,
+and a key Supabase refuses shows up as `generate_link` answering 401 or 403.
 
 **`VITE_SITE_URL` must be the production origin in every deploy context, previews included.**
 Card URLs, QR codes and the NFC programming sheet are built from it, so a programming sheet
@@ -527,6 +619,9 @@ http://localhost:5173/reset-password
 Confirmation and password-reset emails that land on an unlisted URL fail silently, and it is
 an unpleasant thing to debug.
 
+[Admin reset links](#admin-password-reset-links) need nothing here: they open this site's
+`/reset-password` page directly and never pass through a Supabase redirect.
+
 ### Content Security Policy
 
 `netlify.toml` carries the CSP. Supabase needs `connect-src https://*.supabase.co
@@ -539,8 +634,15 @@ contact files are generated in the browser, so no new origin is contacted. The `
 function injects only `<title>`, `<meta>` and `<link>` tags, never an inline script, so
 `script-src` stays without `'unsafe-inline'`.
 
-`Permissions-Policy` still has `camera=()`. QR check-in is architected for but not built; the
-day a scanner ships, that becomes `camera=(self)` and nothing else changes.
+The attendance form and the reset-link function needed no CSP change either. The form is one more
+page of the bundle calling Supabase, its QR code is drawn in the browser, and the function is
+called on the site's own origin, which `connect-src 'self'` already allows. `/attend/*` gets an
+`X-Robots-Tag: noindex, nofollow` header, because its link is a credential.
+
+`Permissions-Policy` still has `camera=()`. Scanning a check-in QR code with the site's own camera
+is architected for but not built; the day a scanner ships, that becomes `camera=(self)` and
+nothing else changes. The attendance form's QR code doesn't need it: the phone's own camera app
+reads it and simply opens the link.
 
 These headers are why production is Netlify: a static host that cannot set them leaves every
 one of them off.
@@ -561,7 +663,9 @@ one of them off.
 | Role escalation | No write policy on `member_roles` at all. `admin_set_role()` is the only path, and it is admin-only and audited |
 | Profile tampering | RLS decides which *rows*; a trigger decides which *columns*. Members cannot change their own membership status, email, or mark themselves a verified National member |
 | Email domain | Enforced in the database on signup, configurable, with an explicit allow-list for exceptions. The client-side check is only for a faster error message |
-| Auditability | `admin_audit_log` records role changes, point adjustments, attendance corrections, status changes, code rotations and every officer action on business cards — with actor, timestamp, and reason |
+| Auditability | `admin_audit_log` records role changes, point adjustments, attendance corrections, status changes, code rotations, attendance-form links, the people officers add by name and email, the waiting responses officers link or delete, password reset links, and every officer action on business cards — with actor, timestamp, and reason |
+| Attendance form | The link is the credential: 122 random bits, stored where no client role can select it, read back only by officers, replaceable in seconds, and never replaced by a second officer pressing Create. It works only inside the event's check-in window and takes at most 1,000 new responses before it has to be replaced. Every accepted response gets the same answer whether or not its email has an account, so the form can't be used to find out who does. What it accepts on purpose is in [Attendance form](#attendance-form) |
+| Admin reset links | Admin only, decided by the database with the admin's own session, never for themselves. The service role key lives only in the Netlify function that asks Supabase Auth for the token. Every link is audited before it is shown, works once, expires in about an hour, and is cancelled by the next one. The link itself is never stored or logged |
 | Error messages | Structured codes mapped to member-facing sentences. No SQLSTATE, PostgREST body or stack trace ever reaches a user |
 | Public calendar | `anon` reads events through a column-level GRANT plus a row policy (`status <> 'draft' AND is_public`). Organiser contacts, capacity and check-in windows are not in the grant, so they cannot be selected at all |
 | Privacy | Member emails and attendance are never public. Points are shown to other members only on the members-only leaderboard: name, rank, total and event count for the top 25. It ships hidden until an officer turns it on, and pending accounts never see it. Portal pages are `noindex, nofollow`; page titles are generic. A business card is the one public page about a member, and it shows only what they chose to put on it |
@@ -642,6 +746,139 @@ button in the dialog.
 CSV *export* exists for attendance rosters, the member roster and the point ledger, with
 formula-injection escaping so a member-supplied field cannot execute when an officer opens the
 file in Excel.
+
+---
+
+## Attendance form
+
+The code check-in asks a lot of someone at their first meeting: an account on a wustl.edu
+address, the join code or an officer's approval, then a code typed inside the window. Each step
+is there for a reason, and together they mean a newcomer's first event usually goes unrecorded.
+So each event can also have an **attendance form**: one secret link, `/attend/<token>`, that asks
+for a first name, a last name and an email address, and nothing else. No account needed. The
+schema and its reasoning are in `20260918000002_attendance_form.sql`.
+
+**Sharing it.** In **Admin → Attendance → (the event)**, create the event's attendance link,
+then copy it, show its QR code full screen on the projector, or download the QR code for slides.
+Officers can read the link back at any time (it isn't show-once like a check-in code), so the
+same QR code works all meeting. Creating never replaces a link: if two officers press it before
+a meeting, the second gets the link the first already made, so a QR code already on a screen
+keeps working.
+
+**Replacing** the link is a separate action that asks first. The old link stops working
+immediately, along with every copy of its QR code: that's what to do if a link leaks. Another
+officer's roster page that's open, a full-screen QR code included, re-reads the link every minute
+and switches to the new one by itself. The new link starts its own count towards the cap below,
+so replacing also brings the form back for everyone if the old link was flooded.
+
+**When it takes responses.** Only during the event's check-in window, the same
+`check_in_opens_at` to `check_in_closes_at` the code uses, and only for published events. Outside
+the window the page says when it opens or that it has closed. A draft event's link looks like no
+link at all.
+
+**What happens to a response:**
+
+- If an account already has that email (ignoring case and `+tags`, as everywhere else), the
+  person is checked in on the spot, with method `form` and the event's points, through the same
+  transactional path as every other check-in. Someone already checked in isn't awarded twice.
+- Otherwise the response **waits**. When an account is later created with that email, or a
+  profile's email changes to it, a trigger checks the new member in, points included, and the
+  audit log records it as the system's doing. A failed claim never blocks a registration.
+- Either way the person sees the same thank-you, so the form can't be used to find out who has
+  an account.
+- One response per email per event. Sending it again writes nothing new, with one exception: if
+  the earlier response isn't on anyone's roster and the address has an account, that person is
+  checked in. So someone whose form attendance an officer removed is checked in again if they
+  send the form again while it's open, the same as anyone sending it for the first time.
+
+**Adding someone by hand.** Officers can add anyone to the event by name and email from its
+roster: a newcomer without an account, someone without a phone, or someone who missed the window
+(there's no window check). **Add attendee** only lists active members; this reaches everyone,
+someone whose account is still pending included. It goes through the same matching as the
+form: if an account has that address, the person is checked in on the spot, as `manual`
+attendance verified by that officer, the same as Add attendee; otherwise the response waits and
+is claimed at signup like any other.
+Unlike the public form, it says which happened, since officers can already look members up. It's
+audited, and it doesn't count towards the link's cap.
+
+**Waiting responses** are listed on the event's roster, which refreshes itself while check-in is
+open, so new responses and check-ins appear without a reload. An officer can **link** one to a
+member by hand (someone who used a personal address but has an account on their school one),
+which checks that member in exactly as if the addresses had matched, or **delete** it (spam).
+Both are audited. A response already on a member's record is attendance: remove it with the
+usual correction, which reverses the points and asks why.
+
+**After replacing a leaked link**, whatever was scripted through it is still on the waiting list,
+so the roster offers to delete, in one audited step, the waiting responses that came through the
+form before the replacement. Responses already on someone's record and responses officers added
+by hand are kept. Real people who used the old link and have no account yet go too, which is why
+it asks before deleting anything.
+
+**What it deliberately accepts:**
+
+- Anyone holding the link can submit any address, a member's included, and that member is checked
+  in. That's the price of not asking for an account, and it's bounded: the link works only during
+  the window, takes at most 1,000 responses, and can be replaced in seconds, and attendance can
+  be removed with an audited correction. While the link still works, though, sending the form
+  again puts removed attendance back, so replace the link too if it's being abused.
+- Matching ignores membership status. The point is to record people before they're members, so a
+  pending account, or one created later, gets its attendance like anyone else.
+- A waiting response goes to whoever registers that address. Email confirmation is off, so someone
+  could register a classmate's address and inherit their waiting attendance, but they could
+  equally have typed that address into the form, so nothing new is exposed.
+- Each link takes at most 1,000 new responses, counted since it was made or last replaced. A
+  general body meeting brings in a couple of hundred people; a thousand is someone scripting the
+  form. Past that the form takes no new addresses and tells people to ask an officer, while an
+  address it already has still gets the usual answer. Responses officers add don't count, and
+  replacing the link starts the count again.
+
+The form is `noindex, nofollow`, both in the page and in an `X-Robots-Tag` header for crawlers
+that don't run JavaScript. It needs no Netlify function, so it works on any host that serves the
+bundle with an SPA rewrite.
+
+---
+
+## Admin password reset links
+
+The emailed reset link fails often enough to matter: WashU's mail filtering quarantines it or
+opens it before the member does, and a PKCE link only works in the browser that asked for it. So
+an **admin** can create a reset link on **Admin → Members → (the member) → Administration** and
+send it however works: a text, Slack, in person. The database's half is in
+`20260918000003_admin_password_reset_links.sql`, the rest in
+`netlify/functions/admin-password-reset-link.ts`.
+
+- **Admins only, never for themselves.** Officers don't see it, and the database refuses them
+  anyway: the function asks `admin_password_reset_target()` with the admin's own session, so
+  `require_admin()` decides, as for every other admin action. An admin changes their own password
+  from Settings. Whoever holds a link can set that member's password and sign in as them, which
+  is the same class of power as deleting a member or granting a role.
+- **Single use, about an hour.** Supabase deletes the token when it's used, and it expires after
+  the project's **Email OTP Expiration** (Supabase → Authentication → Providers → Email; one hour
+  by default). Supabase keeps one recovery token per account, so a newer link, or the member
+  requesting a reset email, cancels the previous one.
+- **Audited before it's shown.** Every link is recorded in the audit log as *Password reset link
+  created*, with who made it and for whom. If that write fails, the link is thrown away and the
+  admin is asked to try again. The link itself is never stored, logged or put in the audit row.
+- **Safe to paste into a chat.** It opens this site's `/reset-password` page with the token as
+  `token_hash`, and the token is spent only when the member submits a new password, so link
+  previews and mail scanners that open it first use up nothing. Supabase's own action link is
+  never used: it is spent by simply opening it, and it signs in with the implicit flow, which this
+  site's PKCE client rejects.
+- **Needs the Netlify deploy and `SUPABASE_SERVICE_ROLE_KEY`.** Creating the link takes the
+  service role key, so it can only happen server-side (see [Netlify functions](#netlify-functions)).
+  Under `npm run dev` or on a static host, the Administration tab explains that reset links
+  aren't available there; on a deploy without the key (deploy previews included), that they
+  aren't set up. Nothing else changes.
+- **Tested in pieces locally, end to end in production.** `netlify dev` isn't a way to try it in
+  a browser: it applies `netlify.toml`'s headers to the pages it serves, and the production CSP
+  blocks the inline preamble Vite's React plugin injects and a local Supabase on
+  `http://127.0.0.1:54321`. The function's behaviour is covered by
+  `src/services/__tests__/adminPasswordResetLinkFunction.test.ts` (`npm test`), the database's
+  half by `supabase/tests/password_reset_links.test.sql` (`npm run db:test`), and the whole flow
+  is for trying on the production site once the key is set and a new deploy has picked it up.
+- **No rate limit beyond "admins only".** Admins are a handful of trusted people, every link is
+  audited, and each one cancels the last. If that stops being enough, the function's header says
+  where a limit would go.
 
 ---
 
@@ -792,6 +1029,7 @@ src/
   pages/
     …              public pages (Home, Members, Sponsorship, Leadership, GetPluggedIn)
     card/          PublicCard: /card/:handle, full screen, outside every layout
+    attend/        AttendanceForm: /attend/:token, the event's no-account check-in form
     auth/          Login, Register, ForgotPassword, ResetPassword
     portal/        Dashboard, Events, EventDetail, CheckIn, Points, History, MyCard, …
     admin/         AdminDashboard, AdminEvents, AdminAttendance, AdminMembers, AdminCards, …
@@ -803,6 +1041,8 @@ supabase/
   seed.sql         Development fixtures (never production)
 netlify/
   functions/       keep-supabase-awake: the daily ping that stops Supabase pausing
+                   health: a liveness check that touches nothing
+                   admin-password-reset-link: the one server-side use of the service role key
   edge-functions/  card-meta: link-preview tags and old-handle redirects on /card/*
 docs/              digital-business-cards.md, the business card design
 ```
@@ -847,9 +1087,10 @@ does.
 
 Not built, and marked as such rather than stubbed. Nothing here has a dead button in the UI.
 
-- **QR check-in.** Architected for — a scanner would call the same
-  `check_in_to_event` RPC — but not implemented, and `camera=()` stays in the
-  Permissions-Policy until it is.
+- **QR check-in by camera.** Scanning an event's code inside the portal is architected for — a
+  scanner would call the same `check_in_to_event` RPC — but not implemented, and `camera=()`
+  stays in the Permissions-Policy until it is. The [attendance form](#attendance-form)'s QR code
+  is not this: a phone's own camera app reads it and opens a link.
 - **Email notifications.** `notification_preferences` exists in the schema; the Settings page
   deliberately shows no toggles for behaviour that does not exist yet.
 - **Member directory.** Visibility columns exist and default to opt-out. Emails would never

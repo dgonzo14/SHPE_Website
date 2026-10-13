@@ -378,6 +378,48 @@ on conflict (event_id) do update
       code_hash = excluded.code_hash;
 
 
+-- ── Attendance form for the live event ──────────────────────────────────────
+-- Also seeded directly, with a fixed and obviously fake token, so the public
+-- form is one known URL away:  /attend/deadbeefdeadbeefdeadbeefdeadbeef
+-- Replacing it from the roster works as usual; the fixed token is only what
+-- you start with.
+--
+-- Made twenty minutes ago, before the responses below came in, as a real
+-- link would be. The roster offers to clear out responses from before the
+-- link was last replaced, and the form's cap counts from the same moment, so
+-- a link stamped after its own responses would look replaced when it never
+-- was and offer to delete the two waiting responses seeded to try out.
+
+insert into public.event_attendance_links (event_id, token, created_by, created_at, updated_at)
+select e.id, 'deadbeefdeadbeefdeadbeefdeadbeef',
+       (select id from public.profiles where email = 'officer@example.test'),
+       now() - interval '20 minutes', now() - interval '20 minutes'
+  from public.events e
+ where e.title = 'General Body Meeting #3'
+on conflict (event_id) do update
+  set token      = excluded.token,
+      updated_at = excluded.updated_at;
+
+-- Two responses still waiting for an account, so the roster's waiting list
+-- has something in it. Neither address belongs to anyone above:
+--   * Valentina hasn't registered. Registering locally as
+--     valentina.cruz@example.test claims hers (the +tag doesn't matter), which
+--     is the quickest way to watch the signup claim happen.
+--   * Lucia used a personal address instead of her account's, which is the
+--     case "Link to a member" is for: link it to Lucia Marin.
+-- Inserted directly because submit_event_attendance() only accepts responses
+-- through a link, and these should exist without anyone visiting it.
+insert into public.event_attendance_submissions (event_id, first_name, last_name, email, submitted_at)
+select e.id, v.first_name, v.last_name, v.email, now() - v.ago
+  from public.events e
+ cross join (values
+   ('Valentina', 'Cruz',  'valentina.cruz+gbm@example.test', interval '12 minutes'),
+   ('Lucia',     'Marin', 'lucia.m.personal@example.com',    interval '7 minutes')
+ ) as v(first_name, last_name, email, ago)
+ where e.title = 'General Body Meeting #3'
+on conflict (event_id, email_normalized) do nothing;
+
+
 -- ── What you just created ───────────────────────────────────────────────────
 
 do $$
@@ -396,6 +438,9 @@ begin
   raise notice '  member@example.test   (member)';
   raise notice '';
   raise notice 'Live check-in code for "General Body Meeting #3":  SHPEDEV1';
+  raise notice 'Its attendance form:  http://localhost:5173/attend/deadbeefdeadbeefdeadbeefdeadbeef';
+  raise notice '  (% responses waiting on its roster; register as valentina.cruz@example.test to claim one)',
+    (select count(*) from public.event_attendance_submissions s where s.member_id is null);
   raise notice '';
 end;
 $$;

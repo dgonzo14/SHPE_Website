@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { UserFacingError } from "@/lib/errors";
 import type { AdminAnalytics, AuditLogRow, CheckInResult } from "@/types/database";
 
 /* ── Check-in codes ──────────────────────────────────────────────────────── */
@@ -59,6 +60,79 @@ export async function removeAttendance(
   });
   if (error) throw error;
   return data as { reversed_points: number };
+}
+
+/* ── Password reset links ────────────────────────────────────────────────── */
+
+/**
+ * Netlify serves functions from the site root whatever Vite's base path is, so
+ * this is deliberately not built with BASE_PATH.
+ */
+export const PASSWORD_RESET_LINK_ENDPOINT = "/.netlify/functions/admin-password-reset-link";
+
+export interface PasswordResetLink {
+  /** /reset-password?token_hash=...&type=recovery on this site. Single use. */
+  link: string;
+  /** The address the member signs in with, which the link resets. */
+  email: string;
+  display_name: string;
+}
+
+/**
+ * Creates a single-use password reset link for a member, for an admin to pass
+ * on by hand when the reset email isn't getting through.
+ *
+ * This is the one admin action that is not an RPC: creating the link needs the
+ * service role key, so it runs in a Netlify function
+ * (netlify/functions/admin-password-reset-link.ts). The function checks the
+ * caller is an admin with the caller's own session, through
+ * admin_password_reset_target(), and logs the link to the audit log before
+ * returning it. Nothing about who may do this is decided here.
+ *
+ * The link is returned once and never stored. Making another one cancels this
+ * one, because Supabase keeps a single recovery token per account.
+ */
+export async function createPasswordResetLink(memberId: string): Promise<PasswordResetLink> {
+  const { data } = await getSupabase().auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) {
+    throw Object.assign(new Error("Your session expired"), { code: "PGRST301" });
+  }
+
+  const response = await fetch(PASSWORD_RESET_LINK_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ memberId }),
+  });
+
+  // Anything but JSON means the function isn't there at all: `npm run dev`
+  // and a static host both answer with the app's index.html or a bare 404.
+  const isJson = (response.headers.get("content-type") ?? "").includes("application/json");
+  if (!isJson) {
+    throw new UserFacingError(
+      "Password reset links aren't available here",
+      "They need the site's Netlify function, which only runs on the deployed site.",
+    );
+  }
+
+  const body = (await response.json()) as
+    | PasswordResetLink
+    | { code?: string; message?: string };
+
+  if (!response.ok || !("link" in body)) {
+    const failure = body as { code?: string; message?: string };
+    // Permission and session failures carry the codes describeError already
+    // knows. Everything else comes with a message written for the admin.
+    if (failure.code === "42501" || failure.code === "PGRST301") {
+      throw Object.assign(new Error(failure.message ?? ""), { code: failure.code });
+    }
+    throw new UserFacingError(failure.message || "We couldn't create a reset link");
+  }
+
+  return body;
 }
 
 /* ── Point adjustments ───────────────────────────────────────────────────── */
@@ -151,8 +225,15 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "event.deleted": "Event deleted",
   "event.code_generated": "Check-in code generated",
   "event.code_rotated": "Check-in code rotated",
+  "event.attendance_link_created": "Attendance form link created",
+  "event.attendance_link_rotated": "Attendance form link replaced",
   "attendance.added": "Attendance added manually",
   "attendance.removed": "Attendance removed",
+  "attendance.claimed": "Form attendance matched to an account",
+  "attendance.submission_added": "Attendee added by name and email",
+  "attendance.submission_linked": "Form response linked to a member",
+  "attendance.submission_deleted": "Form response deleted",
+  "attendance.submissions_deleted": "Form responses from a replaced link deleted",
   "points.adjusted": "Points adjusted",
   "role.granted": "Role granted",
   "role.revoked": "Role revoked",
@@ -160,6 +241,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "membership.national_status_changed": "National membership updated",
   "membership.join_code_redeemed": "Joined with the chapter code",
   "member.deleted": "Member deleted",
+  "member.password_reset_link_created": "Password reset link created",
   "settings.changed": "Chapter setting changed",
   "join_code.set": "Join code changed",
   "join_code.enabled": "Join code turned on",

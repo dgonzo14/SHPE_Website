@@ -84,6 +84,13 @@ const ResetPassword = lazy(() =>
   })),
 );
 
+// Attendance: the form officers share at a meeting as a link or QR code.
+const AttendanceForm = lazy(() =>
+  import("./pages/attend/AttendanceForm").then((m) => ({
+    default: m.AttendanceForm,
+  })),
+);
+
 // Member portal
 const PortalLayout = lazy(() =>
   import("./layouts/PortalLayout").then((m) => ({ default: m.PortalLayout })),
@@ -271,6 +278,15 @@ export default function App() {
                       />
                     </Route>
                     <Route path="/reset-password" element={<ResetPassword />} />
+
+                    {/* The attendance form. Public, so outside
+                        RedirectIfAuthenticated and every auth guard: a guest
+                        with no account and a signed-in member both use it, and
+                        what either may see is decided by get_attendance_form().
+                        The token rides in the path, never in ?code=, so
+                        Supabase's session detection can't mistake a scan for
+                        an auth redirect. */}
+                    <Route path="/attend/:token" element={<AttendanceForm />} />
                   </Route>
 
                   {/* ── Member portal ───────────────────────────────── */}

@@ -162,6 +162,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const userId = user?.id ?? null;
   useEffect(() => {
     if (userId === loadedForUserId.current) return;
+    // One account straight to another, with no sign-out between: an admin-made
+    // reset link opened on a browser where someone was already signed in does
+    // exactly this. The first account's cached queries must not outlive it.
+    if (loadedForUserId.current !== null && userId !== null) queryClient.clear();
     loadedForUserId.current = userId;
     setProfile(null);
     setRoles([]);
@@ -252,6 +256,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
+  /*
+   * The admin-made reset link carries the token hash itself, not a PKCE code,
+   * so detectSessionInUrl leaves it alone and this exchanges it. verifyOtp
+   * stores the session and fires onAuthStateChange like any sign-in, which
+   * replaces whoever was signed in on this browser.
+   */
+  const verifyRecoveryToken = useCallback(async (tokenHash: string) => {
+    const { data, error } = await getSupabase().auth.verifyOtp({
+      token_hash: tokenHash,
+      type: "recovery",
+    });
+    if (error) throw error;
+    const accountId = data.user?.id ?? data.session?.user.id;
+    if (!accountId) throw new Error("The reset link didn't sign in to an account");
+    return accountId;
+  }, []);
+
   const updatePassword = useCallback(async (password: string) => {
     const { error } = await getSupabase().auth.updateUser({ password });
     if (error) throw error;
@@ -275,6 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
       requestPasswordReset,
+      verifyRecoveryToken,
       updatePassword,
       refreshProfile,
     };
@@ -289,6 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signOut,
     requestPasswordReset,
+    verifyRecoveryToken,
     updatePassword,
     refreshProfile,
   ]);

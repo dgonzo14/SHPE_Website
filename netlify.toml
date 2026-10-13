@@ -20,10 +20,25 @@
   # The anon key is safe in a client bundle; the service role key must never
   # appear in any VITE_-prefixed variable.
   #
-  # The first three must include the Functions scope in the Netlify UI ("All
-  # scopes", the default, does): keep-supabase-awake and the card-meta edge
+  # The first three must reach functions as well as the build:
+  # keep-supabase-awake, admin-password-reset-link and the card-meta edge
   # function read them at runtime, and values set in this file are visible to
-  # the build only, never to functions or edge functions.
+  # the build only, never to functions or edge functions. On a plan with
+  # scopes, that means including the Functions scope ("All scopes", the
+  # default, does); on a plan without them, every variable already reaches
+  # functions.
+  #
+  # SUPABASE_SERVICE_ROLE_KEY is set in the Netlify UI too, for
+  # admin-password-reset-link alone: marked as containing secret values, with
+  # a value for the Production deploy context only (a deploy preview or
+  # branch deploy runs unreviewed code, functions included), and never under a
+  # VITE_ name, which would compile it into the public bundle. If the plan
+  # offers scopes, give it the Functions scope only, which keeps it out of the
+  # build. Not every plan does, and without them the key is visible to builds
+  # too, so anything that runs during a build, a plugin included, could read
+  # it: don't add build plugins you don't trust. Functions read variables as
+  # of their deploy, so trigger a new deploy after setting or changing it.
+  # Never here either: this file is committed.
   #
   # VITE_SITE_URL must be the production origin in every deploy context,
   # previews included. Card URLs, QR codes and the NFC programming sheet are
@@ -31,9 +46,21 @@
   # day that preview is deleted.
 
 # ── Dev server (netlify dev) ──────────────────────────────────
+# Local development is `npm run dev` on http://localhost:5173, not this.
+# netlify dev applies the [[headers]] below to the pages it proxies, and the
+# production CSP blocks both the inline preamble Vite's React plugin injects
+# and a local Supabase on http://127.0.0.1:54321, so the app doesn't work in a
+# browser under it. That includes admin password reset links: the function's
+# behaviour is covered by
+# src/services/__tests__/adminPasswordResetLinkFunction.test.ts, its SQL by
+# supabase/tests/password_reset_links.test.sql, and the whole flow is for
+# trying on the production site, the one deploy context with the service key.
+#
+# `port` is where netlify dev itself listens and `targetPort` is Vite's, which
+# it proxies to. The CLI needs them to be different numbers, so they are.
 [dev]
   command   = "npm run dev"
-  port      = 5173
+  port      = 8888
   targetPort = 5173
 
 # ── SPA catch-all: send every non-asset request to index.html ─
@@ -94,7 +121,9 @@
     #
     # camera=() stays OFF. QR check-in is architected for but not implemented;
     # the day a camera scanner ships, this becomes camera=(self) and nothing
-    # else changes. Do not loosen it ahead of the feature.
+    # else changes. Do not loosen it ahead of the feature. The attendance
+    # form's QR code needs no camera here: the phone's own camera app scans
+    # it and simply opens the /attend/ link.
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"
 
     # ── Content Security Policy ─────────────────────────────
@@ -146,6 +175,19 @@
       upgrade-insecure-requests;
     """
 
+# ── Attendance form links (/attend/<token>) ──────────────────
+# The token in the path is the credential: anyone holding the link can
+# submit attendance for that event while its check-in window is open. Pages
+# get noindex from the app, but that only reaches crawlers that run
+# JavaScript, so the header keeps the address out of every search index even
+# if a link ends up somewhere public. Referrer-Policy above already stops the
+# token travelling to other origins in a Referer header.
+[[headers]]
+  for = "/attend/*"
+
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
 # ── CORS ─────────────────────────────────────────────────────
 # Scoped to genuinely public, cacheable assets. It is deliberately NOT applied
 # to /* any more: a blanket Access-Control-Allow-Origin: * on every response is
@@ -189,14 +231,40 @@
 # =============================================================
 # Netlify Functions
 #
-# The member portal deliberately does NOT depend on these. All privileged
-# logic lives in Supabase (Postgres functions + RLS), which is what lets the
-# same static bundle work on GitHub Pages, where functions cannot run at all.
+# All privileged logic still lives in Supabase (Postgres functions + RLS),
+# which is what lets the same static bundle work on GitHub Pages, where
+# functions cannot run at all. Only one feature needs a function: an admin's
+# password reset link takes Supabase's service role key, which may only be
+# used server-side, so creating one works only on this deploy (the database
+# still decides who may). Everything else runs from Supabase alone.
 #
-#   keep-supabase-awake  Scheduled (@daily, declared in the file). Calls
-#                        get_app_config with the anon key so a free
-#                        Supabase project never sits idle long enough to
-#                        pause over summer. Runs on published deploys only.
+#   keep-supabase-awake        Scheduled (@daily, declared in the file).
+#                              Calls get_app_config with the anon key so a
+#                              free Supabase project never sits idle long
+#                              enough to pause over summer. Runs on
+#                              published deploys only.
+#                              Reads VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY.
+#
+#   health                     /.netlify/functions/health. A liveness check:
+#                              answers { status: "ok", timestamp } with
+#                              no-store and CORS * (GET, OPTIONS), so it says
+#                              only that Netlify is running this site's
+#                              functions. Never calls Supabase and reads no
+#                              variables. Its limit of 100 requests a minute
+#                              per IP is best effort, kept in one warm
+#                              instance's memory. Nothing in the app calls it.
+#
+#   admin-password-reset-link  POST /.netlify/functions/admin-password-reset-link
+#                              from Admin > Members > (member) >
+#                              Administration. The database checks the
+#                              caller is an admin, using their own session;
+#                              then the service key asks Supabase Auth for a
+#                              single-use recovery token; then the audit log
+#                              records it; only then is the link returned.
+#                              Same-origin only, so it sends no CORS headers.
+#                              Reads VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY,
+#                              SUPABASE_SERVICE_ROLE_KEY, and VITE_SITE_URL
+#                              (optional; the request's origin otherwise).
 # =============================================================
 [functions]
   directory = "netlify/functions"

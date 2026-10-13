@@ -41,6 +41,7 @@ function buildAuthValue(overrides: Partial<AuthContextValue> = {}): AuthContextV
     signUp: async () => ({ needsEmailConfirmation: false }),
     signOut: async () => {},
     requestPasswordReset: async () => {},
+    verifyRecoveryToken: async () => testProfile.id,
     updatePassword: async () => {},
     refreshProfile: async () => {},
     ...overrides,

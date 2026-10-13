@@ -90,7 +90,18 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 /* ── Reusable field schemas ──────────────────────────────────────────────── */
 
-const email = z.email("Enter a valid email address").trim().toLowerCase();
+/*
+ * Trim and lowercase first, then check the format. z.email() checks the raw
+ * input before any .trim() chained after it runs, so the obvious
+ * z.email().trim() turned " ana@wustl.edu" away instead of tidying it.
+ */
+function emailField(maxLength?: number) {
+  const base = z.string().trim().toLowerCase();
+  const bounded = maxLength ? base.max(maxLength, "That email address is too long") : base;
+  return bounded.pipe(z.email("Enter a valid email address"));
+}
+
+const email = emailField();
 
 const password = z
   .string()
@@ -297,6 +308,41 @@ export const joinCodeSchema = z.object({
     .max(24, "That code is too long"),
 });
 export type JoinCodeValues = z.infer<typeof joinCodeSchema>;
+
+/*
+ * Attendance form.
+ *
+ * Any address is accepted, on purpose: guests, alumni and people from other
+ * schools come to events too, and an address outside wustl.edu can still
+ * belong to an account through the manual allowlist, which the browser can't
+ * see. The page suggests a school address instead of requiring one. The same
+ * bounds are enforced again by submit_event_attendance().
+ *
+ * Two wordings of one set of rules: the form speaks to the person checking
+ * in, and an officer adding someone by name is told about "their" name, as
+ * admin_add_attendance_submission() words it.
+ */
+function attendeeSchema(whose: "your" | "their") {
+  return z.object({
+    first_name: z
+      .string()
+      .trim()
+      .min(1, `Enter ${whose} first name`)
+      .max(80, "Use 80 characters or fewer"),
+    last_name: z
+      .string()
+      .trim()
+      .min(1, `Enter ${whose} last name`)
+      .max(80, "Use 80 characters or fewer"),
+    email: emailField(254),
+  });
+}
+
+export const attendanceFormSchema = attendeeSchema("your");
+export type AttendanceFormValues = z.infer<typeof attendanceFormSchema>;
+
+/** The attendance form's rules, for an officer entering someone else. */
+export const addAttendeeSchema = attendeeSchema("their");
 
 export const setJoinCodeSchema = z.object({
   code: z

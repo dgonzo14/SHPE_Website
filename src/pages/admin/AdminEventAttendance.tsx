@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Download, UserPlus } from "lucide-react";
+import { ArrowLeft, Download, UserPen, UserPlus } from "lucide-react";
 
 import { Button, LinkButton } from "@/components/ui/button";
 import {
@@ -29,20 +29,33 @@ import { fetchEvent, fetchEventAttendance } from "@/services/events";
 import { fetchMembers, memberName } from "@/services/members";
 import { addAttendance, removeAttendance } from "@/services/admin";
 import { queryKeys } from "@/services/queryKeys";
-import { csvFilename, downloadCsv, toCsv } from "@/lib/csv";
-import { formatDateTime, formatShortDate, formatTime } from "@/lib/datetime";
+import { csvFilename, downloadCsv } from "@/lib/csv";
+import { formatShortDate, formatTime } from "@/lib/datetime";
 import { checkInErrorMessage, errorText } from "@/lib/errors";
 import { removeAttendanceSchema, type RemoveAttendanceValues } from "@/lib/validation";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import type { EventAttendee } from "@/services/events";
+import { AddByNameDialog } from "@/features/attendance/admin/AddByNameDialog";
+import { AttendanceLinkCard } from "@/features/attendance/admin/AttendanceLinkCard";
+import { WaitingSubmissions } from "@/features/attendance/admin/WaitingSubmissions";
+import { attendanceCsv } from "@/features/attendance/admin/attendanceCsv";
+import { rosterIsLive } from "@/features/attendance/admin/attendanceWindow";
+import { checkInMethodLabel } from "@/features/attendance/admin/labels";
+import {
+  LIVE_REFRESH_MS,
+  useAttendanceLink,
+  useInvalidateEventAttendance,
+  useWaitingSubmissions,
+} from "@/features/attendance/admin/useAttendanceForm";
+import { useNow } from "@/features/attendance/admin/useNow";
 
 export function AdminEventAttendance() {
   const { eventId = "" } = useParams();
   usePageMeta({ title: "Event Attendance | WashU SHPE", noindex: true });
 
   const toast = useToast();
-  const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  const [addByNameOpen, setAddByNameOpen] = useState(false);
   const [memberSearch, setMemberSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState("");
   const [removing, setRemoving] = useState<EventAttendee | null>(null);
@@ -53,11 +66,33 @@ export function AdminEventAttendance() {
     enabled: Boolean(eventId),
   });
 
+  /*
+   * During the check-in window people arrive on the roster and the waiting
+   * list by themselves (the code, the form), and an officer at the door
+   * watches this page to see who's in. So while the window is open, and
+   * briefly after, both refresh every LIVE_REFRESH_MS; react-query skips the
+   * interval while the tab is hidden (refetchIntervalInBackground is off by
+   * default), so a page left in a background tab costs nothing. Outside the
+   * window nothing changes unless an officer changes it, and every action
+   * here refreshes what it touched, so there is nothing to poll for. The clock
+   * ticks so polling starts and stops on time without a reload.
+   */
+  const now = useNow();
+  const live = event.data ? rosterIsLive(event.data, now) : false;
+
   const attendance = useQuery({
     queryKey: queryKeys.events.attendance(eventId),
     queryFn: () => fetchEventAttendance(eventId),
     enabled: Boolean(eventId),
+    refetchInterval: live ? LIVE_REFRESH_MS : false,
   });
+
+  // Shared with the components below through the same query keys, so these
+  // are the same requests, not extra ones. The page reads them for the count,
+  // the CSV and whether the waiting section is worth showing. This is the
+  // waiting list's one polling observer; the link card is the link's.
+  const attendanceLink = useAttendanceLink(eventId);
+  const waiting = useWaitingSubmissions(eventId, { live });
 
   const members = useQuery({
     queryKey: queryKeys.admin.members({ search: memberSearch, status: "active" }),
@@ -70,10 +105,12 @@ export function AdminEventAttendance() {
     [attendance.data],
   );
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.events.attendance(eventId) });
-    void queryClient.invalidateQueries({ queryKey: ["member"] });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.admin.attendanceFeed });
+  const invalidate = useInvalidateEventAttendance(eventId);
+
+  /** From the Add attendee dialog, for the person it turns out has no account. */
+  const switchToAddByName = () => {
+    setAddOpen(false);
+    setAddByNameOpen(true);
   };
 
   const add = useMutation({
@@ -129,23 +166,31 @@ export function AdminEventAttendance() {
   }
 
   const rows = attendance.data ?? [];
+  const waitingRows = waiting.data ?? [];
+  // Shown once the form is in use for this event: with no link and nobody
+  // waiting it would only be an empty box, and the card above explains the
+  // form already.
+  const showWaiting = waitingRows.length > 0 || attendanceLink.data?.has_link === true;
+  // The export is the record of who came, so it waits for the roster and for
+  // the waiting list. The two load separately, and exporting with one still
+  // in flight (or failed) would hand over a file that quietly leaves out
+  // everyone on the other. The waiting list alone may fail without blocking
+  // the roster; the officer is told the file is short instead.
+  const exportReady = attendance.isSuccess && !waiting.isPending;
+  const waitingMissing = waiting.isError && waiting.data === undefined;
 
   const exportCsv = () => {
-    const csv = toCsv(rows, [
-      { header: "Member name", value: (r) => (r.member ? memberName(r.member) : "") },
-      { header: "Email", value: (r) => r.member?.email ?? "" },
-      { header: "Major", value: (r) => r.member?.major ?? "" },
-      { header: "Graduation year", value: (r) => r.member?.graduation_year ?? "" },
-      { header: "Event", value: () => event.data?.title ?? "" },
-      { header: "Category", value: () => event.data?.category?.name ?? "" },
-      { header: "Checked in at", value: (r) => formatDateTime(r.checked_in_at) },
-      { header: "Check-in method", value: (r) => r.check_in_method },
-      { header: "Points awarded", value: () => event.data?.points_value ?? 0 },
-    ]);
+    if (!event.data || !exportReady) return;
     downloadCsv(
-      csvFilename(event.data?.title, "attendance", formatShortDate(event.data?.start_at)),
-      csv,
+      csvFilename(event.data.title, "attendance", formatShortDate(event.data.start_at)),
+      attendanceCsv(event.data, rows, waitingRows),
     );
+    if (waitingMissing) {
+      toast.error(
+        "Some responses aren't in the export",
+        "The form responses waiting for an account didn't load. Reload the page and export again to include them.",
+      );
+    }
   };
 
   return (
@@ -167,7 +212,15 @@ export function AdminEventAttendance() {
               <UserPlus className="h-4 w-4" aria-hidden />
               Add attendee
             </Button>
-            <Button variant="subtle" onClick={exportCsv} disabled={rows.length === 0}>
+            <Button variant="outline" onClick={() => setAddByNameOpen(true)}>
+              <UserPen className="h-4 w-4" aria-hidden />
+              Add by name and email
+            </Button>
+            <Button
+              variant="subtle"
+              onClick={exportCsv}
+              disabled={!exportReady || rows.length + waitingRows.length === 0}
+            >
               <Download className="h-4 w-4" aria-hidden />
               Export CSV
             </Button>
@@ -178,8 +231,16 @@ export function AdminEventAttendance() {
         }
       />
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+      <AttendanceLinkCard event={event.data} className="mb-5" />
+
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Checked in" value={rows.length} />
+        <StatCard
+          label="Waiting for an account"
+          value={waiting.isSuccess ? waitingRows.length : "—"}
+          hint={waitingRows.length > 0 ? "Added once they make an account" : undefined}
+          tone="gold"
+        />
         <StatCard label="Points each" value={event.data.points_value} />
         <StatCard
           label="Capacity"
@@ -195,11 +256,16 @@ export function AdminEventAttendance() {
       ) : rows.length === 0 ? (
         <EmptyState
           title="Nobody has checked in yet"
-          description="Members appear here as they enter the event code. You can also add someone manually."
+          description="Members appear here as they enter the event code or fill in the attendance form. You can also add someone yourself: a member from their account, or anyone by name and email."
           action={
-            <Button variant="outline" onClick={() => setAddOpen(true)}>
-              Add attendee
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setAddOpen(true)}>
+                Add attendee
+              </Button>
+              <Button variant="outline" onClick={() => setAddByNameOpen(true)}>
+                Add by name and email
+              </Button>
+            </div>
           }
         />
       ) : (
@@ -234,7 +300,7 @@ export function AdminEventAttendance() {
                     <Td className="whitespace-nowrap text-gray-700">
                       {formatTime(row.checked_in_at)}
                     </Td>
-                    <Td className="capitalize text-gray-700">{row.check_in_method}</Td>
+                    <Td className="text-gray-700">{checkInMethodLabel(row.check_in_method)}</Td>
                     <Td className="text-gray-700">{event.data?.points_value}</Td>
                     <Td className="text-right">
                       <Button variant="ghost" size="sm" onClick={() => setRemoving(row)}>
@@ -256,7 +322,7 @@ export function AdminEventAttendance() {
                   </p>
                   <p className="text-sm text-gray-600">{row.member?.email}</p>
                   <p className="mt-1 text-sm text-gray-600">
-                    {formatTime(row.checked_in_at)} · {row.check_in_method}
+                    {formatTime(row.checked_in_at)} · {checkInMethodLabel(row.check_in_method)}
                   </p>
                   <Button
                     variant="ghost"
@@ -271,6 +337,10 @@ export function AdminEventAttendance() {
             ))}
           </ul>
         </>
+      )}
+
+      {showWaiting && (
+        <WaitingSubmissions event={event.data} checkedInIds={alreadyIn} className="mt-8" />
       )}
 
       {/* ── Add attendee ─────────────────────────────────────────────── */}
@@ -330,8 +400,22 @@ export function AdminEventAttendance() {
               No matching active members who aren't already checked in.
             </Alert>
           )}
+
+          {/* Where an officer looking for a newcomer ends up, so the way to
+              add someone without an account is offered right here too. */}
+          <p className="text-sm text-gray-600">
+            No account yet?{" "}
+            <Button variant="ghost" size="sm" className="px-1" onClick={switchToAddByName}>
+              Add them by name and email
+            </Button>
+          </p>
         </div>
       </Dialog>
+
+      {/* ── Add by name and email ────────────────────────────────────── */}
+      {addByNameOpen && (
+        <AddByNameDialog eventId={eventId} onClose={() => setAddByNameOpen(false)} />
+      )}
 
       {/* ── Remove attendance ────────────────────────────────────────── */}
       <Dialog
