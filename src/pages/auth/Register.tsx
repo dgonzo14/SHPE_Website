@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -23,11 +23,36 @@ import { ALLOWED_EMAIL_DOMAINS } from "@/lib/config";
 import { describeError } from "@/lib/errors";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
+/**
+ * What another page may hand over when it sends someone here. The attendance
+ * form passes the name and address just typed, so a newcomer who checked in
+ * creates their account without typing them again, and with the address their
+ * check-in is waiting on. Router state, not the query string: it stays out of
+ * the address bar, history and logs.
+ */
+export interface RegisterLocationState {
+  prefill?: { first_name?: string; last_name?: string; email?: string };
+}
+
+/** Only strings, whatever arrived: router state can be anything. */
+function readPrefill(state: unknown): { first_name: string; last_name: string; email: string } {
+  const prefill = (state as RegisterLocationState | null)?.prefill;
+  const text = (value: unknown) => (typeof value === "string" ? value : "");
+  return {
+    first_name: text(prefill?.first_name),
+    last_name: text(prefill?.last_name),
+    email: text(prefill?.email),
+  };
+}
+
 export function Register() {
   usePageMeta({ title: "Create Account | WashU SHPE", noindex: true });
 
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Read once: useForm takes its defaults on the first render only.
+  const [prefill] = useState(() => readPrefill(location.state));
   const [formError, setFormError] = useState<string | null>(null);
   // True once the sign-up has been rate limited at least once and is waiting.
   const [queued, setQueued] = useState(false);
@@ -40,9 +65,9 @@ export function Register() {
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      first_name: "",
-      last_name: "",
-      email: "",
+      first_name: prefill.first_name,
+      last_name: prefill.last_name,
+      email: prefill.email,
       password: "",
       confirm_password: "",
       major: "",

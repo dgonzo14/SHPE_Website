@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  attendanceFormSchema,
   blankToNull,
   checkInSchema,
   emailDomainIssue,
@@ -257,6 +258,111 @@ describe("check-in code entry", () => {
 
   it("rejects something far too short to be a code", () => {
     expect(checkInSchema.safeParse({ code: "ab" }).success).toBe(false);
+  });
+});
+
+describe("attendanceFormSchema", () => {
+  const response = {
+    first_name: "Ana",
+    last_name: "Rivera",
+    email: "ana.rivera@wustl.edu",
+  };
+
+  it("accepts a complete response", () => {
+    expect(attendanceFormSchema.safeParse(response).success).toBe(true);
+  });
+
+  /*
+   * What the schema hands on is what gets stored and matched against
+   * profiles.email_normalized, so tidying has to happen here: a stray space
+   * from a phone keyboard would otherwise sit in an officer's roster.
+   */
+  it("trims the names and lowercases the email", () => {
+    const result = attendanceFormSchema.safeParse({
+      first_name: "  Ana ",
+      last_name: " Rivera  ",
+      email: "Ana.Rivera@WUSTL.edu",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual({
+        first_name: "Ana",
+        last_name: "Rivera",
+        email: "ana.rivera@wustl.edu",
+      });
+    }
+  });
+
+  /*
+   * The space has to go before the format is checked. z.email() checks the raw
+   * input before any .trim() chained after it runs, so the address below used to
+   * be turned away as invalid. Browsers strip it from type="email" inputs, but
+   * a paste into a plain field or an autofill doesn't always.
+   */
+  it("tidies an email address with surrounding spaces instead of rejecting it", () => {
+    const result = attendanceFormSchema.safeParse({ ...response, email: "  Ana@WUSTL.edu " });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.email).toBe("ana@wustl.edu");
+  });
+
+  /*
+   * No domain rule, on purpose. Guests and people from other schools come to
+   * events, and an outside address can still belong to an account through the
+   * manual allowlist, which the browser can't see. The page suggests a school
+   * address instead of requiring one.
+   */
+  it("accepts an address outside wustl.edu", () => {
+    for (const address of ["ana@gmail.com", "ana@slu.edu", "ana.rivera@alumni.wustl.edu"]) {
+      expect(
+        attendanceFormSchema.safeParse({ ...response, email: address }).success,
+        `expected ${address} to be accepted`,
+      ).toBe(true);
+    }
+  });
+
+  it("rejects a blank or whitespace-only name", () => {
+    for (const field of ["first_name", "last_name"] as const) {
+      for (const blank of ["", "   "]) {
+        const result = attendanceFormSchema.safeParse({ ...response, [field]: blank });
+        expect(result.success, `expected ${field} "${blank}" to be rejected`).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues.some((i) => i.path.includes(field))).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("allows names up to 80 characters, the database's limit, and no more", () => {
+    const eighty = "A".repeat(80);
+    expect(
+      attendanceFormSchema.safeParse({ ...response, first_name: eighty, last_name: eighty }).success,
+    ).toBe(true);
+    expect(
+      attendanceFormSchema.safeParse({ ...response, first_name: `${eighty}A` }).success,
+    ).toBe(false);
+    expect(
+      attendanceFormSchema.safeParse({ ...response, last_name: `${eighty}A` }).success,
+    ).toBe(false);
+  });
+
+  it("rejects something that is not an email address", () => {
+    for (const bad of ["", "ana", "ana@", "@wustl.edu", "ana@wustl", "ana rivera@wustl.edu"]) {
+      expect(
+        attendanceFormSchema.safeParse({ ...response, email: bad }).success,
+        `expected "${bad}" to be rejected`,
+      ).toBe(false);
+    }
+  });
+
+  it("rejects an address longer than the database will store", () => {
+    const result = attendanceFormSchema.safeParse({
+      ...response,
+      email: `${"a".repeat(245)}@wustl.edu`,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((i) => i.message)).toContain("That email address is too long");
+    }
   });
 });
 

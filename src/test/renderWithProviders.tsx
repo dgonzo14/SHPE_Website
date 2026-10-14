@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { render } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, type MemoryRouterProps } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { AuthContext, type AuthContextValue } from "@/auth/authContext";
@@ -41,6 +41,7 @@ function buildAuthValue(overrides: Partial<AuthContextValue> = {}): AuthContextV
     signUp: async () => ({ needsEmailConfirmation: false }),
     signOut: async () => {},
     requestPasswordReset: async () => {},
+    verifyRecoveryToken: async () => testProfile.id,
     updatePassword: async () => {},
     refreshProfile: async () => {},
     ...overrides,
@@ -55,9 +56,12 @@ function buildAuthValue(overrides: Partial<AuthContextValue> = {}): AuthContextV
  * Retries are off: a test asserting an error path should not wait for two
  * silent retries first.
  */
+/** A path, or a path with the router state a page was sent there with. */
+type Route = NonNullable<MemoryRouterProps["initialEntries"]>[number];
+
 export function renderWithProviders(
   ui: ReactElement,
-  options: { auth?: Partial<AuthContextValue>; route?: string } = {},
+  options: { auth?: Partial<AuthContextValue>; route?: Route } = {},
 ) {
   const queryClient = new QueryClient({
     defaultOptions: {

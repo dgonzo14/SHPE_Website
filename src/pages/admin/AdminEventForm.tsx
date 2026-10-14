@@ -427,6 +427,10 @@ export function AdminEventForm() {
                     <KeyRound className="h-4 w-4" aria-hidden />
                     {hasCode ? "Rotate code" : "Generate code"}
                   </Button>
+                  <p className="text-sm text-gray-600">
+                    For people without an account, the attendance form's link and QR code are on
+                    the <Link to={`/admin/attendance/${eventId}`}>attendance page</Link>.
+                  </p>
                 </CardBody>
               </Card>
             )}

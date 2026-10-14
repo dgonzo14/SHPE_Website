@@ -152,4 +152,131 @@ describe("AdminAuditLog", () => {
       expect(fetchAuditLog).toHaveBeenLastCalledWith({ action: "card.hidden", limit: 200 }),
     );
   });
+
+  /*
+   * A reset link is a key to someone's account, so its row has to say whose
+   * and which address at a glance. The link itself is never recorded.
+   */
+  it("says whose password reset link was created, and for which address", async () => {
+    // Keys in jsonb's order, as the database returns them.
+    fetchAuditLog.mockResolvedValue([
+      entry("member.password_reset_link_created", {
+        email: "junk.signup@wustl.edu",
+        display_name: "Junk Signup",
+      }),
+      entry("attendance.submission_deleted", {
+        email: "rosa@gmail.com",
+        event_title: "General Meeting",
+        display_name: "Rosa Rios",
+      }),
+      entry("attendance.submission_linked", {
+        email: "rosa@gmail.com",
+        member_id: MEMBER_ID,
+        event_title: "General Meeting",
+        display_name: "Rosa Ríos",
+        points_awarded: 10,
+      }),
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<AdminAuditLog />, { route: "/admin/audit-log" });
+    await screen.findByRole("table");
+
+    expect(detailsFor("Password reset link created")).toBe(
+      "Member: Junk Signup · Email: junk.signup@wustl.edu",
+    );
+    expect(detailsFor("Form response deleted")).toBe(
+      "Name: Rosa Rios · Email: rosa@gmail.com · Event: General Meeting",
+    );
+    expect(detailsFor("Form response linked to a member")).toBe(
+      "Member: Rosa Ríos · Email on the form: rosa@gmail.com · Event: General Meeting · Points awarded: 10",
+    );
+    expect(document.body).not.toHaveTextContent(MEMBER_ID);
+
+    const select = screen.getByLabelText("Action");
+    expect(
+      within(select).getByRole("option", { name: "Password reset link created" }),
+    ).toBeInTheDocument();
+    await user.selectOptions(select, "Password reset link created");
+    await waitFor(() =>
+      expect(fetchAuditLog).toHaveBeenLastCalledWith({
+        action: "member.password_reset_link_created",
+        limit: 200,
+      }),
+    );
+  });
+
+  /*
+   * Someone an officer typed in is a name and an address, not necessarily a
+   * member, so the row says "Name" rather than "Member". A bulk delete says
+   * how many went. A match made when an account appeared is the system's.
+   */
+  it("describes the attendance form's officer and system actions", async () => {
+    // Keys in jsonb's order, as the database returns them.
+    fetchAuditLog.mockResolvedValue([
+      entry("attendance.submission_added", {
+        email: "rosa@gmail.com",
+        event_title: "General Meeting",
+        display_name: "Rosa Rios",
+        points_awarded: 0,
+      }),
+      entry("attendance.submissions_deleted", {
+        count: 12,
+        event_title: "General Meeting",
+      }),
+      {
+        ...entry("attendance.claimed", {
+          member_id: MEMBER_ID,
+          event_title: "General Meeting",
+          display_name: "Rosa Ríos",
+          points_awarded: 10,
+        }),
+        actor_id: null,
+        actor: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<AdminAuditLog />, { route: "/admin/audit-log" });
+    await screen.findByRole("table");
+
+    expect(detailsFor("Attendee added by name and email")).toBe(
+      "Name: Rosa Rios · Email: rosa@gmail.com · Event: General Meeting · Points awarded: 0",
+    );
+    expect(detailsFor("Form responses from a replaced link deleted")).toBe(
+      "Responses: 12 · Event: General Meeting",
+    );
+    expect(detailsFor("Form attendance matched to an account")).toBe(
+      "Member: Rosa Ríos · Event: General Meeting · Points awarded: 10",
+    );
+    const claimedRow = within(screen.getByRole("table"))
+      .getByText("Form attendance matched to an account")
+      .closest("tr") as HTMLElement;
+    expect(within(claimedRow).getAllByRole("cell")[2]).toHaveTextContent(/^System$/);
+    expect(document.body).not.toHaveTextContent(MEMBER_ID);
+
+    const select = screen.getByLabelText("Action");
+    for (const label of [
+      "Attendee added by name and email",
+      "Form responses from a replaced link deleted",
+      "Form attendance matched to an account",
+      "Form response linked to a member",
+      "Form response deleted",
+    ]) {
+      expect(within(select).getByRole("option", { name: label })).toBeInTheDocument();
+    }
+
+    await user.selectOptions(select, "Attendee added by name and email");
+    await waitFor(() =>
+      expect(fetchAuditLog).toHaveBeenLastCalledWith({
+        action: "attendance.submission_added",
+        limit: 200,
+      }),
+    );
+    await user.selectOptions(select, "Form responses from a replaced link deleted");
+    await waitFor(() =>
+      expect(fetchAuditLog).toHaveBeenLastCalledWith({
+        action: "attendance.submissions_deleted",
+        limit: 200,
+      }),
+    );
+  });
 });

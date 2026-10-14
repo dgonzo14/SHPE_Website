@@ -48,6 +48,9 @@ const METADATA_LABELS: Record<string, string> = {
   count: "Count",
   skipped_count: "Skipped",
   published: "Published",
+  // Password reset links and attendance form responses. The address matters
+  // in both: it's the one the link resets, or the one typed on the form.
+  email: "Email",
 };
 
 /**
@@ -61,6 +64,16 @@ const ACTION_METADATA_LABELS: Record<string, Record<string, string | null>> = {
   "card.handle_reset": { handle: null },
   "card.bulk_created": { count: "Cards" },
   "card.chips_written": { count: "Chips" },
+  // A deleted response never reached a member: the name is whatever was typed.
+  "attendance.submission_deleted": { display_name: "Name" },
+  // Likewise someone an officer typed in: they may have no account. The points
+  // are what a matching account was given, so 0 usually means none matched and
+  // the response is waiting (or they were already on the roster).
+  "attendance.submission_added": { display_name: "Name" },
+  "attendance.submissions_deleted": { count: "Responses" },
+  // The member it was linked to, and the address on the form, which may not
+  // be theirs -- that mismatch is usually why it needed linking by hand.
+  "attendance.submission_linked": { email: "Email on the form" },
 };
 
 function formatMetadataValue(value: unknown): string {

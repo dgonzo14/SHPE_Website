@@ -93,6 +93,24 @@ interface PostgrestLike {
   status?: unknown;
 }
 
+/**
+ * An error whose message is already written for the person reading it.
+ *
+ * For code that talks to something other than PostgREST -- a Netlify function,
+ * say -- and so has no SQLSTATE for describeError to recognise. Throwing one of
+ * these says "show this as is" rather than falling back to "Something went
+ * wrong".
+ */
+export class UserFacingError extends Error {
+  readonly detail?: string;
+
+  constructor(title: string, detail?: string) {
+    super(title);
+    this.name = "UserFacingError";
+    this.detail = detail;
+  }
+}
+
 function asPostgrestLike(error: unknown): PostgrestLike {
   return typeof error === "object" && error !== null ? (error as PostgrestLike) : {};
 }
@@ -109,6 +127,10 @@ export function describeError(error: unknown, fallback = "Something went wrong")
 
   if (import.meta.env.DEV) {
     console.error("[shpe]", error);
+  }
+
+  if (error instanceof UserFacingError) {
+    return error.detail ? { title: error.message, detail: error.detail } : { title: error.message };
   }
 
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
@@ -141,6 +163,20 @@ export function describeError(error: unknown, fallback = "Something went wrong")
     return {
       title: "Too many attempts",
       detail: "Wait a minute before trying again.",
+    };
+  }
+  // Refusals from Supabase Auth when setting a new password. Trying again
+  // can't fix either, so say what would.
+  if (code === "same_password") {
+    return {
+      title: "Choose a different password",
+      detail: "It can't be the one you had before.",
+    };
+  }
+  if (code === "weak_password") {
+    return {
+      title: "That password is too easy to guess",
+      detail: "Try a longer one, or mix in words, numbers and symbols.",
     };
   }
   if (/approved email domains/i.test(message)) {

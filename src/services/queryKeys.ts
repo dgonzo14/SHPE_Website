@@ -15,12 +15,19 @@ export const queryKeys = {
 
   eventCategories: ["event-categories"] as const,
 
+  /** The public attendance form, keyed by the token in its link. */
+  attendanceForm: (token: string) => ["attendance-form", token] as const,
+
   events: {
     all: ["events"] as const,
     list: (filters: Record<string, unknown>) => ["events", "list", filters] as const,
     detail: (eventId: string) => ["events", "detail", eventId] as const,
     attendance: (eventId: string) => ["events", "attendance", eventId] as const,
     codeStatus: (eventId: string) => ["events", "code-status", eventId] as const,
+    attendanceLink: (eventId: string) => ["events", "attendance-link", eventId] as const,
+    /** Attendance form responses still waiting for an account. */
+    waitingSubmissions: (eventId: string) =>
+      ["events", "waiting-submissions", eventId] as const,
   },
 
   member: {

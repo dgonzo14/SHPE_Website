@@ -48,6 +48,7 @@ import { activeTerm } from "@/services/content";
 import { removeMemberCardMedia } from "@/services/cards";
 import { MemberCardSummary } from "@/features/cards/admin/MemberCardSummary";
 import { MemberPositionCard } from "@/features/cards/admin/MemberPositionCard";
+import { PasswordResetLinkCard } from "@/features/members/PasswordResetLinkCard";
 import { useScopeOptions, useTerms } from "@/hooks/useTerms";
 import { formatDate, formatShortDate } from "@/lib/datetime";
 import { errorText } from "@/lib/errors";
@@ -516,6 +517,22 @@ export function AdminMemberDetail() {
                 )}
               </CardBody>
             </Card>
+
+            {/*
+              Admin only, and hidden from the admin's own page, like Delete
+              below. admin_password_reset_target() refuses both cases anyway --
+              it calls require_admin() and rejects the caller's own id -- so
+              this is about not offering a button that can only fail. An admin
+              changes their own password from Settings.
+
+              Keyed on the member because this page is not remounted when only
+              the id in the address changes: back or forward to another member
+              whose profile is already cached would otherwise keep the open
+              dialog, and show one member's link under the next one's name.
+            */}
+            {isAdmin && member.id !== user?.id && (
+              <PasswordResetLinkCard key={member.id} member={member} />
+            )}
 
             <MemberPositionCard member={member} />
 

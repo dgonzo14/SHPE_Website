@@ -79,4 +79,34 @@ describe("Register", () => {
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith("/join", { replace: true }));
   });
+
+  /*
+   * The attendance form's "Create an account" hands over what was just typed,
+   * so a newcomer only has to choose a password, and the account is made with
+   * the address their check-in is waiting on.
+   */
+  it("starts from the name and address the attendance form passes along", () => {
+    renderWithProviders(<Register />, {
+      route: {
+        pathname: "/register",
+        state: {
+          prefill: { first_name: "Ana", last_name: "Rivera", email: "ana.rivera@wustl.edu" },
+        },
+      },
+    });
+
+    expect(screen.getByLabelText(/first name/i)).toHaveValue("Ana");
+    expect(screen.getByLabelText(/last name/i)).toHaveValue("Rivera");
+    expect(screen.getByLabelText(/washu email/i)).toHaveValue("ana.rivera@wustl.edu");
+    expect(screen.getByLabelText(/^password/i)).toHaveValue("");
+  });
+
+  it("ignores handed-over values that aren't text", () => {
+    renderWithProviders(<Register />, {
+      route: { pathname: "/register", state: { prefill: { first_name: 42, email: { x: 1 } } } },
+    });
+
+    expect(screen.getByLabelText(/first name/i)).toHaveValue("");
+    expect(screen.getByLabelText(/washu email/i)).toHaveValue("");
+  });
 });
