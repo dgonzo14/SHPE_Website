@@ -72,6 +72,36 @@ export function sanitiseFilterValue(value: string): string {
   return value.trim().replace(/["\\]/g, "");
 }
 
+const MEMBER_SEARCH_COLUMNS = ["first_name", "last_name", "email", "major"] as const;
+
+/**
+ * One .or() expression per word of a member search. A member matches when
+ * every word is in at least one of the columns, in any order.
+ *
+ * Matching the whole search against each column found nobody by full name:
+ * "Ana Rivera" is in neither first_name ("Ana") nor last_name ("Rivera"), so
+ * the list emptied the moment an officer typed past the first name. Commas
+ * split words too, so "Rivera, Ana" works the same way.
+ *
+ * .or() takes a raw PostgREST filter expression, not a bound parameter, so
+ * a comma in the search term starts a new condition rather than being
+ * matched literally. Searching `zzz,first_name.not.is.null` returned every
+ * member instead of none.
+ *
+ * Double quotes make the value literal; stripping quotes and backslashes
+ * closes the way back out of that quoting. Row level security still bounds
+ * what can come back either way -- this is about the query meaning what the
+ * caller typed, and about not carrying the pattern to a table whose
+ * policies are laxer.
+ */
+export function memberSearchFilters(search: string): string[] {
+  return search
+    .split(/[\s,]+/)
+    .map(sanitiseFilterValue)
+    .filter(Boolean)
+    .map((word) => MEMBER_SEARCH_COLUMNS.map((column) => `${column}.ilike."%${word}%"`).join(","));
+}
+
 /**
  * Roles are fetched in one extra query and stitched in, rather than one query
  * per member. With a few hundred members that is two round trips instead of
@@ -84,24 +114,8 @@ export async function fetchMembers(filters: MemberListFilters = {}): Promise<Mem
 
   if (status !== "all") query = query.eq("membership_status", status);
   if (graduationYear) query = query.eq("graduation_year", graduationYear);
-  if (search && search.trim()) {
-    /*
-     * .or() takes a raw PostgREST filter expression, not a bound parameter, so
-     * a comma in the search term starts a new condition rather than being
-     * matched literally. Searching `zzz,first_name.not.is.null` returned every
-     * member instead of none.
-     *
-     * Double quotes make the value literal; stripping quotes and backslashes
-     * closes the way back out of that quoting. Row level security still bounds
-     * what can come back either way -- this is about the query meaning what the
-     * caller typed, and about not carrying the pattern to a table whose
-     * policies are laxer.
-     */
-    const term = `"%${sanitiseFilterValue(search)}%"`;
-    query = query.or(
-      `first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},major.ilike.${term}`,
-    );
-  }
+  // Each word is its own `or` parameter, and PostgREST ANDs them.
+  for (const filter of memberSearchFilters(search ?? "")) query = query.or(filter);
 
   const { data, error } = await query.limit(1000);
   if (error) throw error;
