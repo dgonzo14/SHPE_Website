@@ -10,7 +10,7 @@ const SECTION_DESCRIPTIONS: Record<CardSectionId, string> = {
   featured: "The link you star on the Links tab, set apart as a button of its own.",
   links: "Your links and contact details.",
   about: "Your bio.",
-  education: "Your major, minor and class year, from your profile.",
+  education: "Your major, minors and class year, from your profile.",
   // Not the chapter position: that sits under the name in the header whatever
   // this block does, and only the Content tab's toggle turns it off. Saying
   // otherwise sends an officer who wants it gone to the wrong control.

@@ -21,6 +21,7 @@ const validRegistration = {
   major: "Computer Science",
   secondary_major: "",
   minor: "",
+  secondary_minor: "",
   graduation_year: CURRENT_YEAR + 2,
   degree_level: "undergraduate" as const,
   shpe_national_member: false,

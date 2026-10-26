@@ -1,37 +1,45 @@
 -- =============================================================================
--- Profiles: a minor of its own, shown on business cards
+-- Profiles: up to two minors of their own, shown on business cards
 --
 -- Until now a profile had one "Second major or minor" field, stored in
 -- secondary_major, and a business card printed whatever was in it as
 -- "Second major: ...". A member with a minor had to call it a second major on
--- their card, or leave it off. This gives the minor its own column, so a card
--- can show a second major, a minor, or both.
+-- their card, or leave it off. This gives minors columns of their own, two of
+-- them like the majors, so a card can show a second major, one or two minors,
+-- or all of it.
 --
---   * profiles.minor is free text like secondary_major ("Spanish", or
---     "Spanish, Music" for two), written by the member from Profile or at
---     signup. It isn't one of the guarded columns, so members can change it.
---   * handle_new_user() reads 'minor' from the signup metadata, exactly as it
---     reads 'secondary_major'. Nothing else about signup changes.
---   * Cards show the minor under the same switch as the major (show_major):
---     it is part of the education block, like the second major already is.
---     get_public_card() and card_profile_json() add it, and viewModel.ts's
+--   * profiles.minor and profiles.secondary_minor are free text like
+--     secondary_major, written by the member from Profile or at signup. They
+--     aren't guarded columns, so members can change them. Either may be blank
+--     on its own; whatever is filled in shows, in that order.
+--   * handle_new_user() reads 'minor' and 'secondary_minor' from the signup
+--     metadata, exactly as it reads 'secondary_major'. Nothing else about
+--     signup changes.
+--   * Cards show the minors under the same switch as the major (show_major):
+--     they are part of the education block, like the second major already is.
+--     get_public_card() and card_profile_json() add them, and viewModel.ts's
 --     toPreviewCard() mirrors the rule so the editor preview stays honest.
 --     A card whose only education fact is a minor still gets the block.
 --
 -- Existing secondary_major values stay where they are. Some members typed a
 -- minor there, and only they can say which, so they move it themselves; the
--- Profile field now says "Second major" and sits next to a "Minor" field.
+-- Profile field now says "Second major" and sits above "Minor" and
+-- "Second minor".
 -- =============================================================================
 
 alter table public.profiles
-  add column minor text;
+  add column minor           text,
+  add column secondary_minor text;
 
 comment on column public.profiles.minor is
   'Free text, like secondary_major. Shown on the member''s business card under show_major.';
+comment on column public.profiles.secondary_minor is
+  'A second minor, free text. Shown after minor on the member''s business card under show_major.';
 
 
 -- ── Signup ──────────────────────────────────────────────────────────────────
--- Unchanged from 20260906000002 except that it also copies 'minor'.
+-- Unchanged from 20260906000002 except that it also copies 'minor' and
+-- 'secondary_minor'.
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -66,7 +74,7 @@ begin
 
   insert into public.profiles (
     id, email, first_name, last_name,
-    major, secondary_major, minor, graduation_year, degree_level,
+    major, secondary_major, minor, secondary_minor, graduation_year, degree_level,
     shpe_national_member, shpe_national_member_id, linkedin_url,
     membership_status
   )
@@ -78,6 +86,7 @@ begin
     nullif(btrim(v_meta ->> 'major'), ''),
     nullif(btrim(v_meta ->> 'secondary_major'), ''),
     nullif(btrim(v_meta ->> 'minor'), ''),
+    nullif(btrim(v_meta ->> 'secondary_minor'), ''),
     v_grad,
     v_degree,
     -- A signup form can claim membership; it can never claim verification.
@@ -107,7 +116,7 @@ $$;
 
 
 -- ── Cards ───────────────────────────────────────────────────────────────────
--- Both unchanged from 20260914000001 except for the minor.
+-- Both unchanged from 20260914000001 except for the minors.
 
 -- CardProfileFields: the profile facts a card can show, read live.
 create or replace function private.card_profile_json(p public.profiles)
@@ -122,6 +131,7 @@ as $$
     'major',                    p.major,
     'secondary_major',          p.secondary_major,
     'minor',                    p.minor,
+    'secondary_minor',          p.secondary_minor,
     'graduation_year',          p.graduation_year,
     'degree_level',             p.degree_level,
     'member_since',             p.member_since,
@@ -130,7 +140,7 @@ as $$
   );
 $$;
 
---   education  major, second major and minor when show_major; class year when
+--   education  major, second major and minors when show_major; class year when
 --              show_graduation_year; degree level when either; null when
 --              nothing is left
 create or replace function public.get_public_card(p_handle text)
@@ -150,6 +160,7 @@ declare
   v_major     text;
   v_secondary text;
   v_minor     text;
+  v_minor2    text;
   v_year      integer;
   v_degree    public.degree_level;
   v_education jsonb;
@@ -181,16 +192,18 @@ begin
   v_major     := case when v_card.show_major then nullif(btrim(v_profile.major), '') end;
   v_secondary := case when v_card.show_major then nullif(btrim(v_profile.secondary_major), '') end;
   v_minor     := case when v_card.show_major then nullif(btrim(v_profile.minor), '') end;
+  v_minor2    := case when v_card.show_major then nullif(btrim(v_profile.secondary_minor), '') end;
   v_year      := case when v_card.show_graduation_year then v_profile.graduation_year end;
   v_degree    := case when v_card.show_major or v_card.show_graduation_year
                       then v_profile.degree_level end;
   v_education := case
                    when v_major is not null or v_secondary is not null or v_minor is not null
-                        or v_year is not null
+                        or v_minor2 is not null or v_year is not null
                      then jsonb_build_object(
                             'major',           v_major,
                             'secondary_major', v_secondary,
                             'minor',           v_minor,
+                            'secondary_minor', v_minor2,
                             'graduation_year', v_year,
                             'degree_level',    v_degree)
                  end;

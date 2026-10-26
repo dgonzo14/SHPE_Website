@@ -65,6 +65,7 @@ export function Profile() {
       major: "",
       secondary_major: "",
       minor: "",
+      secondary_minor: "",
       graduation_year: undefined,
       degree_level: undefined,
       linkedin_url: "",
@@ -82,6 +83,7 @@ export function Profile() {
       major: profile.major ?? "",
       secondary_major: profile.secondary_major ?? "",
       minor: profile.minor ?? "",
+      secondary_minor: profile.secondary_minor ?? "",
       graduation_year: profile.graduation_year ?? undefined,
       degree_level: profile.degree_level ?? undefined,
       linkedin_url: profile.linkedin_url ?? "",
@@ -101,6 +103,7 @@ export function Profile() {
         major: blankToNull(values.major),
         secondary_major: blankToNull(values.secondary_major),
         minor: blankToNull(values.minor),
+        secondary_minor: blankToNull(values.secondary_minor),
         graduation_year: values.graduation_year ?? null,
         degree_level: values.degree_level ?? null,
         linkedin_url: blankToNull(values.linkedin_url),
@@ -194,15 +197,21 @@ export function Profile() {
               </Field>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Major" error={errors.major?.message}>
                 {(props) => <Input {...props} {...register("major")} />}
               </Field>
               <Field label="Second major" error={errors.secondary_major?.message}>
                 {(props) => <Input {...props} {...register("secondary_major")} />}
               </Field>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Minor" error={errors.minor?.message}>
                 {(props) => <Input {...props} {...register("minor")} />}
+              </Field>
+              <Field label="Second minor" error={errors.secondary_minor?.message}>
+                {(props) => <Input {...props} {...register("secondary_minor")} />}
               </Field>
             </div>
 

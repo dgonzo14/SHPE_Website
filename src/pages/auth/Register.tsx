@@ -73,6 +73,7 @@ export function Register() {
       major: "",
       secondary_major: "",
       minor: "",
+      secondary_minor: "",
       graduation_year: new Date().getFullYear() + 1,
       degree_level: "undergraduate",
       shpe_national_member: false,
@@ -196,16 +197,21 @@ export function Register() {
             </Field>
           </div>
 
-          <Field label="Major" required error={errors.major?.message}>
-            {(props) => <Input {...props} {...register("major")} />}
-          </Field>
-
           <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Major" required error={errors.major?.message}>
+              {(props) => <Input {...props} {...register("major")} />}
+            </Field>
             <Field label="Second major" hint="Optional" error={errors.secondary_major?.message}>
               {(props) => <Input {...props} {...register("secondary_major")} />}
             </Field>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Minor" hint="Optional" error={errors.minor?.message}>
               {(props) => <Input {...props} {...register("minor")} />}
+            </Field>
+            <Field label="Second minor" hint="Optional" error={errors.secondary_minor?.message}>
+              {(props) => <Input {...props} {...register("secondary_minor")} />}
             </Field>
           </div>
 

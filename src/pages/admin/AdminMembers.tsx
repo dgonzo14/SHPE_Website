@@ -67,6 +67,7 @@ export function AdminMembers() {
       { header: "Major", value: (m) => m.major ?? "" },
       { header: "Second major", value: (m) => m.secondary_major ?? "" },
       { header: "Minor", value: (m) => m.minor ?? "" },
+      { header: "Second minor", value: (m) => m.secondary_minor ?? "" },
       { header: "Graduation year", value: (m) => m.graduation_year ?? "" },
       { header: "Degree level", value: (m) => m.degree_level ?? "" },
       { header: "Membership status", value: (m) => m.membership_status },

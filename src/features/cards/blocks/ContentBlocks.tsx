@@ -79,15 +79,17 @@ export function AboutBlock({ bio }: { bio: string | null }) {
 }
 
 /**
- * Major and class year ("Computer Science ’27"), a second major, a minor, and
- * the degree. Read live from the profile; the database (or the editor's preview
- * model) has already dropped anything the member chose not to show.
+ * Major and class year ("Computer Science ’27"), a second major, up to two
+ * minors on one line ("Minors: Spanish and Music"), and the degree. Read live
+ * from the profile; the database (or the editor's preview model) has already
+ * dropped anything the member chose not to show.
  */
 export function EducationBlock({ education }: { education: PublicCardData["education"] }) {
   if (!education) return null;
-  const { major, secondary_major: secondary, minor, graduation_year: year, degree_level: degree } =
-    education;
-  if (!major && !secondary && !minor && !year) return null;
+  const { major, secondary_major: secondary, graduation_year: year, degree_level: degree } = education;
+  // Either minor may be the one filled in.
+  const minors = [education.minor, education.secondary_minor].filter((m): m is string => Boolean(m));
+  if (!major && !secondary && minors.length === 0 && !year) return null;
 
   const main = major
     ? [major, year ? shortClassYear(year) : null].filter(Boolean).join(" ")
@@ -96,7 +98,7 @@ export function EducationBlock({ education }: { education: PublicCardData["educa
       : null;
   const details = [
     secondary ? `Second major: ${secondary}` : null,
-    minor ? `Minor: ${minor}` : null,
+    minors.length > 0 ? `${minors.length > 1 ? "Minors" : "Minor"}: ${minors.join(" and ")}` : null,
     degreeLabel(degree),
   ].filter((part): part is string => Boolean(part));
 
