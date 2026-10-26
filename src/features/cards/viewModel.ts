@@ -143,7 +143,7 @@ export function formValuesToInput(values: CardFormValues): {
 /**
  * The renderer's input for the editor preview. Mirrors get_public_card():
  *
- *   education  major and second major when show_major; class year when
+ *   education  major, second major and minor when show_major; class year when
  *              show_graduation_year; degree level when either is on; null when
  *              nothing is left to show.
  *   shpe       the officer-assigned position when show_chapter_position; member
@@ -161,11 +161,12 @@ export function toPreviewCard(
   // Blank counts as absent, exactly as get_public_card() does with nullif(btrim()).
   const major = card.show_major ? blank(profile.major ?? "") : null;
   const secondary = card.show_major ? blank(profile.secondary_major ?? "") : null;
+  const minor = card.show_major ? blank(profile.minor ?? "") : null;
   const year = card.show_graduation_year ? profile.graduation_year : null;
   const degree = card.show_major || card.show_graduation_year ? profile.degree_level : null;
   const education =
-    major !== null || secondary !== null || year !== null
-      ? { major, secondary_major: secondary, graduation_year: year, degree_level: degree }
+    major !== null || secondary !== null || minor !== null || year !== null
+      ? { major, secondary_major: secondary, minor, graduation_year: year, degree_level: degree }
       : null;
 
   return {

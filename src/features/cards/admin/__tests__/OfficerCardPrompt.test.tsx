@@ -92,6 +92,7 @@ function state(cardValue: MemberCard | null, enabled = true): MyCardState {
       last_name: "Rivera",
       major: "Computer Science",
       secondary_major: null,
+      minor: null,
       graduation_year: 2028,
       degree_level: "undergraduate",
       member_since: "2025-08-25",

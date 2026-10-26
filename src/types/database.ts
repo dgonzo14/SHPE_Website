@@ -46,6 +46,7 @@ export interface ProfileRow {
   email: string;
   major: string | null;
   secondary_major: string | null;
+  minor: string | null;
   graduation_year: number | null;
   degree_level: DegreeLevel | null;
   shpe_national_member: NationalMemberStatus;
@@ -66,6 +67,7 @@ export type ProfileSelfUpdate = Partial<
     | "last_name"
     | "major"
     | "secondary_major"
+    | "minor"
     | "graduation_year"
     | "degree_level"
     | "linkedin_url"
@@ -619,6 +621,7 @@ export interface CardProfileFields {
   last_name: string;
   major: string | null;
   secondary_major: string | null;
+  minor: string | null;
   graduation_year: number | null;
   degree_level: DegreeLevel | null;
   member_since: string;
@@ -699,6 +702,7 @@ export interface PublicCardData {
   education: {
     major: string | null;
     secondary_major: string | null;
+    minor: string | null;
     graduation_year: number | null;
     degree_level: DegreeLevel | null;
   } | null;

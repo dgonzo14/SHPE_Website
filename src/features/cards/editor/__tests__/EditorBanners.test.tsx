@@ -51,6 +51,7 @@ function state(card: Partial<MemberCard> | null, overrides: Partial<MyCardState>
       last_name: "Rivera",
       major: null,
       secondary_major: null,
+      minor: null,
       graduation_year: null,
       degree_level: null,
       member_since: "2025-08-25",

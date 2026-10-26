@@ -64,6 +64,7 @@ export function Profile() {
       last_name: "",
       major: "",
       secondary_major: "",
+      minor: "",
       graduation_year: undefined,
       degree_level: undefined,
       linkedin_url: "",
@@ -80,6 +81,7 @@ export function Profile() {
       last_name: profile.last_name,
       major: profile.major ?? "",
       secondary_major: profile.secondary_major ?? "",
+      minor: profile.minor ?? "",
       graduation_year: profile.graduation_year ?? undefined,
       degree_level: profile.degree_level ?? undefined,
       linkedin_url: profile.linkedin_url ?? "",
@@ -98,6 +100,7 @@ export function Profile() {
         last_name: values.last_name,
         major: blankToNull(values.major),
         secondary_major: blankToNull(values.secondary_major),
+        minor: blankToNull(values.minor),
         graduation_year: values.graduation_year ?? null,
         degree_level: values.degree_level ?? null,
         linkedin_url: blankToNull(values.linkedin_url),
@@ -191,12 +194,15 @@ export function Profile() {
               </Field>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <Field label="Major" error={errors.major?.message}>
                 {(props) => <Input {...props} {...register("major")} />}
               </Field>
-              <Field label="Second major or minor" error={errors.secondary_major?.message}>
+              <Field label="Second major" error={errors.secondary_major?.message}>
                 {(props) => <Input {...props} {...register("secondary_major")} />}
+              </Field>
+              <Field label="Minor" error={errors.minor?.message}>
+                {(props) => <Input {...props} {...register("minor")} />}
               </Field>
             </div>
 

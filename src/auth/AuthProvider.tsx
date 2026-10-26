@@ -221,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             last_name: values.last_name,
             major: values.major,
             secondary_major: values.secondary_major ?? "",
+            minor: values.minor ?? "",
             graduation_year: String(values.graduation_year),
             degree_level: values.degree_level,
             shpe_national_member: values.shpe_national_member ? "true" : "false",

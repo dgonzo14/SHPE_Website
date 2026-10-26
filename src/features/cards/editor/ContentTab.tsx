@@ -126,9 +126,10 @@ function HiddenBlockNote({
  * photo and banner, skills and languages, which profile facts to show, and
  * whether search engines may list the card.
  *
- * Profile facts (major, class year, position, National membership) are never
- * typed here. They're read live from the profile and the officers' records,
- * so they can't drift or be self-claimed; this tab only chooses which appear.
+ * Profile facts (major and minor, class year, position, National membership)
+ * are never typed here. They're read live from the profile and the officers'
+ * records, so they can't drift or be self-claimed; this tab only chooses which
+ * appear.
  */
 export function ContentTab({
   form,
@@ -179,6 +180,12 @@ export function ContentTab({
   const photoHidden = !themeShowsPhoto(resolved);
   const bannerHidden = resolved.layout !== "banner";
   const majors = [profile.major, profile.secondary_major].filter(Boolean).join(" and ");
+  // "Computer Science, minor in Spanish." or, with no major, "Minor in Spanish."
+  const studies = profile.minor
+    ? majors
+      ? `${majors}, minor in ${profile.minor}`
+      : `Minor in ${profile.minor}`
+    : majors;
 
   return (
     <div className="space-y-8">
@@ -433,8 +440,8 @@ export function ContentTab({
         <div className="space-y-4">
           <Checkbox
             {...register("show_major")}
-            label="Show my major"
-            description={majors ? `${majors}.` : "Your profile doesn't list a major yet."}
+            label={profile.minor ? "Show my major and minor" : "Show my major"}
+            description={studies ? `${studies}.` : "Your profile doesn't list a major yet."}
           />
           <Checkbox
             {...register("show_graduation_year")}

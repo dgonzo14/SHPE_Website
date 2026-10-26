@@ -79,23 +79,26 @@ export function AboutBlock({ bio }: { bio: string | null }) {
 }
 
 /**
- * Major and class year ("Computer Science ’27"), a second major, and the
- * degree. Read live from the profile; the database (or the editor's preview
+ * Major and class year ("Computer Science ’27"), a second major, a minor, and
+ * the degree. Read live from the profile; the database (or the editor's preview
  * model) has already dropped anything the member chose not to show.
  */
 export function EducationBlock({ education }: { education: PublicCardData["education"] }) {
   if (!education) return null;
-  const { major, secondary_major: secondary, graduation_year: year, degree_level: degree } = education;
-  if (!major && !secondary && !year) return null;
+  const { major, secondary_major: secondary, minor, graduation_year: year, degree_level: degree } =
+    education;
+  if (!major && !secondary && !minor && !year) return null;
 
   const main = major
     ? [major, year ? shortClassYear(year) : null].filter(Boolean).join(" ")
     : year
       ? `Class of ${year}`
       : null;
-  const details = [secondary ? `Second major: ${secondary}` : null, degreeLabel(degree)].filter(
-    (part): part is string => Boolean(part),
-  );
+  const details = [
+    secondary ? `Second major: ${secondary}` : null,
+    minor ? `Minor: ${minor}` : null,
+    degreeLabel(degree),
+  ].filter((part): part is string => Boolean(part));
 
   return (
     <Section id="education" title="Education">

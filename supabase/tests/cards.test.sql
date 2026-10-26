@@ -26,7 +26,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(368);
+select plan(373);
 
 -- ── Fixtures (fictional people only) ────────────────────────────────────────
 
@@ -187,7 +187,7 @@ update public.profiles set membership_status = 'alumni'    where id = 'caca0000-
 update public.profiles set membership_status = 'inactive'  where id = 'caca0000-0000-4000-8000-000000000011';
 
 update public.profiles
-   set graduation_year = 2027, major = 'Computer Science', secondary_major = 'Spanish',
+   set graduation_year = 2027, major = 'Computer Science', secondary_major = 'Spanish', minor = 'Music',
        degree_level = 'undergraduate', shpe_national_member = 'verified'
  where id = 'caca0000-0000-4000-8000-000000000002';
 update public.profiles set graduation_year = 2028 where id = 'caca0000-0000-4000-8000-000000000003';
@@ -568,7 +568,7 @@ select is(public.test_keys((select body -> 'card' from r where label = 'save1'))
     'created_at', 'updated_at']),
   'the card has exactly the MemberCard keys');
 select is(public.test_keys((select body -> 'profile' from r where label = 'save1')),
-  public.test_sorted(array['first_name', 'last_name', 'major', 'secondary_major', 'graduation_year',
+  public.test_sorted(array['first_name', 'last_name', 'major', 'secondary_major', 'minor', 'graduation_year',
                            'degree_level', 'member_since', 'national_member_verified', 'membership_status']),
   'the profile has exactly the CardProfileFields keys');
 select is(public.test_keys((select body -> 'links' -> 0 from r where label = 'save1')),
@@ -654,8 +654,9 @@ select is((select body -> 'card' -> 'links' from r where label = 'pub1'),
                        'value', 'https://jose.example.com', 'is_featured', true)),
   'visible links only, in order -- the hidden phone number never leaves the database');
 select is((select body -> 'card' -> 'education' from r where label = 'pub1'),
-  '{"major": "Computer Science", "secondary_major": "Spanish", "graduation_year": 2027, "degree_level": "undergraduate"}'::jsonb,
-  'education comes live from the profile');
+  '{"major": "Computer Science", "secondary_major": "Spanish", "minor": "Music", "graduation_year": 2027,
+    "degree_level": "undergraduate"}'::jsonb,
+  'education comes live from the profile, second major and minor side by side');
 select is((select body -> 'card' -> 'shpe' from r where label = 'pub1'),
   '{"position": null, "member_since": null, "national_member_verified": true, "is_alumni": false}'::jsonb,
   'the National badge shows only because an officer verified it; member since is opt-in');
@@ -676,6 +677,66 @@ select ok(
       and c -> 'shpe' -> 'national_member_verified' = 'false'::jsonb
      from (select (public.get_public_card('jose-pena')) -> 'card' as c) x),
   'with the toggles off, education is null and the badge is gone');
+
+-- The minor goes with the majors under show_major, and is enough on its own to
+-- keep the education block -- a minor in place of a second major.
+set local role authenticated;
+select public.test_login('caca0000-0000-4000-8000-000000000002');
+select public.save_my_card(public.test_card('jose-pena', '{"show_major":false}'), public.test_my_links());
+set local role anon;
+select public.test_login(null);
+select is((public.get_public_card('jose-pena')) -> 'card' -> 'education',
+  '{"major": null, "secondary_major": null, "minor": null, "graduation_year": 2027,
+    "degree_level": "undergraduate"}'::jsonb,
+  'show_major off hides the minor along with the majors');
+set local role authenticated;
+select public.test_login('caca0000-0000-4000-8000-000000000002');
+select public.save_my_card(public.test_card('jose-pena', '{"show_graduation_year":false}'), public.test_my_links());
+reset role;
+update public.profiles set major = null, secondary_major = null
+ where id = 'caca0000-0000-4000-8000-000000000002';
+set local role anon;
+select public.test_login(null);
+select is((public.get_public_card('jose-pena')) -> 'card' -> 'education',
+  '{"major": null, "secondary_major": null, "minor": "Music", "graduation_year": null,
+    "degree_level": "undergraduate"}'::jsonb,
+  'a minor on its own keeps the education block');
+reset role;
+update public.profiles set minor = '   ' where id = 'caca0000-0000-4000-8000-000000000002';
+set local role anon;
+select is((public.get_public_card('jose-pena')) -> 'card' -> 'education', 'null'::jsonb,
+  'a blank minor counts as absent, as toPreviewCard() treats it');
+reset role;
+update public.profiles set major = 'Computer Science', secondary_major = 'Spanish', minor = 'Music'
+ where id = 'caca0000-0000-4000-8000-000000000002';
+select is(private.card_profile_json(p) ->> 'minor', 'Music', 'the editor reads the minor from the profile')
+  from public.profiles p where p.id = 'caca0000-0000-4000-8000-000000000002';
+
+-- Signup copies the minor from the form, trimmed, blank meaning none.
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+) values
+  ('caca0000-0000-4000-8000-000000000098', '00000000-0000-0000-0000-000000000000', 'authenticated',
+   'authenticated', 'mina.menor@wustl.edu', 'test-not-a-real-hash', now(), now(), now(),
+   '{"provider":"email","providers":["email"]}'::jsonb,
+   '{"first_name":"Mina","last_name":"Menor","major":"Biology","secondary_major":"","minor":"  Music  "}'::jsonb,
+   '', '', '', ''),
+  ('caca0000-0000-4000-8000-000000000099', '00000000-0000-0000-0000-000000000000', 'authenticated',
+   'authenticated', 'nico.nada@wustl.edu', 'test-not-a-real-hash', now(), now(), now(),
+   '{"provider":"email","providers":["email"]}'::jsonb,
+   '{"first_name":"Nico","last_name":"Nada","major":"Biology","minor":""}'::jsonb,
+   '', '', '', '');
+select is(
+  (select array_agg(coalesce(p.minor, '(null)') order by p.id) from public.profiles p
+    where p.id in ('caca0000-0000-4000-8000-000000000098', 'caca0000-0000-4000-8000-000000000099')),
+  array['Music', '(null)'],
+  'signup stores the minor trimmed, and a blank one as null');
+delete from auth.users
+ where id in ('caca0000-0000-4000-8000-000000000098', 'caca0000-0000-4000-8000-000000000099');
+
 set local role authenticated;
 select public.test_login('caca0000-0000-4000-8000-000000000002');
 select public.save_my_card(public.test_card('jose-pena'), public.test_my_links());
