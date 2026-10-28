@@ -19,6 +19,8 @@ const profile: CardProfileFields = {
   last_name: "Rivera",
   major: "Computer Science",
   secondary_major: "Mathematics",
+  minor: "Spanish",
+  secondary_minor: "Music",
   graduation_year: 2028,
   degree_level: "undergraduate",
   member_since: "2025-08-25",
@@ -217,6 +219,8 @@ describe("toPreviewCard", () => {
     expect(preview.education).toEqual({
       major: "Computer Science",
       secondary_major: "Mathematics",
+      minor: "Spanish",
+      secondary_minor: "Music",
       graduation_year: 2028,
       degree_level: "undergraduate",
     });
@@ -229,11 +233,13 @@ describe("toPreviewCard", () => {
     expect(preview.is_starter).toBe(false);
   });
 
-  it("hides the majors without show_major, keeping the year and degree", () => {
+  it("hides the majors and minors without show_major, keeping the year and degree", () => {
     const preview = toPreviewCard(formFor({ show_major: false }), { profile, position: null });
     expect(preview.education).toEqual({
       major: null,
       secondary_major: null,
+      minor: null,
+      secondary_minor: null,
       graduation_year: 2028,
       degree_level: "undergraduate",
     });
@@ -244,9 +250,45 @@ describe("toPreviewCard", () => {
     expect(preview.education).toEqual({
       major: "Computer Science",
       secondary_major: "Mathematics",
+      minor: "Spanish",
+      secondary_minor: "Music",
       graduation_year: null,
       degree_level: "undergraduate",
     });
+  });
+
+  it("shows minors with no second major, and minors on their own", () => {
+    const noSecond = { ...profile, secondary_major: null };
+    expect(toPreviewCard(formFor(), { profile: noSecond, position: null }).education).toMatchObject({
+      major: "Computer Science",
+      secondary_major: null,
+      minor: "Spanish",
+      secondary_minor: "Music",
+    });
+    // A minor is enough to keep the block, as it is in get_public_card(), and
+    // either one will do.
+    const minorOnly = {
+      ...profile,
+      major: null,
+      secondary_major: null,
+      minor: null,
+      graduation_year: null,
+    };
+    expect(toPreviewCard(formFor(), { profile: minorOnly, position: null }).education).toEqual({
+      major: null,
+      secondary_major: null,
+      minor: null,
+      secondary_minor: "Music",
+      graduation_year: null,
+      degree_level: "undergraduate",
+    });
+  });
+
+  it("treats a blank minor as absent", () => {
+    const blankMinors = { ...profile, minor: "   ", secondary_minor: "" };
+    const education = toPreviewCard(formFor(), { profile: blankMinors, position: null }).education;
+    expect(education?.minor).toBeNull();
+    expect(education?.secondary_minor).toBeNull();
   });
 
   it("drops education entirely when both are off, degree level included", () => {
@@ -258,7 +300,14 @@ describe("toPreviewCard", () => {
   });
 
   it("drops education when the profile has nothing left to show", () => {
-    const sparse = { ...profile, major: null, secondary_major: null, graduation_year: null };
+    const sparse = {
+      ...profile,
+      major: null,
+      secondary_major: null,
+      minor: null,
+      secondary_minor: null,
+      graduation_year: null,
+    };
     expect(toPreviewCard(formFor(), { profile: sparse, position: null }).education).toBeNull();
     // Degree level alone is not enough to show the block.
     expect(

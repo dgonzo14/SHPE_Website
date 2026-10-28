@@ -213,6 +213,8 @@ export const registerSchema = z
     confirm_password: z.string(),
     major: z.string().trim().min(1, "Enter your major").max(120),
     secondary_major: optionalText(120),
+    minor: optionalText(120),
+    secondary_minor: optionalText(120),
     graduation_year: graduationYear,
     degree_level: z.enum(["undergraduate", "masters", "phd", "other"], {
       error: "Choose your degree level",
@@ -275,6 +277,8 @@ export const profileSchema = z.object({
   last_name: z.string().trim().min(1, "Enter your last name").max(80),
   major: optionalText(120),
   secondary_major: optionalText(120),
+  minor: optionalText(120),
+  secondary_minor: optionalText(120),
   graduation_year: graduationYear.optional(),
   degree_level: z.enum(["undergraduate", "masters", "phd", "other"]).optional(),
   linkedin_url: optionalProfileUrl,

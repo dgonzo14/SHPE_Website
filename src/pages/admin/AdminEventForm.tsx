@@ -25,6 +25,7 @@ import { useToast } from "@/components/ui/useToast";
 import {
   createEvent,
   fetchEvent,
+  fetchEventAttendance,
   fetchEventCategories,
   updateEvent,
   type EventWritePayload,
@@ -87,6 +88,14 @@ export function AdminEventForm() {
     enabled: isEdit,
   });
 
+  // The roster, shared with the attendance page through the same key. Read here
+  // only to say what a points change will do to the people already on it.
+  const attendance = useQuery({
+    queryKey: queryKeys.events.attendance(eventId ?? ""),
+    queryFn: () => fetchEventAttendance(eventId as string),
+    enabled: isEdit,
+  });
+
   const {
     register,
     handleSubmit,
@@ -140,6 +149,24 @@ export function AdminEventForm() {
 
   const startAt = useWatch({ control, name: "start_at" });
 
+  /*
+   * Saving a new points value moves everyone already checked in to it: the
+   * database posts a correction for each of them (see
+   * 20260920000001_reaward_event_points.sql). Said before saving, because a
+   * change that reaches into members' totals shouldn't be a surprise.
+   */
+  const pointsValue = useWatch({ control, name: "points_value" });
+  const savedPoints = existing.data?.points_value;
+  // Undefined until the roster loads, or if it can't be: unknown, not zero.
+  // The database moves whoever is on it either way, so the warning shows then.
+  const attendeeCount = attendance.data?.length;
+  const pointsWillMove =
+    savedPoints !== undefined &&
+    Number.isInteger(pointsValue) &&
+    pointsValue >= 0 &&
+    pointsValue !== savedPoints &&
+    attendeeCount !== 0;
+
   const toPayload = (values: EventValues): EventWritePayload => ({
     title: values.title,
     description: blankToNull(values.description),
@@ -175,8 +202,25 @@ export function AdminEventForm() {
         : createEvent(payload, user.id);
     },
     onSuccess: (event) => {
-      toast.success(isEdit ? "Event updated" : "Event created");
+      // Undefined when the points changed but the roster never loaded.
+      const moved =
+        isEdit && savedPoints !== undefined && event.points_value !== savedPoints
+          ? attendeeCount
+          : 0;
+      toast.success(
+        isEdit ? "Event updated" : "Event created",
+        moved === undefined
+          ? "Everyone already checked in now has the new value."
+          : moved > 0
+            ? `${moved === 1 ? "1 attendee's" : `${moved} attendees'`} points now match the new value.`
+            : undefined,
+      );
       void queryClient.invalidateQueries({ queryKey: ["events"] });
+      if (moved !== 0) {
+        // Their totals, histories and the officer points pages all changed.
+        void queryClient.invalidateQueries({ queryKey: ["member"] });
+        void queryClient.invalidateQueries({ queryKey: ["admin"] });
+      }
       if (!isEdit) navigate(`/admin/events/${event.id}`, { replace: true });
     },
     onError: (error) => toast.error("We couldn't save the event", errorText(error)),
@@ -365,6 +409,26 @@ export function AdminEventForm() {
                     />
                   )}
                 </Field>
+
+                {pointsWillMove && (
+                  <Alert tone="warning">
+                    {attendeeCount === undefined ? (
+                      <>
+                        Saving moves anyone who has already checked in to {pointsValue} points,
+                        posted as a correction in their point history.
+                        {attendance.isError && " We couldn't load the attendance list to count them."}
+                      </>
+                    ) : (
+                      <>
+                        {attendeeCount === 1
+                          ? "1 member has already checked in."
+                          : `${attendeeCount} members have already checked in.`}{" "}
+                        Saving moves each of them from {savedPoints} to {pointsValue} points, posted
+                        as a correction in their point history.
+                      </>
+                    )}
+                  </Alert>
+                )}
 
                 <Field label="Capacity" hint="Optional" error={errors.capacity?.message}>
                   {(props) => (

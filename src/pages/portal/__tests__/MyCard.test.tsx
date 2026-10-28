@@ -107,6 +107,8 @@ const PROFILE: CardProfileFields = {
   last_name: "Rivera",
   major: "Computer Science",
   secondary_major: null,
+  minor: null,
+  secondary_minor: null,
   graduation_year: 2028,
   degree_level: "undergraduate",
   member_since: "2025-08-25",
@@ -475,6 +477,33 @@ describe("My Card: an existing card", () => {
 
     expect(name).toHaveValue("Ana Rivera");
     expect(screen.getByLabelText("Headline")).toHaveValue("CS student");
+  });
+
+  it("names both minors on the major switch", async () => {
+    setServer({
+      card: memberCard(),
+      links: [LINKEDIN],
+      profile: { ...PROFILE, minor: "Spanish", secondary_minor: "Music" },
+    });
+    renderPage();
+    await screen.findByLabelText(/name on your card/i);
+
+    // The label holds the description too, so its text runs on after the label.
+    expect(screen.getByLabelText(/^Show my major and minors/)).toBeChecked();
+    expect(screen.getByText("Computer Science, minors in Spanish and Music.")).toBeInTheDocument();
+  });
+
+  it("names a lone minor on the major switch, even with no major", async () => {
+    setServer({
+      card: memberCard(),
+      links: [LINKEDIN],
+      profile: { ...PROFILE, major: null, minor: null, secondary_minor: "Music" },
+    });
+    renderPage();
+    await screen.findByLabelText(/name on your card/i);
+
+    expect(screen.getByLabelText(/^Show my major and minor(?!s)/)).toBeInTheDocument();
+    expect(screen.getByText("Minor in Music.")).toBeInTheDocument();
   });
 });
 

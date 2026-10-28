@@ -34,6 +34,9 @@ const METADATA_LABELS: Record<string, string> = {
   newAmount: "New total",
   reversed_points: "Points reversed",
   points_awarded: "Points awarded",
+  // An event's points changing with people already on its roster.
+  members: "Members",
+  net_change: "Net change",
   event_title: "Event",
   key: "Setting",
   invalidated_previous_code: "Replaced an existing code",

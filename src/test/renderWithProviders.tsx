@@ -14,6 +14,8 @@ export const testProfile: ProfileRow = {
   email: "ana.rivera@wustl.edu",
   major: "Computer Science",
   secondary_major: null,
+  minor: null,
+  secondary_minor: null,
   graduation_year: 2028,
   degree_level: "undergraduate",
   shpe_national_member: "self_reported",

@@ -126,9 +126,10 @@ function HiddenBlockNote({
  * photo and banner, skills and languages, which profile facts to show, and
  * whether search engines may list the card.
  *
- * Profile facts (major, class year, position, National membership) are never
- * typed here. They're read live from the profile and the officers' records,
- * so they can't drift or be self-claimed; this tab only chooses which appear.
+ * Profile facts (majors and minors, class year, position, National membership)
+ * are never typed here. They're read live from the profile and the officers'
+ * records, so they can't drift or be self-claimed; this tab only chooses which
+ * appear.
  */
 export function ContentTab({
   form,
@@ -179,6 +180,16 @@ export function ContentTab({
   const photoHidden = !themeShowsPhoto(resolved);
   const bannerHidden = resolved.layout !== "banner";
   const majors = [profile.major, profile.secondary_major].filter(Boolean).join(" and ");
+  const minorList = [profile.minor, profile.secondary_minor].filter(Boolean);
+  const minors = minorList.join(" and ");
+  const minorWord = minorList.length > 1 ? "minors" : "minor";
+  // "Computer Science, minors in Spanish and Music." or, with no major, "Minor in Spanish."
+  const studies = !minors
+    ? majors
+    : majors
+      ? `${majors}, ${minorWord} in ${minors}`
+      : `${minorWord === "minors" ? "Minors" : "Minor"} in ${minors}`;
+  const majorLabel = minors ? `Show my major and ${minorWord}` : "Show my major";
 
   return (
     <div className="space-y-8">
@@ -433,8 +444,8 @@ export function ContentTab({
         <div className="space-y-4">
           <Checkbox
             {...register("show_major")}
-            label="Show my major"
-            description={majors ? `${majors}.` : "Your profile doesn't list a major yet."}
+            label={majorLabel}
+            description={studies ? `${studies}.` : "Your profile doesn't list a major yet."}
           />
           <Checkbox
             {...register("show_graduation_year")}

@@ -47,6 +47,8 @@ function makeCard(overrides: Partial<PublicCardData> = {}): PublicCardData {
     education: {
       major: "Computer Science",
       secondary_major: "Economics",
+      minor: "Spanish",
+      secondary_minor: "Music",
       graduation_year: 2027,
       degree_level: "undergraduate",
     },
@@ -260,6 +262,7 @@ describe("BusinessCard sections", () => {
     expect(screen.getByText("Seeking Summer 2027 internships")).toBeInTheDocument();
     expect(screen.getByText("Computer Science ’27")).toBeInTheDocument();
     expect(screen.getByText("Second major: Economics")).toBeInTheDocument();
+    expect(screen.getByText("Minors: Spanish and Music")).toBeInTheDocument();
     expect(screen.getByText("Undergraduate")).toBeInTheDocument();
     expect(screen.getByText("Member since August 2025")).toBeInTheDocument();
     expect(screen.getByText(/SHPE National member/)).toBeInTheDocument();
@@ -301,10 +304,63 @@ describe("BusinessCard sections", () => {
   it("shows the class year alone when the major is hidden", () => {
     renderCard({
       card: makeCard({
-        education: { major: null, secondary_major: null, graduation_year: 2028, degree_level: null },
+        education: {
+          major: null,
+          secondary_major: null,
+          minor: null,
+          secondary_minor: null,
+          graduation_year: 2028,
+          degree_level: null,
+        },
       }),
     });
     expect(screen.getByText("Class of 2028")).toBeInTheDocument();
+  });
+
+  it("lists the second major, then both minors on one line, then the degree under the major", () => {
+    renderCard();
+    const education = screen.getByRole("heading", { name: "Education" }).closest("section")!;
+    expect([...education.querySelectorAll("p")].map((p) => p.textContent)).toEqual([
+      "Computer Science ’27",
+      "Second major: Economics",
+      "Minors: Spanish and Music",
+      "Undergraduate",
+    ]);
+  });
+
+  it("says Minor, singular, for one minor in either field", () => {
+    const one = (minor: string | null, secondary_minor: string | null): PublicCardData["education"] => ({
+      major: "Computer Science",
+      secondary_major: null,
+      minor,
+      secondary_minor,
+      graduation_year: 2027,
+      degree_level: null,
+    });
+    const { unmount } = renderCard({ card: makeCard({ education: one("Spanish", null) }) });
+    expect(screen.getByText("Minor: Spanish")).toBeInTheDocument();
+    expect(screen.queryByText(/Second major/)).toBeNull();
+    unmount();
+
+    renderCard({ card: makeCard({ education: one(null, "Music") }) });
+    expect(screen.getByText("Minor: Music")).toBeInTheDocument();
+  });
+
+  it("keeps the Education section for minors alone", () => {
+    renderCard({
+      card: makeCard({
+        education: {
+          major: null,
+          secondary_major: null,
+          minor: "Spanish",
+          secondary_minor: "Music",
+          graduation_year: null,
+          degree_level: null,
+        },
+      }),
+    });
+    expect(screen.getByRole("heading", { name: "Education" })).toBeInTheDocument();
+    expect(screen.getByText("Minors: Spanish and Music")).toBeInTheDocument();
   });
 });
 
@@ -838,7 +894,16 @@ describe("BusinessCard professional details", () => {
     const noYear = renderCard({
       card: withTheme(
         { preset: "editorial" },
-        { education: { major: "Computer Science", secondary_major: null, graduation_year: null, degree_level: null } },
+        {
+          education: {
+            major: "Computer Science",
+            secondary_major: null,
+            minor: null,
+            secondary_minor: null,
+            graduation_year: null,
+            degree_level: null,
+          },
+        },
       ),
     });
     const bare = noYear.container.querySelector('[data-part="masthead"]')!;

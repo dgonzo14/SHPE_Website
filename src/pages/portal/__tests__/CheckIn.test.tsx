@@ -144,6 +144,8 @@ describe("CheckIn page", () => {
               email: "ana.rivera@wustl.edu",
               major: null,
               secondary_major: null,
+              minor: null,
+              secondary_minor: null,
               graduation_year: null,
               degree_level: null,
               shpe_national_member: "not_provided",

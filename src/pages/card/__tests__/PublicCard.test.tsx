@@ -74,7 +74,7 @@ function makeCard(overrides: Partial<PublicCardData> = {}): PublicCardData {
     sections: ["status", "links", "education", "shpe"],
     allow_indexing: false,
     is_starter: false,
-    education: { major: "Computer Science", secondary_major: null, graduation_year: 2027, degree_level: "undergraduate" },
+    education: { major: "Computer Science", secondary_major: null, minor: null, secondary_minor: null, graduation_year: 2027, degree_level: "undergraduate" },
     shpe: { position: "President", member_since: null, national_member_verified: false, is_alumni: false },
     links: [
       { id: "l-linkedin", kind: "linkedin", label: null, value: "https://www.linkedin.com/in/diego", is_featured: false },
