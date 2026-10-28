@@ -13,7 +13,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(32);
+select plan(38);
 
 -- ── Fixtures (fictional people only) ────────────────────────────────────────
 
@@ -378,6 +378,66 @@ select ok(
   pg_get_functiondef('public.perform_check_in(uuid, uuid, public.checkin_method, uuid)'::regprocedure)
     ~* 'from public\.events e where e\.id = p_event_id for share',
   'perform_check_in reads the event FOR SHARE, so an edit waits for in-flight check-ins'
+);
+
+
+-- ── Removing someone after a change ─────────────────────────────────────────
+--
+-- Mateo checked in when the meeting was worth 0, so everything he has from it
+-- is corrections: +50, -50, +40.
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+                  '{"sub":"aaaaaaaa-0000-4000-8000-000000000003","role":"authenticated"}',
+                  true);
+
+create temporary table mateo_checkin as
+select id from public.event_attendance
+ where event_id = 'dddddddd-0000-4000-8000-000000000001'
+   and member_id = 'aaaaaaaa-0000-4000-8000-000000000005';
+
+select is(
+  (public.admin_remove_attendance((select id from mateo_checkin), 'Left before it started')
+     ->> 'reversed_points')::int,
+  40,
+  'removing an attendee reverses the corrections a points change posted, not just an award'
+);
+
+select throws_ok(
+  $$select public.admin_remove_attendance((select id from mateo_checkin), 'Removed twice')$$,
+  'P0002',
+  'Attendance record not found',
+  'a check-in that was already removed can''t be removed, and reversed, again'
+);
+
+reset role;
+
+select is(
+  public.test_event_net('aaaaaaaa-0000-4000-8000-000000000005', 'dddddddd-0000-4000-8000-000000000001'),
+  0,
+  'so the member ends at zero for the event, not below it'
+);
+
+-- As with perform_check_in, the races these prevent need a second session, so
+-- the locks themselves are guarded here.
+select ok(
+  pg_get_functiondef('public.admin_remove_attendance(uuid, text)'::regprocedure)
+    ~* 'from public\.events e where e\.id = v_att\.event_id for share',
+  'admin_remove_attendance reads the event FOR SHARE, so it and a points change wait for each other'
+);
+
+select ok(
+  pg_get_functiondef('public.admin_remove_attendance(uuid, text)'::regprocedure)
+    ~* 'delete from public\.event_attendance a where a\.id = p_attendance_id;\s+if not found then',
+  'admin_remove_attendance stops when a removal running alongside it deleted the check-in first'
+);
+
+select ok(
+  position('delete from public.event_attendance'
+           in pg_get_functiondef('public.admin_remove_attendance(uuid, text)'::regprocedure))
+  < position('sum(pt.amount)'
+             in pg_get_functiondef('public.admin_remove_attendance(uuid, text)'::regprocedure)),
+  'admin_remove_attendance sums the ledger after the delete, so it sees what committed while it waited'
 );
 
 
