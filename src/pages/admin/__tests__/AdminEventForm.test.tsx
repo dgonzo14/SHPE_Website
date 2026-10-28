@@ -12,7 +12,8 @@ import type { EventCategoryRow, EventRow } from "@/types/database";
  * Changing an event's points moves everyone already checked in to the new
  * value (the database posts the corrections). The form says so before the
  * officer saves, and only when it's true: the points really changed and
- * someone is on the roster.
+ * someone is on the roster -- or the roster hasn't loaded, so the form can't
+ * say nobody is.
  */
 
 const api = vi.hoisted(() => ({
@@ -162,7 +163,69 @@ describe("AdminEventForm — changing points", () => {
     await user.type(field, "50");
 
     expect(field).toHaveValue(50);
+    // Once the empty roster is in: until then the form can't know it's empty.
+    await waitFor(() =>
+      expect(screen.queryByText(/already checked in/)).not.toBeInTheDocument(),
+    );
+  });
+
+  it("warns about anyone already checked in while the roster is still loading", async () => {
+    api.fetchEventAttendance.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    renderForm();
+
+    const field = await pointsField();
+    await user.clear(field);
+    await user.type(field, "50");
+
+    expect(
+      await screen.findByText(/Saving moves anyone who has already checked in to 50 points/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/couldn't load the attendance list/)).not.toBeInTheDocument();
+  });
+
+  it("still warns, and says why it can't count, when the roster fails to load", async () => {
+    api.fetchEventAttendance.mockRejectedValue(new Error("network down"));
+    const user = userEvent.setup();
+    renderForm();
+
+    const field = await pointsField();
+    await user.clear(field);
+    await user.type(field, "50");
+
+    expect(
+      await screen.findByText(/Saving moves anyone who has already checked in to 50 points/),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(/couldn't load the attendance list to count them/),
+    ).toBeInTheDocument();
+  });
+
+  it("says nothing while the roster loads if the points haven't changed", async () => {
+    api.fetchEventAttendance.mockReturnValue(new Promise(() => {}));
+    renderForm();
+
+    await pointsField();
     expect(screen.queryByText(/already checked in/)).not.toBeInTheDocument();
+  });
+
+  it("after saving without the roster, says everyone moved and refreshes members' points", async () => {
+    api.fetchEventAttendance.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    const { queryClient } = renderForm();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    const field = await pointsField();
+    await user.selectOptions(screen.getByLabelText(/^Category/), CATEGORY.id);
+    await user.clear(field);
+    await user.type(field, "50");
+    await user.click(screen.getByRole("button", { name: /save/i }));
+
+    expect(
+      await screen.findByText(/Everyone already checked in now has the new value/),
+    ).toBeInTheDocument();
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["member"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["admin"] });
   });
 
   it("saves the new value and refreshes members' points", async () => {

@@ -157,13 +157,15 @@ export function AdminEventForm() {
    */
   const pointsValue = useWatch({ control, name: "points_value" });
   const savedPoints = existing.data?.points_value;
-  const attendeeCount = attendance.data?.length ?? 0;
+  // Undefined until the roster loads, or if it can't be: unknown, not zero.
+  // The database moves whoever is on it either way, so the warning shows then.
+  const attendeeCount = attendance.data?.length;
   const pointsWillMove =
     savedPoints !== undefined &&
     Number.isInteger(pointsValue) &&
     pointsValue >= 0 &&
     pointsValue !== savedPoints &&
-    attendeeCount > 0;
+    attendeeCount !== 0;
 
   const toPayload = (values: EventValues): EventWritePayload => ({
     title: values.title,
@@ -200,18 +202,21 @@ export function AdminEventForm() {
         : createEvent(payload, user.id);
     },
     onSuccess: (event) => {
+      // Undefined when the points changed but the roster never loaded.
       const moved =
         isEdit && savedPoints !== undefined && event.points_value !== savedPoints
           ? attendeeCount
           : 0;
       toast.success(
         isEdit ? "Event updated" : "Event created",
-        moved > 0
-          ? `${moved === 1 ? "1 attendee's" : `${moved} attendees'`} points now match the new value.`
-          : undefined,
+        moved === undefined
+          ? "Everyone already checked in now has the new value."
+          : moved > 0
+            ? `${moved === 1 ? "1 attendee's" : `${moved} attendees'`} points now match the new value.`
+            : undefined,
       );
       void queryClient.invalidateQueries({ queryKey: ["events"] });
-      if (moved > 0) {
+      if (moved !== 0) {
         // Their totals, histories and the officer points pages all changed.
         void queryClient.invalidateQueries({ queryKey: ["member"] });
         void queryClient.invalidateQueries({ queryKey: ["admin"] });
@@ -407,11 +412,21 @@ export function AdminEventForm() {
 
                 {pointsWillMove && (
                   <Alert tone="warning">
-                    {attendeeCount === 1
-                      ? "1 member has already checked in."
-                      : `${attendeeCount} members have already checked in.`}{" "}
-                    Saving moves each of them from {savedPoints} to {pointsValue} points, posted
-                    as a correction in their point history.
+                    {attendeeCount === undefined ? (
+                      <>
+                        Saving moves anyone who has already checked in to {pointsValue} points,
+                        posted as a correction in their point history.
+                        {attendance.isError && " We couldn't load the attendance list to count them."}
+                      </>
+                    ) : (
+                      <>
+                        {attendeeCount === 1
+                          ? "1 member has already checked in."
+                          : `${attendeeCount} members have already checked in.`}{" "}
+                        Saving moves each of them from {savedPoints} to {pointsValue} points, posted
+                        as a correction in their point history.
+                      </>
+                    )}
                   </Alert>
                 )}
 
