@@ -222,6 +222,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "event.created": "Event created",
   "event.status_changed": "Event status changed",
   "event.points_changed": "Event points changed",
+  "event.points_reawarded": "Attendees' points moved to the new value",
   "event.deleted": "Event deleted",
   "event.code_generated": "Check-in code generated",
   "event.code_rotated": "Check-in code rotated",
