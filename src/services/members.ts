@@ -1,3 +1,4 @@
+import { foldForSearch } from "@/lib/search";
 import { getSupabase } from "@/lib/supabase";
 import type {
   AppRole,
@@ -62,44 +63,31 @@ export interface MemberListRow extends ProfileRow {
 }
 
 /**
- * Makes a value safe to embed in a PostgREST filter expression.
+ * One ilike pattern per word of a member search, for profiles.search_text: the
+ * member's first name, last name, email and major in one string, lowercased
+ * without accents. A member matches when every word is somewhere in it, in any
+ * order.
  *
- * Exported so it is covered by tests: the failure it prevents is silent. An
- * unsanitised comma does not error, it just quietly widens the result set,
- * which is exactly the kind of bug that survives review.
+ *   * Words, not the whole search: "Ana Rivera" is in neither first_name nor
+ *     last_name alone, so matching the whole string found nobody by full
+ *     name. Commas split words too, so "Rivera, Ana" works the same way.
+ *   * Folded like the column (foldForSearch), so "Munoz" finds Muñoz and
+ *     "Muñoz" finds it too.
+ *   * LIKE's own metacharacters are escaped, so "_" and "%" match themselves
+ *     rather than anything.
+ *
+ * Each pattern goes in an ordinary column filter (search_text=ilike.<pattern>),
+ * whose value PostgREST takes literally. An earlier version built a raw .or()
+ * expression across the four columns, where a comma in the search started a
+ * new condition: `zzz,first_name.not.is.null` returned every member. A single
+ * column has nothing to break out of. Row level security bounds what comes
+ * back either way.
  */
-export function sanitiseFilterValue(value: string): string {
-  return value.trim().replace(/["\\]/g, "");
-}
-
-const MEMBER_SEARCH_COLUMNS = ["first_name", "last_name", "email", "major"] as const;
-
-/**
- * One .or() expression per word of a member search. A member matches when
- * every word is in at least one of the columns, in any order.
- *
- * Matching the whole search against each column found nobody by full name:
- * "Ana Rivera" is in neither first_name ("Ana") nor last_name ("Rivera"), so
- * the list emptied the moment an officer typed past the first name. Commas
- * split words too, so "Rivera, Ana" works the same way.
- *
- * .or() takes a raw PostgREST filter expression, not a bound parameter, so
- * a comma in the search term starts a new condition rather than being
- * matched literally. Searching `zzz,first_name.not.is.null` returned every
- * member instead of none.
- *
- * Double quotes make the value literal; stripping quotes and backslashes
- * closes the way back out of that quoting. Row level security still bounds
- * what can come back either way -- this is about the query meaning what the
- * caller typed, and about not carrying the pattern to a table whose
- * policies are laxer.
- */
-export function memberSearchFilters(search: string): string[] {
-  return search
+export function memberSearchPatterns(search: string): string[] {
+  return foldForSearch(search)
     .split(/[\s,]+/)
-    .map(sanitiseFilterValue)
     .filter(Boolean)
-    .map((word) => MEMBER_SEARCH_COLUMNS.map((column) => `${column}.ilike."%${word}%"`).join(","));
+    .map((word) => `%${word.replace(/[\\%_]/g, "\\$&")}%`);
 }
 
 /**
@@ -114,8 +102,10 @@ export async function fetchMembers(filters: MemberListFilters = {}): Promise<Mem
 
   if (status !== "all") query = query.eq("membership_status", status);
   if (graduationYear) query = query.eq("graduation_year", graduationYear);
-  // Each word is its own `or` parameter, and PostgREST ANDs them.
-  for (const filter of memberSearchFilters(search ?? "")) query = query.or(filter);
+  // One filter per word on the same column; PostgREST ANDs repeated filters.
+  for (const pattern of memberSearchPatterns(search ?? "")) {
+    query = query.ilike("search_text", pattern);
+  }
 
   const { data, error } = await query.limit(1000);
   if (error) throw error;

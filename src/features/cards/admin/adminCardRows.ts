@@ -3,6 +3,7 @@ import { cardUrl } from "@/services/cards";
 import { memberName } from "@/services/members";
 import { toCsv } from "@/lib/csv";
 import { formatDate } from "@/lib/datetime";
+import { foldForSearch } from "@/lib/search";
 import type { AdminCardRow, CardAdminStatus, MembershipStatus } from "@/types/database";
 
 /**
@@ -174,11 +175,6 @@ export function isFallbackHandle(handle: string | null | undefined): boolean {
   return Boolean(handle && FALLBACK_HANDLE.test(handle));
 }
 
-/** Lowercase without accents, so "jose" finds "José" and "pena" finds "Peña". */
-function fold(text: string): string {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-}
-
 /**
  * Every word typed has to appear somewhere in the name, email or handles, so
  * "ana riv" and "rivera ana" both find Ana Rivera. Old handles count: a report
@@ -186,9 +182,9 @@ function fold(text: string): string {
  * holds it.
  */
 export function matchesSearch(row: AdminCardRow, query: string): boolean {
-  const words = fold(query).split(/\s+/).filter(Boolean);
+  const words = foldForSearch(query).split(/\s+/).filter(Boolean);
   if (words.length === 0) return true;
-  const haystack = fold(
+  const haystack = foldForSearch(
     [
       row.first_name,
       row.last_name,
